@@ -11,6 +11,7 @@
 
     <modules>
         <module>chapter-1</module>
+        <module>llm</module>
     </modules>
 
     <properties>

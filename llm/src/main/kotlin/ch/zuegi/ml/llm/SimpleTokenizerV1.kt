@@ -20,43 +20,60 @@ class SimpleTokenizerV1(
         }
 
     fun decode(ids: List<Int>): String {
-        val idToToken = vocab.entries.associate { (token, id) -> id to token }
+        val tokens =
+            ids.map { id ->
+                idToToken[id] ?: error("Unbekannte Token-ID: $id")
+            }
+        return joinTokens(tokens)
+    }
+
+    private fun joinTokens(tokens: List<String>): String {
+        if (tokens.isEmpty()) return ""
 
         val noSpaceBefore = setOf(".", ",", "!", "?", ";", ":", ")", "]", "}", "\"")
-        val noSpaceAfter = setOf("(", "[", "{", "\"")
+        val noSpaceAfter = setOf("(", "[", "{")
 
         val out = StringBuilder()
-        var quoteOpen = false
+        var quoteIsOpen = false
 
-        for (id in ids) {
-            val token = idToToken[id] ?: error("Unbekannte Token-ID: $id")
-
+        for (token in tokens) {
             if (out.isEmpty()) {
                 out.append(token)
-                if (token == "\"") quoteOpen = !quoteOpen
+                if (token == "\"") quoteIsOpen = true
                 continue
             }
 
-            val prevChar = out.last().toString()
+            val prevToken = tokenAtEnd(out)
+
+            val needsSpace =
+                when {
+                    token == "\"" -> !quoteIsOpen && prevToken !in noSpaceAfter
+
+                    // öffnendes Quote meist mit Space davor
+                    token in noSpaceBefore -> false
+
+                    prevToken in noSpaceAfter -> false
+
+                    prevToken == "\"" && quoteIsOpen -> false
+
+                    // direkt nach öffnendem Quote kein Space
+                    else -> true
+                }
+
+            if (needsSpace) out.append(' ')
+            out.append(token)
 
             if (token == "\"") {
-                // Quote direkt anhängen, open/close toggeln
-                out.append(token)
-                quoteOpen = !quoteOpen
-                continue
-            }
-
-            val needsNoSpaceBefore =
-                token in noSpaceBefore || prevChar in noSpaceAfter && quoteOpen
-
-            if (needsNoSpaceBefore) {
-                out.append(token)
-            } else {
-                out.append(' ').append(token)
+                quoteIsOpen = !quoteIsOpen
             }
         }
 
         return out.toString()
+    }
+
+    private fun tokenAtEnd(out: StringBuilder): String {
+        // Wir brauchen nur den letzten sichtbaren "Token-Anker" für Spacing-Regeln.
+        return out.last().toString()
     }
 
     private fun tokenize(rawText: String): List<String> = tokenRegex.findAll(rawText).map { it.value }.toList()

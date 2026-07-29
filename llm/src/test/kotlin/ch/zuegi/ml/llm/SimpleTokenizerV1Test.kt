@@ -5,16 +5,13 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 
 class SimpleTokenizerV1Test {
-    private val trainingText =
-        """
-        "It's the last painted," you know.
-        """.trimIndent()
+    private val trainingText = "\"It's the last painted,\" you know."
 
     @Test
     fun `encode returns ids for known tokens`() {
         val tokenizer = SimpleTokenizerV1(trainingText)
 
-        val ids = tokenizer.encode("It's the last painted,")
+        val ids = tokenizer.encode("\"It's the last painted,\"")
 
         assertThat(ids).isNotEmpty
         assertThat(ids).allMatch { it >= 0 }

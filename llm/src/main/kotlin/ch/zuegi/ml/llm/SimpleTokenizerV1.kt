@@ -20,10 +20,12 @@ class SimpleTokenizerV1(
         }
 
     fun decode(ids: List<Int>): String {
-        val punctuationNoSpaceBefore = setOf(".", ",", "!", "?", ";", ":", ")", "]", "}")
-        val openingBrackets = setOf("(", "[", "{")
-        val out = StringBuilder()
+        val idToToken = vocab.entries.associate { (token, id) -> id to token }
 
+        val noSpaceBefore = setOf(".", ",", "!", "?", ";", ":", ")", "]", "}", "\"")
+        val noSpaceAfter = setOf("(", "[", "{", "\"")
+
+        val out = StringBuilder()
         var quoteOpen = false
 
         for (id in ids) {
@@ -35,31 +37,22 @@ class SimpleTokenizerV1(
                 continue
             }
 
-            val prev = out.last().toString()
+            val prevChar = out.last().toString()
 
-            when {
-                token == "\"" -> {
-                    if (quoteOpen) {
-                        // schliessendes Quote: kein Leerzeichen davor
-                        out.append(token)
-                    } else {
-                        // öffnendes Quote: i.d.R. mit Leerzeichen davor, ausser nach öffnender Klammer
-                        if (prev in openingBrackets) out.append(token) else out.append(' ').append(token)
-                    }
-                    quoteOpen = !quoteOpen
-                }
+            if (token == "\"") {
+                // Quote direkt anhängen, open/close toggeln
+                out.append(token)
+                quoteOpen = !quoteOpen
+                continue
+            }
 
-                token in punctuationNoSpaceBefore -> {
-                    out.append(token)
-                }
+            val needsNoSpaceBefore =
+                token in noSpaceBefore || prevChar in noSpaceAfter && quoteOpen
 
-                prev in openingBrackets || prev == "\"" -> {
-                    out.append(token)
-                }
-
-                else -> {
-                    out.append(' ').append(token)
-                }
+            if (needsNoSpaceBefore) {
+                out.append(token)
+            } else {
+                out.append(' ').append(token)
             }
         }
 

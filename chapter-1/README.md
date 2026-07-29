@@ -2,17 +2,17 @@
 
 <!-- TODO: Beschreibung in pom.xml ergänzen -->
 
-MNIST-Trainingsanwendung mit einem einfachen neuronalen Netz in Kotlin. Das Modul lädt IDX-Dateien aus den Ressourcen, trainiert ein Feedforward-Netz per Mini-Batch-SGD und gibt Accuracy pro Epoche aus.
+MNIST-Trainingsanwendung mit einem einfachen neuronalen Netz in Kotlin. Das Modul lädt IDX-Dateien aus den Ressourcen, trainiert ein Feedforward-Netz per parallelem Mini-Batch-SGD und gibt Accuracy pro Epoche aus.
 
 ## Beschreibung
 
-Dieses Modul enthält den ausführbaren Einstiegspunkt für Kapitel 1 des Lernprojekts. Es implementiert Kernbausteine eines neuronalen Netzes ohne Framework-Abstraktion:
+Dieses Modul enthält den ausführbaren Einstiegspunkt für Kapitel 1. Es implementiert Kernbausteine eines neuronalen Netzes ohne Framework-Abstraktion:
 
+- `Main.kt`: Trainingsparameter, MNIST-Laden, Trainingsstart
 - `Network.kt`: Feedforward, Backpropagation, paralleles Mini-Batch-SGD, Evaluation
 - `MnistLoader.kt`: Laden von MNIST IDX-Bildern und Labels aus `src/main/resources/mnist`
 - `NumKo.kt`: Matrix-/Vektoroperationen für Hot Paths
-- `Sigmoid.kt`: Aktivierungsfunktion und Ableitung
-- `Main.kt`: Trainingskonfiguration und Programmlauf
+- `Sigmoid.kt`: Sigmoid-Aktivierung und Ableitung
 
 ## Getting Started
 
@@ -20,9 +20,9 @@ Voraussetzungen:
 
 - JDK 8 oder neuer
 - Maven 3.8 oder neuer
-- MNIST-Dateien unter `src/main/resources/mnist`
+- MNIST IDX-Dateien unter `src/main/resources/mnist`
 
-Build ab Projektwurzel:
+Tests ausführen:
 
 ```bash
 mvn -pl chapter-1 test
@@ -87,4 +87,4 @@ src/main/kotlin
 
 ## Konfiguration
 
-Keine `application.yml` vorhanden. Laufzeitparameter stehen aktuell direkt in `Main.kt`.
+Keine `application.yml` vorhanden. Laufzeitparameter stehen direkt in `Main.kt`.

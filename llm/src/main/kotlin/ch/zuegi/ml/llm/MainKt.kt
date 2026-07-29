@@ -20,7 +20,7 @@ fun main() {
     println(ids)
     println(tokenizer1.decode(ids))
 
-    // Fehler fall
+    // Fehler Fall: Token nicht im Vokabular: 'Hello'
     val text2 = "Hello, do you like tea?"
     val tokenizer2 = SimpleTokenizerV1(rawText)
     val idList: List<Int> = tokenizer2.encode(text2)

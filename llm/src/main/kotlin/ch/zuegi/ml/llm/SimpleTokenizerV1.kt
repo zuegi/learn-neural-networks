@@ -1,12 +1,17 @@
 package ch.zuegi.ml.llm
 
 class SimpleTokenizerV1(
-    private val rawText: String,
+    rawText: String,
 ) {
-    private val tokenRegex = Regex("""\p{L}+(?:['’\-]\p{L}+)*|[.,!?;:"()]""")
+    private val tokenRegex = Regex("""<\|unk\|>|<\|endoftext\|>|\p{L}+(?:[_'’\-]\p{L}+)*|[.,!?;:"()]""")
     private var tokens: List<String> = emptyList()
     private var vocab: Map<String, Int> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
+
+    companion object {
+        const val UNKNOWN = "<|unk|>"
+        const val ENDOFTEXT = "<|endoftext|>"
+    }
 
     init {
         tokens = tokenize(rawText)
@@ -14,10 +19,10 @@ class SimpleTokenizerV1(
         idToToken = vocab.entries.associate { (token, id) -> id to token }
     }
 
-    fun encode(text: String): List<Int> =
-        tokenize(text).map { token ->
-            vocab[token] ?: error("Token nicht im Vokabular: '$token'")
-        }
+    fun encode(text: String): List<Int> {
+        val unkId = vocab[UNKNOWN] ?: error("UNK-Token fehlt")
+        return tokenize(text).map { token -> vocab[token] ?: unkId }
+    }
 
     fun decode(ids: List<Int>): String {
         val tokens =
@@ -30,7 +35,7 @@ class SimpleTokenizerV1(
     private fun joinTokens(tokens: List<String>): String {
         if (tokens.isEmpty()) return ""
 
-        val noSpaceBefore = setOf(".", ",", "!", "?", ";", ":", ")", "]", "}", "\"")
+        val noSpaceBefore = setOf(".", ",", "!", "?", ";", ":", ")", "]", "}", "\"", ENDOFTEXT, UNKNOWN)
         val noSpaceAfter = setOf("(", "[", "{")
 
         val out = StringBuilder()
@@ -85,6 +90,8 @@ class SimpleTokenizerV1(
                 tokenToId[token] = tokenToId.size
             }
         }
+        tokenToId[UNKNOWN] = tokenToId.size
+        tokenToId[ENDOFTEXT] = tokenToId.size
         return tokenToId
     }
 }

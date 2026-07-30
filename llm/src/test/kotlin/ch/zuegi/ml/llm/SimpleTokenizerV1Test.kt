@@ -1,7 +1,7 @@
 package ch.zuegi.ml.llm
 
+import ch.zuegi.ml.llm.SimpleTokenizerV1.Companion.ENDOFTEXT
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 
 class SimpleTokenizerV1Test {
@@ -18,12 +18,24 @@ class SimpleTokenizerV1Test {
     }
 
     @Test
-    fun `encode throws for unknown token`() {
+    fun `vocab contains special tokens with stable ids at end`() {
         val tokenizer = SimpleTokenizerV1(trainingText)
 
-        assertThatThrownBy { tokenizer.encode("UNKNOWN_TOKEN") }
-            .isInstanceOf(IllegalStateException::class.java)
-            .hasMessageContaining("Token nicht im Vokabular")
+        val unkId = tokenizer.encode("<|unk|>")[0]
+        val eotId = tokenizer.encode("<|endoftext|>")[0]
+
+        assertThat(unkId).isGreaterThanOrEqualTo(0)
+        assertThat(eotId).isEqualTo(unkId + 1)
+    }
+
+    @Test
+    fun `encode maps unknown token to unk id`() {
+        val tokenizer = SimpleTokenizerV1(trainingText)
+
+        val unkId = tokenizer.encode("<|unk|>")[0]
+        val encoded = tokenizer.encode("UNKNOWN_TOKEN")[0]
+
+        assertThat(encoded).isEqualTo(unkId)
     }
 
     @Test
@@ -44,5 +56,25 @@ class SimpleTokenizerV1Test {
         val decoded = tokenizer.decode(tokenizer.encode(original))
 
         assertThat(decoded).isEqualTo(original)
+    }
+
+    @Test
+    fun `encode keeps explicit endoftext token`() {
+        val tokenizer = SimpleTokenizerV1(trainingText)
+
+        val eotId = tokenizer.encode(ENDOFTEXT).single()
+        val encoded = tokenizer.encode("you know.$ENDOFTEXT")
+
+        assertThat(encoded).endsWith(eotId)
+    }
+
+    @Test
+    fun `decode keeps explicit endoftext token without extra blank`() {
+        val tokenizer = SimpleTokenizerV1(trainingText)
+
+        val text = "you know.$ENDOFTEXT"
+        val decoded = tokenizer.decode(tokenizer.encode(text))
+
+        assertThat(decoded).isEqualTo(text)
     }
 }

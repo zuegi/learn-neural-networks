@@ -4,7 +4,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import java.util.Random
-import kotlin.math.exp
 
 class Network(
     val sizes: IntArray,

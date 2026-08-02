@@ -12,4 +12,4 @@ fun sigmoidPrimeVector(z: DoubleArray): DoubleArray =
     DoubleArray(z.size) { i ->
         val s = sigmoid(z[i])
         s * (1 - s)
-    } 
+    }

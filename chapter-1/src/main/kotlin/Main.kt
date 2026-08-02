@@ -1,5 +1,3 @@
-import jdk.internal.vm.vector.VectorSupport.test
-import org.jetbrains.kotlinx.dl.api.core.metric.Metrics
 import kotlin.time.measureTime
 
 suspend fun main() {

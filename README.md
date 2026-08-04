@@ -23,7 +23,7 @@ MNIST-Training starten:
 mvn -pl chapter-1 exec:java
 ```
 
-Tokenizer- und Embedding-Demo ausführen. Sie tokenisiert den Text und gibt Größe sowie erstes Input/Target-Sample des `TextDataLoader` aus.
+GPT-Demo ausführen. Sie tokenisiert den Text, baut ein `GPTModel` und erzeugt autoregressiv neue Tokens. Da das Modell untrainiert ist, ist der Text zufällig.
 
 ```bash
 mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt

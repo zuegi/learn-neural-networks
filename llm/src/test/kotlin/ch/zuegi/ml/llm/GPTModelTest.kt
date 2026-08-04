@@ -40,5 +40,43 @@ class GPTModelTest {
         assertThatThrownBy { model().forward(listOf(1, 2, 3)) }
             .isInstanceOf(IllegalArgumentException::class.java)
     }
-}
 
+    @Test
+    fun `generate appends maxNewTokens tokens`() {
+        val start = listOf(1, 2, 3, 4)
+
+        val result = model().generate(start, maxNewTokens = 5, greedy = true)
+
+        assertThat(result.size).isEqualTo(start.size + 5)
+        assertThat(result.subList(0, start.size)).isEqualTo(start)
+    }
+
+    @Test
+    fun `generated tokens are within vocabulary range`() {
+        val result = model().generate(listOf(1, 2, 3, 4), maxNewTokens = 10, greedy = true)
+
+        assertThat(result.all { it in 0 until vocabSize }).isTrue()
+    }
+
+    @Test
+    fun `greedy generation is deterministic`() {
+        val a = model(seed = 42).generate(listOf(1, 2, 3, 4), maxNewTokens = 8, greedy = true)
+        val b = model(seed = 42).generate(listOf(1, 2, 3, 4), maxNewTokens = 8, greedy = true)
+
+        assertThat(a).isEqualTo(b)
+    }
+
+    @Test
+    fun `sampling with same generator seed is reproducible`() {
+        val a = model(seed = 42).generate(listOf(1, 2, 3, 4), maxNewTokens = 8, generatorSeed = 7)
+        val b = model(seed = 42).generate(listOf(1, 2, 3, 4), maxNewTokens = 8, generatorSeed = 7)
+
+        assertThat(a).isEqualTo(b)
+    }
+
+    @Test
+    fun `generate rejects too short start sequence`() {
+        assertThatThrownBy { model().generate(listOf(1, 2), maxNewTokens = 3) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+}

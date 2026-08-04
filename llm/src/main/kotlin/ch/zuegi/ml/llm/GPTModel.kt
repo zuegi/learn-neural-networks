@@ -1,6 +1,7 @@
 package ch.zuegi.ml.llm
 
 import java.util.Random
+import kotlin.math.exp
 
 /**
  * Minimales GPT-Modell (nur Forward-Pass).
@@ -98,6 +99,98 @@ class GPTModel(
         x = finalNorm.forward(x)
 
         return matMul(x, wOutput)
+    }
+
+    /**
+     * Erzeugt autoregressiv neue Tokens.
+     *
+     * Pro Schritt wird das aktuelle Kontextfenster (die letzten [contextLength]
+     * Tokens) durch das Modell geschickt, aus den Logits der letzten Position
+     * das naechste Token bestimmt und angehaengt.
+     *
+     * Auswahlstrategie:
+     * - greedy = true: immer das wahrscheinlichste Token (deterministisch)
+     * - greedy = false: Sampling gemaess Softmax-Wahrscheinlichkeiten, skaliert
+     *   ueber [temperature] (kleiner = konservativer, groesser = zufaelliger)
+     *
+     * @param startIds Start-Sequenz, mindestens [contextLength] Tokens.
+     * @param maxNewTokens Anzahl zu erzeugender Tokens.
+     * @param temperature Skalierung der Logits vor dem Sampling, muss > 0 sein.
+     * @param greedy wenn true, wird deterministisch das Maximum gewaehlt.
+     * @param generatorSeed optionaler Seed fuer reproduzierbares Sampling.
+     * @return Start-Sequenz inklusive der erzeugten Tokens.
+     */
+    fun generate(
+        startIds: List<Int>,
+        maxNewTokens: Int,
+        temperature: Double = 1.0,
+        greedy: Boolean = false,
+        generatorSeed: Long? = null,
+    ): List<Int> {
+        require(startIds.size >= contextLength) {
+            "startIds.size ${startIds.size} muss >= contextLength $contextLength sein"
+        }
+        require(maxNewTokens >= 0) { "maxNewTokens muss >= 0 sein" }
+        require(temperature > 0.0) { "temperature muss > 0 sein" }
+
+        val generator = if (generatorSeed != null) Random(generatorSeed) else Random()
+        val sequence = startIds.toMutableList()
+
+        repeat(maxNewTokens) {
+            val window = sequence.takeLast(contextLength)
+            val logits = forward(window)
+            val lastLogits = logits[logits.size - 1]
+
+            val nextToken =
+                if (greedy) {
+                    argmax(lastLogits)
+                } else {
+                    sampleFromLogits(lastLogits, temperature, generator)
+                }
+
+            sequence.add(nextToken)
+        }
+
+        return sequence
+    }
+
+    private fun argmax(values: DoubleArray): Int {
+        var maxIndex = 0
+        for (i in 1 until values.size) {
+            if (values[i] > values[maxIndex]) {
+                maxIndex = i
+            }
+        }
+        return maxIndex
+    }
+
+    private fun sampleFromLogits(
+        logits: DoubleArray,
+        temperature: Double,
+        generator: Random,
+    ): Int {
+        val probs = softmaxWithTemperature(logits, temperature)
+
+        val threshold = generator.nextDouble()
+        var cumulative = 0.0
+        for (i in probs.indices) {
+            cumulative += probs[i]
+            if (threshold < cumulative) {
+                return i
+            }
+        }
+        return probs.size - 1
+    }
+
+    private fun softmaxWithTemperature(
+        logits: DoubleArray,
+        temperature: Double,
+    ): DoubleArray {
+        val scaled = DoubleArray(logits.size) { logits[it] / temperature }
+        val max = scaled.max()
+        val exps = DoubleArray(scaled.size) { exp(scaled[it] - max) }
+        val sum = exps.sum()
+        return DoubleArray(exps.size) { exps[it] / sum }
     }
 
     private fun matMul(

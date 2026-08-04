@@ -19,7 +19,7 @@ Das Modul liest den Text `the-verdict.txt` aus den Ressourcen, baut daraus ein V
 - `LayerNorm.kt`: Layer Normalization pro Token-Zeile mit lernbaren Parametern `gamma`/`beta`
 - `FeedForward.kt`: position-weises Feed-Forward-Netz mit zwei linearen Schichten und GELU-Aktivierung
 - `TransformerBlock.kt`: kombiniert Multi-Head-Attention und Feed-Forward mit Pre-LN und Residual-Verbindungen
-- `GPTModel.kt`: End-to-End-Forward von Token-IDs zu Logits (Embeddings → N Transformer-Blöcke → finale LayerNorm → Output-Projektion)
+- `GPTModel.kt`: End-to-End-Forward von Token-IDs zu Logits (Embeddings → N Transformer-Blöcke → finale LayerNorm → Output-Projektion) sowie `generate()` für autoregressive Token-Erzeugung (Greedy oder Sampling mit Temperature)
 - `SimpleTokenizerV1Test.kt`, `TokenEmbeddingTest.kt`, `SelfAttentionTest.kt`, `MultiHeadAttentionTest.kt`, `LayerNormTest.kt`, `FeedForwardTest.kt`, `TransformerBlockTest.kt`, `GPTModelTest.kt`: Tests
 - `src/main/resources/text/the-verdict.txt`: Trainings-/Vokabulartext
 
@@ -73,7 +73,7 @@ und `erf` ist in der Kotlin-/Java-Standardbibliothek nicht verfügbar. Die tanh-
 
 ### Nächster Schritt
 
-Der Forward-Pfad ist mit `TransformerBlock` und `GPTModel` (Token-IDs → Logits) vollständig. Als Nächstes folgt der Trainingsteil: eine `generate()`-Funktion (Logits → Softmax → nächstes Token) sowie ein Training-Loop mit Cross-Entropy-Loss. Dafür fehlt bislang die Backpropagation — geplant als kleines Autograd-System mit numerischem Gradient-Check.
+Der komplette Forward-Pfad steht: `GPTModel` bildet Token-IDs auf Logits ab und erzeugt über `generate()` autoregressiv neue Tokens (Greedy oder Sampling mit Temperature). Da das Modell noch untrainiert ist, ist die Ausgabe zufällig — der Mechanismus ist aber vollständig. Als Nächstes folgt der Trainingsteil: Cross-Entropy-Loss über die Logits und Backpropagation, geplant als kleines Autograd-System mit numerischem Gradient-Check.
 
 ## Getting Started
 
@@ -88,7 +88,7 @@ Tests ausführen:
 mvn -pl llm test
 ```
 
-Demo ausführen. Sie tokenisiert den Text und gibt Größe sowie erstes Input/Target-Sample des `TextDataLoader` aus.
+Demo ausführen. Sie tokenisiert den Text, baut ein `GPTModel` und erzeugt aus einer Start-Sequenz autoregressiv neue Tokens (greedy). Da das Modell untrainiert ist, ist der erzeugte Text zufällig.
 
 ```bash
 mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt

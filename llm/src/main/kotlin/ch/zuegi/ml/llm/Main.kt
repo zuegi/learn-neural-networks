@@ -10,23 +10,29 @@ fun main() {
     val contextLength = 4
     val embeddingDim = 256
 
-    val loader = TextDataLoader(tokenIds, contextLength = contextLength, stride = 4, batchSize = 8)
-
-    val inputEmbedding =
-        InputEmbedding(
-            tokenEmbedding = TokenEmbedding(tokenizer.vocabSize, embeddingDim, seed = 42),
-            positionalEmbedding = PositionalEmbedding(contextLength, embeddingDim, seed = 42),
+    val model =
+        GPTModel(
+            vocabSize = tokenizer.vocabSize,
+            contextLength = contextLength,
+            embeddingDim = embeddingDim,
+            numLayers = 2,
+            numHeads = 8,
+            causal = true,
+            seed = 42,
         )
 
-    val firstSample = loader.samples().first()
-    val embeddings = inputEmbedding.forward(firstSample.inputIds)
-    val attention = SelfAttention(embeddingDim = embeddingDim, dK = 64, seed = 42, causal = true)
-    val context = attention.forward(embeddings) // [ctx, 64]
+    // Start-Sequenz: erste contextLength Tokens des Textes
+    val startIds = tokenIds.take(contextLength)
 
-    println("inputIds: ${firstSample.inputIds}")
-    println("shape: [${embeddings.size}, ${embeddings[0].size}]")
-    println("erstes Input-Embedding (5 Werte): ${embeddings[0].take(5)}")
-    println("attention output shape: [${context.size}, ${context[0].size}]")
+    // Forward-Pass: Logits der letzten Position
+    val logits = model.forward(startIds)
+    println("start: ${tokenizer.decode(startIds)}")
+    println("logits shape: [${logits.size}, ${logits[0].size}]")
+
+    // Autoregressive Generierung (Modell ist untrainiert -> Ausgabe ist Kauderwelsch)
+    val generated = model.generate(startIds, maxNewTokens = 20, greedy = true)
+    println("generated ids: $generated")
+    println("generated text: ${tokenizer.decode(generated)}")
 }
 
 fun readVerdictText(): String {

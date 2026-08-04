@@ -38,6 +38,7 @@ class SimpleTokenizerV1(
     private var tokens: List<String> = emptyList()
     private var vocab: Map<String, Int> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
+    val vocabSize: Int get() = vocab.size
 
     companion object {
         const val UNKNOWN = "<|unk|>"

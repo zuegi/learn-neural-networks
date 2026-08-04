@@ -23,10 +23,10 @@ MNIST-Training starten:
 mvn -pl chapter-1 exec:java
 ```
 
-Tokenizer-Demo ausführen. Die Demo endet aktuell beim eingebauten Unknown-Token-Beispiel mit `Token nicht im Vokabular: 'Hello'`.
+Tokenizer- und Embedding-Demo ausführen. Sie tokenisiert den Text und gibt Größe sowie erstes Input/Target-Sample des `TextDataLoader` aus.
 
 ```bash
-mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKtKt
+mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt
 ```
 
 ## Module
@@ -34,7 +34,7 @@ mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKtKt
 | Modul | Beschreibung | README |
 |-------|-------------|--------|
 | `chapter-1` | MNIST-Trainingsanwendung mit einfachem neuronalen Netz in Kotlin | [README](chapter-1/README.md) |
-| `llm` | Kotlin-Modul mit einfachem Regex-Tokenizer für LLM-Grundlagen | [README](llm/README.md) |
+| `llm` | Kotlin-Modul mit Regex-Tokenizer, DataLoader, Embeddings und Transformer-Bausteinen (Attention, LayerNorm, FeedForward) für LLM-Grundlagen | [README](llm/README.md) |
 
 ## Top 10 Libraries
 

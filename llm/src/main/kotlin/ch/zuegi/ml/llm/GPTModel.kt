@@ -1,0 +1,128 @@
+package ch.zuegi.ml.llm
+
+import java.util.Random
+
+/**
+ * Minimales GPT-Modell (nur Forward-Pass).
+ *
+ * Setzt die vorhandenen Bausteine zu einem End-to-End-Forward zusammen:
+ *
+ *     tokenIds
+ *       -> InputEmbedding (Token + Positional)   [contextLength, embeddingDim]
+ *       -> N x TransformerBlock                   [contextLength, embeddingDim]
+ *       -> finale LayerNorm                       [contextLength, embeddingDim]
+ *       -> Output-Projektion (Wout)               [contextLength, vocabSize]
+ *
+ * Der Output sind Logits pro Position ueber das gesamte Vokabular. Aus ihnen
+ * wird spaeter via Softmax die Wahrscheinlichkeit des naechsten Tokens.
+ *
+ * @param vocabSize Groesse des Vokabulars.
+ * @param contextLength Anzahl Positionen pro Sequenz.
+ * @param embeddingDim Laenge eines Token-Vektors.
+ * @param numLayers Anzahl gestapelter Transformer-Bloecke.
+ * @param numHeads Anzahl Attention-Koepfe pro Block.
+ * @param dK Dimension pro Kopf, Standard embeddingDim / numHeads.
+ * @param hiddenDim versteckte Dimension der Feed-Forward-Netze, Standard 4 * embeddingDim.
+ * @param causal wenn true, maskiert die Attention die Zukunft (fuer Sprachmodelle ueblich).
+ * @param seed optionaler Seed fuer reproduzierbare Initialisierung.
+ */
+class GPTModel(
+    private val vocabSize: Int,
+    private val contextLength: Int,
+    private val embeddingDim: Int,
+    numLayers: Int,
+    numHeads: Int,
+    dK: Int = embeddingDim / numHeads,
+    hiddenDim: Int = 4 * embeddingDim,
+    causal: Boolean = true,
+    seed: Long? = null,
+) {
+    init {
+        require(vocabSize > 0) { "vocabSize muss > 0 sein" }
+        require(contextLength > 0) { "contextLength muss > 0 sein" }
+        require(embeddingDim > 0) { "embeddingDim muss > 0 sein" }
+        require(numLayers > 0) { "numLayers muss > 0 sein" }
+        require(numHeads > 0) { "numHeads muss > 0 sein" }
+        require(dK > 0) { "dK muss > 0 sein" }
+        require(hiddenDim > 0) { "hiddenDim muss > 0 sein" }
+    }
+
+    private val rnd = if (seed != null) Random(seed) else Random()
+
+    private val inputEmbedding =
+        InputEmbedding(
+            tokenEmbedding = TokenEmbedding(vocabSize, embeddingDim, seed = seed),
+            positionalEmbedding =
+                PositionalEmbedding(
+                    contextLength,
+                    embeddingDim,
+                    seed = seed?.let { it + POSITIONAL_SEED_OFFSET },
+                ),
+        )
+
+    private val blocks: List<TransformerBlock> =
+        (0 until numLayers).map { layerIndex ->
+            TransformerBlock(
+                embeddingDim = embeddingDim,
+                numHeads = numHeads,
+                dK = dK,
+                hiddenDim = hiddenDim,
+                causal = causal,
+                seed = seed?.let { it + (layerIndex + 1) * BLOCK_SEED_OFFSET },
+            )
+        }
+
+    private val finalNorm = LayerNorm(embeddingDim)
+
+    /**
+     * Output-Projektion `[embeddingDim, vocabSize]` auf die Vokabular-Logits.
+     */
+    val wOutput: Array<DoubleArray> =
+        Array(embeddingDim) { DoubleArray(vocabSize) { rnd.nextGaussian() * INIT_SCALE } }
+
+    /**
+     * Forward-Pass des Modells.
+     *
+     * @param tokenIds Token-ID-Sequenz der Laenge [contextLength].
+     * @return Logits der Form `[contextLength, vocabSize]`.
+     */
+    fun forward(tokenIds: List<Int>): Array<DoubleArray> {
+        require(tokenIds.size == contextLength) {
+            "tokenIds.size ${tokenIds.size} passt nicht zu contextLength $contextLength"
+        }
+
+        var x = inputEmbedding.forward(tokenIds)
+        for (block in blocks) {
+            x = block.forward(x)
+        }
+        x = finalNorm.forward(x)
+
+        return matMul(x, wOutput)
+    }
+
+    private fun matMul(
+        a: Array<DoubleArray>,
+        b: Array<DoubleArray>,
+    ): Array<DoubleArray> {
+        val rows = a.size
+        val inner = b.size
+        val cols = b[0].size
+
+        return Array(rows) { i ->
+            DoubleArray(cols) { j ->
+                var sum = 0.0
+                for (k in 0 until inner) {
+                    sum += a[i][k] * b[k][j]
+                }
+                sum
+            }
+        }
+    }
+
+    companion object {
+        private const val INIT_SCALE = 0.02
+        private const val POSITIONAL_SEED_OFFSET = 500L
+        private const val BLOCK_SEED_OFFSET = 100L
+    }
+}
+

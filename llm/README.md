@@ -18,7 +18,9 @@ Das Modul liest den Text `the-verdict.txt` aus den Ressourcen, baut daraus ein V
 - `MultiHeadAttention.kt`: mehrere parallele Attention-Köpfe, Konkatenation und Output-Projektion `Wo` zurück auf `embeddingDim`
 - `LayerNorm.kt`: Layer Normalization pro Token-Zeile mit lernbaren Parametern `gamma`/`beta`
 - `FeedForward.kt`: position-weises Feed-Forward-Netz mit zwei linearen Schichten und GELU-Aktivierung
-- `SimpleTokenizerV1Test.kt`, `TokenEmbeddingTest.kt`, `SelfAttentionTest.kt`, `MultiHeadAttentionTest.kt`, `LayerNormTest.kt`, `FeedForwardTest.kt`: Tests
+- `TransformerBlock.kt`: kombiniert Multi-Head-Attention und Feed-Forward mit Pre-LN und Residual-Verbindungen
+- `GPTModel.kt`: End-to-End-Forward von Token-IDs zu Logits (Embeddings → N Transformer-Blöcke → finale LayerNorm → Output-Projektion)
+- `SimpleTokenizerV1Test.kt`, `TokenEmbeddingTest.kt`, `SelfAttentionTest.kt`, `MultiHeadAttentionTest.kt`, `LayerNormTest.kt`, `FeedForwardTest.kt`, `TransformerBlockTest.kt`, `GPTModelTest.kt`: Tests
 - `src/main/resources/text/the-verdict.txt`: Trainings-/Vokabulartext
 
 ### Datenfluss
@@ -30,12 +32,12 @@ Text
   → TokenEmbedding    → [contextLength, embeddingDim]
   + PositionalEmbedding → [contextLength, embeddingDim]
   = InputEmbedding    → [contextLength, embeddingDim]
-  → MultiHeadAttention → [contextLength, embeddingDim]   (Köpfe + Wo-Projektion, optional causal)
-  → LayerNorm         → [contextLength, embeddingDim]
-  → FeedForward       → [contextLength, embeddingDim]
+  → N × TransformerBlock → [contextLength, embeddingDim]   (Pre-LN: MHA + FeedForward, je Residual)
+  → finale LayerNorm  → [contextLength, embeddingDim]
+  → Output-Projektion → [contextLength, vocabSize]         (Logits, via GPTModel)
 ```
 
-Alle Bausteine ab `InputEmbedding` behalten die Form `[contextLength, embeddingDim]`, sodass sich Residual-Verbindungen und das Stapeln mehrerer Blöcke später einbauen lassen.
+Alle Bausteine ab `InputEmbedding` bis zur finalen Norm behalten die Form `[contextLength, embeddingDim]`, sodass Residual-Verbindungen greifen und sich mehrere Blöcke stapeln lassen. Erst die Output-Projektion in `GPTModel` bildet auf `vocabSize` ab.
 
 ### Warum `DoubleArray`
 
@@ -47,9 +49,31 @@ Der numerische Kern nutzt durchgehend `DoubleArray` statt `List<Double>` oder `A
 
 Deshalb verwenden die Embeddings, `SelfAttention`, `MultiHeadAttention`, `LayerNorm` und `FeedForward` denselben Typ wie das bestehende `Network.kt`. `List<Int>` bleibt dort, wo Performance zweitrangig ist (z.B. `tokenIds`).
 
+### Aktivierungsfunktion: GELU (tanh-Approximation)
+
+`FeedForward` nutzt als Aktivierung **GELU** (Gaussian Error Linear Unit), nicht ReLU:
+
+- GELU ist überall glatt/differenzierbar — wichtig für saubere Gradienten beim späteren Training
+- GELU lässt kleine negative Werte durch, statt sie wie ReLU hart auf 0 zu schneiden (weniger "tote" Neuronen)
+- GELU ist die Standard-Aktivierung in Transformer-Modellen (GPT, BERT)
+
+Verwendet wird die **tanh-Approximation** (wie in GPT-2), nicht das exakte GELU:
+
+```text
+GELU(x) ≈ 0.5 · x · (1 + tanh(√(2/π) · (x + 0.044715·x³)))
+```
+
+Grund: Das exakte GELU basiert auf der Gauß'schen Fehlerfunktion `erf`
+
+```text
+GELU(x) = 0.5 · x · (1 + erf(x / √2))
+```
+
+und `erf` ist in der Kotlin-/Java-Standardbibliothek nicht verfügbar. Die tanh-Approximation kommt mit `kotlin.math.tanh` aus, weicht nur um ~1e-3 vom exakten Wert ab und wird von GPT-2 selbst genutzt — für dieses Lernprojekt die pragmatisch beste Wahl.
+
 ### Nächster Schritt
 
-`TransformerBlock`, der Multi-Head-Attention, `LayerNorm` und `FeedForward` mit Residual-Verbindungen (Pre-LN) zusammensetzt. Danach mehrere gestapelte Blöcke, eine Output-Projektion auf das Vokabular und ein Training-Loop mit Next-Token-Loss (Cross-Entropy). Für das Training fehlt bislang die Backpropagation — geplant als kleines Autograd-System mit numerischem Gradient-Check.
+Der Forward-Pfad ist mit `TransformerBlock` und `GPTModel` (Token-IDs → Logits) vollständig. Als Nächstes folgt der Trainingsteil: eine `generate()`-Funktion (Logits → Softmax → nächstes Token) sowie ein Training-Loop mit Cross-Entropy-Loss. Dafür fehlt bislang die Backpropagation — geplant als kleines Autograd-System mit numerischem Gradient-Check.
 
 ## Getting Started
 
@@ -112,7 +136,9 @@ src
 │   ├── SelfAttention.kt
 │   ├── MultiHeadAttention.kt
 │   ├── LayerNorm.kt
-│   └── FeedForward.kt
+│   ├── FeedForward.kt
+│   ├── TransformerBlock.kt
+│   └── GPTModel.kt
 ├── main/resources/text
 │   └── the-verdict.txt
 └── test/kotlin/ch/zuegi/ml/llm
@@ -121,7 +147,9 @@ src
     ├── SelfAttentionTest.kt
     ├── MultiHeadAttentionTest.kt
     ├── LayerNormTest.kt
-    └── FeedForwardTest.kt
+    ├── FeedForwardTest.kt
+    ├── TransformerBlockTest.kt
+    └── GPTModelTest.kt
 ```
 
 ## Konfiguration

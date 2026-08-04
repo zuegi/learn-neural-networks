@@ -7,8 +7,7 @@ import kotlin.math.sqrt
 /**
  * Einfache Single-Head Self-Attention (nur Forward-Pass).
  *
- * Berechnet aus Input-Embeddings [contextLength, embeddingDim] einen
- * kontextabhaengigen Output [contextLength, dK].
+ * Optional mit Causal Masking: Position i darf nur auf Positionen j <= i schauen.
  *
  * Ablauf pro Sequenz:
  *
@@ -16,16 +15,19 @@ import kotlin.math.sqrt
  *     K = X * Wk
  *     V = X * Wv
  *     scores  = Q * K^T / sqrt(dK)
+ *     scores  = maskCausal(scores)   // nur wenn causal = true
  *     weights = softmax(scores)
  *     output  = weights * V
  *
  * @param embeddingDim Laenge der Input-Embeddings.
  * @param dK Dimension von Query/Key/Value.
+ * @param causal wenn true, wird Zukunft maskiert.
  * @param seed optionaler Seed fuer reproduzierbare Initialisierung.
  */
-class SingleHeadSelfAttention(
+class SelfAttention(
     private val embeddingDim: Int,
     private val dK: Int,
+    private val causal: Boolean = false,
     seed: Long? = null,
 ) {
     init {
@@ -40,14 +42,17 @@ class SingleHeadSelfAttention(
     val wValue: Array<DoubleArray> = randomMatrix(embeddingDim, dK)
 
     fun forward(input: Array<DoubleArray>): Array<DoubleArray> {
-        val query = matrixMultiplication(input, wQuery)
-        val key = matrixMultiplication(input, wKey)
-        val value = matrixMultiplication(input, wValue)
+        val query = matMul(input, wQuery)
+        val key = matMul(input, wKey)
+        val value = matMul(input, wValue)
 
         val scores = scaledScores(query, key)
+        if (causal) {
+            maskCausal(scores)
+        }
         val weights = softmaxRows(scores)
 
-        return matrixMultiplication(weights, value)
+        return matMul(weights, value)
     }
 
     private fun scaledScores(
@@ -68,6 +73,14 @@ class SingleHeadSelfAttention(
         }
     }
 
+    private fun maskCausal(scores: Array<DoubleArray>) {
+        for (i in scores.indices) {
+            for (j in i + 1 until scores[i].size) {
+                scores[i][j] = Double.NEGATIVE_INFINITY
+            }
+        }
+    }
+
     private fun softmaxRows(scores: Array<DoubleArray>): Array<DoubleArray> =
         Array(scores.size) { i ->
             val row = scores[i]
@@ -78,7 +91,7 @@ class SingleHeadSelfAttention(
             DoubleArray(row.size) { exps[it] / sum }
         }
 
-    private fun matrixMultiplication(
+    private fun matMul(
         a: Array<DoubleArray>,
         b: Array<DoubleArray>,
     ): Array<DoubleArray> {

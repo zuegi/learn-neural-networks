@@ -20,7 +20,7 @@ fun main() {
 
     val firstSample = loader.samples().first()
     val embeddings = inputEmbedding.forward(firstSample.inputIds)
-    val attention = SingleHeadSelfAttention(embeddingDim = embeddingDim, dK = 64, seed = 42)
+    val attention = SelfAttention(embeddingDim = embeddingDim, dK = 64, seed = 42, causal = true)
     val context = attention.forward(embeddings) // [ctx, 64]
 
     println("inputIds: ${firstSample.inputIds}")

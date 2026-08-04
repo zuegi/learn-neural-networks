@@ -20,10 +20,13 @@ fun main() {
 
     val firstSample = loader.samples().first()
     val embeddings = inputEmbedding.forward(firstSample.inputIds)
+    val attention = SingleHeadSelfAttention(embeddingDim = embeddingDim, dK = 64, seed = 42)
+    val context = attention.forward(embeddings) // [ctx, 64]
 
     println("inputIds: ${firstSample.inputIds}")
     println("shape: [${embeddings.size}, ${embeddings[0].size}]")
     println("erstes Input-Embedding (5 Werte): ${embeddings[0].take(5)}")
+    println("attention output shape: [${context.size}, ${context[0].size}]")
 }
 
 fun readVerdictText(): String {

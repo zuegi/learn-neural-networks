@@ -60,4 +60,3 @@ class TokenEmbeddingTest {
             .isInstanceOf(IllegalArgumentException::class.java)
     }
 }
-

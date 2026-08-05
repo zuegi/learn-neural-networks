@@ -40,4 +40,3 @@ class LayerNormLayer(
      */
     fun parameters(): List<Tensor> = listOf(gamma, beta)
 }
-

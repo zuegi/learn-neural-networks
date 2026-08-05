@@ -17,8 +17,16 @@ class SGDTest {
         sgd.step()
 
         // data -= lr * grad
-        assertThat(param.data[0]).isCloseTo(1.0 - 0.1 * 0.5, org.assertj.core.data.Offset.offset(1e-12))
-        assertThat(param.data[1]).isCloseTo(2.0 - 0.1 * -1.0, org.assertj.core.data.Offset.offset(1e-12))
+        assertThat(param.data[0]).isCloseTo(
+            1.0 - 0.1 * 0.5,
+            org.assertj.core.data.Offset
+                .offset(1e-12),
+        )
+        assertThat(param.data[1]).isCloseTo(
+            2.0 - 0.1 * -1.0,
+            org.assertj.core.data.Offset
+                .offset(1e-12),
+        )
     }
 
     @Test
@@ -87,4 +95,3 @@ class SGDTest {
         assertThat(finalLoss).isLessThan(0.5) // klar gelernt
     }
 }
-

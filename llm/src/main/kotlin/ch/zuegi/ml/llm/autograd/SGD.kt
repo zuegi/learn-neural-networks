@@ -40,4 +40,3 @@ class SGD(
         parameters.forEach { it.zeroGrad() }
     }
 }
-

@@ -23,8 +23,16 @@ class LayerNormLayerTest {
 
         val mean = y.data.average()
         val variance = y.data.sumOf { (it - mean) * (it - mean) } / y.size
-        assertThat(mean).isCloseTo(0.0, org.assertj.core.data.Offset.offset(1e-9))
-        assertThat(variance).isCloseTo(1.0, org.assertj.core.data.Offset.offset(1e-4))
+        assertThat(mean).isCloseTo(
+            0.0,
+            org.assertj.core.data.Offset
+                .offset(1e-9),
+        )
+        assertThat(variance).isCloseTo(
+            1.0,
+            org.assertj.core.data.Offset
+                .offset(1e-4),
+        )
     }
 
     @Test
@@ -73,4 +81,3 @@ class LayerNormLayerTest {
         assertThat(finalLoss).isLessThan(initialLoss * 0.5)
     }
 }
-

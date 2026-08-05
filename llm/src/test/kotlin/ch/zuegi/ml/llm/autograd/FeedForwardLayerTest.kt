@@ -65,4 +65,3 @@ class FeedForwardLayerTest {
         assertThat(finalLoss).isLessThan(initialLoss * 0.2)
     }
 }
-

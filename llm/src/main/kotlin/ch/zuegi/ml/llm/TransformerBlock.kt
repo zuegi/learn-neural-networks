@@ -79,4 +79,3 @@ class TransformerBlock(
         private const val FEED_FORWARD_SEED_OFFSET = 1000L
     }
 }
-

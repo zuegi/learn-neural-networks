@@ -39,4 +39,3 @@ class TransformerBlockTest {
         assertThat(a.forward(input).contentDeepEquals(b.forward(input))).isTrue()
     }
 }
-

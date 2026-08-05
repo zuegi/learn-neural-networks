@@ -56,4 +56,3 @@ class TokenEmbedding(
         private const val INIT_SCALE = 0.01
     }
 }
-

@@ -218,4 +218,3 @@ class GPTModel(
         private const val BLOCK_SEED_OFFSET = 100L
     }
 }
-

@@ -58,4 +58,3 @@ class FeedForwardLayer(
         private const val INIT_SCALE = 0.02
     }
 }
-

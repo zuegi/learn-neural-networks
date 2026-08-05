@@ -34,7 +34,7 @@ mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt
 | Modul | Beschreibung | README |
 |-------|-------------|--------|
 | `chapter-1` | MNIST-Trainingsanwendung mit einfachem neuronalen Netz in Kotlin | [README](chapter-1/README.md) |
-| `llm` | Kotlin-Modul mit Regex-Tokenizer, DataLoader, Embeddings und Transformer-Bausteinen (Attention, LayerNorm, FeedForward) für LLM-Grundlagen | [README](llm/README.md) |
+| `llm` | Kotlin-Modul mit Regex-Tokenizer, DataLoader, Embeddings, Transformer-Bausteinen (Attention, LayerNorm, FeedForward), `GPTModel` mit Textgenerierung sowie einem eigenen Autograd-System (`Value`, `Tensor`) für das spätere Training | [README](llm/README.md) |
 
 ## Top 10 Libraries
 

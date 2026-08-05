@@ -20,7 +20,10 @@ Das Modul liest den Text `the-verdict.txt` aus den Ressourcen, baut daraus ein V
 - `FeedForward.kt`: position-weises Feed-Forward-Netz mit zwei linearen Schichten und GELU-Aktivierung
 - `TransformerBlock.kt`: kombiniert Multi-Head-Attention und Feed-Forward mit Pre-LN und Residual-Verbindungen
 - `GPTModel.kt`: End-to-End-Forward von Token-IDs zu Logits (Embeddings → N Transformer-Blöcke → finale LayerNorm → Output-Projektion) sowie `generate()` für autoregressive Token-Erzeugung (Greedy oder Sampling mit Temperature)
-- `SimpleTokenizerV1Test.kt`, `TokenEmbeddingTest.kt`, `SelfAttentionTest.kt`, `MultiHeadAttentionTest.kt`, `LayerNormTest.kt`, `FeedForwardTest.kt`, `TransformerBlockTest.kt`, `GPTModelTest.kt`: Tests
+- `autograd/Value.kt`: skalarer Autograd-Knoten (Micrograd-Stil) mit `+`, `*`, `/`, `pow`, `tanh`, Skalar-Operatoren und `backward()`
+- `autograd/Tensor.kt`: Autograd-Knoten für 1D-Vektoren mit elementweisen Ops, `matVecMul`, `matMul` und `softmaxCrossEntropy`
+- `SimpleTokenizerV1Test.kt`, `TokenEmbeddingTest.kt`, `SelfAttentionTest.kt`, `MultiHeadAttentionTest.kt`, `LayerNormTest.kt`, `FeedForwardTest.kt`, `TransformerBlockTest.kt`, `GPTModelTest.kt`: Tests der Modellbausteine
+- `autograd/ValueTest.kt`, `autograd/TensorTest.kt`, `autograd/TensorMathVecTest.kt`, `autograd/TensorMatMulTest.kt`, `autograd/TensorSoftmaxCrossEntropyTest.kt`: Autograd-Tests mit numerischem Gradient-Check
 - `src/main/resources/text/the-verdict.txt`: Trainings-/Vokabulartext
 
 ### Datenfluss
@@ -71,9 +74,29 @@ GELU(x) = 0.5 · x · (1 + erf(x / √2))
 
 und `erf` ist in der Kotlin-/Java-Standardbibliothek nicht verfügbar. Die tanh-Approximation kommt mit `kotlin.math.tanh` aus, weicht nur um ~1e-3 vom exakten Wert ab und wird von GPT-2 selbst genutzt — für dieses Lernprojekt die pragmatisch beste Wahl.
 
+### Autograd (automatisches Differenzieren)
+
+Für das Training wird ein eigenes kleines Autograd-System gebaut — die Grundlage, um Gradienten automatisch zu berechnen (das, was PyTorchs `loss.backward()` intern tut). Jede Operation merkt sich ihre lokale Ableitung; `backward()` propagiert den Gradienten in topologischer Reihenfolge rückwärts durch den Rechengraphen. Gradienten werden akkumuliert (`+=`), damit geteilte Knoten die Beiträge aus allen Pfaden aufsummieren.
+
+`autograd/Value.kt` — **skalares** Autograd (Micrograd-Stil) zum Verstehen des Prinzips:
+
+- Operationen: `+`, `*`, `/`, `pow`, `tanh`
+- Skalar-Varianten (`x * 3.0`, `2.0 * x`) über Member-Operatoren und Top-Level-Extensions (Kotlin-Äquivalent zu Pythons `__rmul__`/`__radd__`/`__rtruediv__`)
+
+`autograd/Tensor.kt` — **Vektor/Matrix**-Autograd, schrittweise Richtung GPT-Training aufgebaut:
+
+- elementweise Ops (`+`, `*`, `tanh`)
+- `matVecMul` (Matrix × Vektor): Backward `dx = Wᵀ·dy`, `dW = dy⊗x`
+- `matMul` (Matrix × Matrix): Backward `dA = dC·Bᵀ`, `dB = Aᵀ·dC`
+- `softmaxCrossEntropy`: Softmax und Cross-Entropy als eine Operation, mit dem eleganten Gradienten `dLogits = softmax(logits) − oneHot(target)` (umgeht die volle Softmax-Jacobian)
+
+Matrizen werden flach (row-major) in `DoubleArray` gehalten; die Form wird über explizite Dimensionsparameter übergeben.
+
+**Gradient-Check als Sicherheitsnetz:** Jede Operation wird gegen die numerische Ableitung `(f(x+h) − f(x−h)) / 2h` geprüft. Stimmt der analytische Gradient mit dem numerischen überein, ist die Backward-Regel bewiesen — kein blindes Debuggen.
+
 ### Nächster Schritt
 
-Der komplette Forward-Pfad steht: `GPTModel` bildet Token-IDs auf Logits ab und erzeugt über `generate()` autoregressiv neue Tokens (Greedy oder Sampling mit Temperature). Da das Modell noch untrainiert ist, ist die Ausgabe zufällig — der Mechanismus ist aber vollständig. Als Nächstes folgt der Trainingsteil: Cross-Entropy-Loss über die Logits und Backpropagation, geplant als kleines Autograd-System mit numerischem Gradient-Check.
+Das Autograd-Fundament steht: `Value` (Skalar) und `Tensor` (Vektor/Matrix) mit `matVecMul`, `matMul` und `softmaxCrossEntropy`, alle per Gradient-Check verifiziert. Als Nächstes folgen ein einfacher Optimizer (SGD: `param.data -= learningRate * param.grad`) und ein Training-Loop (forward → loss → `backward()` → update). Danach der größere Umbau: die GPT-Bausteine (`LayerNorm`, `FeedForward`, Attention) von rohem `DoubleArray` auf `Tensor` umstellen, damit das gesamte `GPTModel` trainierbar wird.
 
 ## Getting Started
 
@@ -138,7 +161,10 @@ src
 │   ├── LayerNorm.kt
 │   ├── FeedForward.kt
 │   ├── TransformerBlock.kt
-│   └── GPTModel.kt
+│   ├── GPTModel.kt
+│   └── autograd
+│       ├── Value.kt
+│       └── Tensor.kt
 ├── main/resources/text
 │   └── the-verdict.txt
 └── test/kotlin/ch/zuegi/ml/llm
@@ -149,7 +175,13 @@ src
     ├── LayerNormTest.kt
     ├── FeedForwardTest.kt
     ├── TransformerBlockTest.kt
-    └── GPTModelTest.kt
+    ├── GPTModelTest.kt
+    └── autograd
+        ├── ValueTest.kt
+        ├── TensorTest.kt
+        ├── TensorMathVecTest.kt
+        ├── TensorMatMulTest.kt
+        └── TensorSoftmaxCrossEntropyTest.kt
 ```
 
 ## Konfiguration

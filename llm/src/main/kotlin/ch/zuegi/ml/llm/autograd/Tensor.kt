@@ -24,6 +24,17 @@ class Tensor(
     val size: Int get() = data.size
 
     /**
+     * Setzt alle Gradienten dieses Knotens auf 0.
+     *
+     * Notwendig zwischen Trainings-Schritten, weil Gradienten in den
+     * Backward-Regeln akkumuliert werden (`+=`). Ohne Zuruecksetzen wuerden
+     * sich die Gradienten ueber mehrere Schritte aufsummieren.
+     */
+    fun zeroGrad() {
+        grad.fill(0.0)
+    }
+
+    /**
      * Elementweise Addition. Gradient fliesst 1:1 an beide Operanden:
      * d(a+b)/da = 1, d(a+b)/db = 1 (pro Element).
      */
@@ -220,6 +231,108 @@ class Tensor(
             for (i in 0 until size) {
                 val oneHot = if (i == target) 1.0 else 0.0
                 grad[i] += (probs[i] - oneHot) * g
+            }
+        }
+        return out
+    }
+
+    /**
+     * Layer Normalization ueber diesen Vektor (eine Token-Zeile).
+     *
+     * Normalisiert `this` auf Mittelwert 0 und Varianz 1 und wendet die
+     * lernbaren Parameter [gamma] (Skalierung) und [beta] (Verschiebung) an:
+     *
+     *     mean  = (1/n) Σ x_i
+     *     var   = (1/n) Σ (x_i - mean)^2
+     *     xhat  = (x - mean) / sqrt(var + eps)
+     *     y     = gamma * xhat + beta
+     *
+     * Backward (Standard-LayerNorm-Gradient) fuer jede Komponente i:
+     *
+     *     dxhat_i = dy_i * gamma_i
+     *     dx_i    = (1/std) * (dxhat_i - mean(dxhat) - xhat_i * mean(dxhat*xhat))
+     *     dgamma_i = dy_i * xhat_i
+     *     dbeta_i  = dy_i
+     *
+     * @param gamma Skalierungsparameter, Laenge n.
+     * @param beta Verschiebungsparameter, Laenge n.
+     * @param eps kleiner Wert fuer numerische Stabilitaet.
+     * @return normalisierter und transformierter Tensor der Laenge n.
+     */
+    fun layerNorm(
+        gamma: Tensor,
+        beta: Tensor,
+        eps: Double = 1e-5,
+    ): Tensor {
+        require(gamma.size == size) { "gamma.size ${gamma.size} passt nicht zu $size" }
+        require(beta.size == size) { "beta.size ${beta.size} passt nicht zu $size" }
+
+        val n = size
+        val mean = data.average()
+        val variance = data.sumOf { (it - mean) * (it - mean) } / n
+        val std = kotlin.math.sqrt(variance + eps)
+
+        val xhat = DoubleArray(n) { (data[it] - mean) / std }
+        val result = DoubleArray(n) { gamma.data[it] * xhat[it] + beta.data[it] }
+
+        val out = Tensor(result, listOf(this, gamma, beta))
+        out.backwardStep = {
+            // dgamma, dbeta direkt; dxhat = dy * gamma
+            val dxhat = DoubleArray(n) { out.grad[it] * gamma.data[it] }
+            var meanDxhat = 0.0
+            var meanDxhatXhat = 0.0
+            for (i in 0 until n) {
+                meanDxhat += dxhat[i]
+                meanDxhatXhat += dxhat[i] * xhat[i]
+            }
+            meanDxhat /= n
+            meanDxhatXhat /= n
+
+            for (i in 0 until n) {
+                grad[i] += (dxhat[i] - meanDxhat - xhat[i] * meanDxhatXhat) / std
+                gamma.grad[i] += out.grad[i] * xhat[i]
+                beta.grad[i] += out.grad[i]
+            }
+        }
+        return out
+    }
+
+    /**
+     * GELU-Aktivierung (tanh-Approximation, wie GPT-2), elementweise.
+     *
+     *     inner = sqrt(2/π) * (x + 0.044715 * x^3)
+     *     gelu  = 0.5 * x * (1 + tanh(inner))
+     *
+     * Ableitung pro Element:
+     *
+     *     t          = tanh(inner)
+     *     dInner/dx  = sqrt(2/π) * (1 + 3 * 0.044715 * x^2)
+     *     dgelu/dx   = 0.5 * (1 + t) + 0.5 * x * (1 - t^2) * dInner/dx
+     *
+     * @return Tensor gleicher Laenge mit GELU pro Element.
+     */
+    fun gelu(): Tensor {
+        val c = kotlin.math.sqrt(2.0 / kotlin.math.PI)
+        val a = 0.044715
+
+        val tValues = DoubleArray(size)
+        val result =
+            DoubleArray(size) { i ->
+                val x = data[i]
+                val inner = c * (x + a * x * x * x)
+                val t = tanh(inner)
+                tValues[i] = t
+                0.5 * x * (1.0 + t)
+            }
+
+        val out = Tensor(result, listOf(this))
+        out.backwardStep = {
+            for (i in 0 until size) {
+                val x = data[i]
+                val t = tValues[i]
+                val dInner = c * (1.0 + 3.0 * a * x * x)
+                val dgelu = 0.5 * (1.0 + t) + 0.5 * x * (1.0 - t * t) * dInner
+                grad[i] += dgelu * out.grad[i]
             }
         }
         return out

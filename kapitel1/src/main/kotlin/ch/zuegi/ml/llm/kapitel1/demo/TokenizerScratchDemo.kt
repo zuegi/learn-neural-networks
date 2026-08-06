@@ -23,6 +23,18 @@ fun main() {
     }
     val randomTokenId: Int = tokenIds.get(357)
     val decodedTokenId: String = tokenizer.decode(listOf(randomTokenId))
+    println("-> decoded token id: $randomTokenId -> $decodedTokenId")
     println("***")
-    println("decoded token id: $randomTokenId -> $decodedTokenId")
+
+    // Fehler Fall: Token nicht im Vokabular: 'Hello' und wird mit <|unk|> ersetzt
+    val text2 = "Hello, do you like tea?"
+    val idList: List<Int> = tokenizer.encode(text2)
+    println(idList)
+    println(tokenizer.decode(idList))
+
+    val text3 = "Akwirw ier"
+    val idList3: List<Int> = tokenizer.encode(text3)
+    println(idList3)
+    println(tokenizer.decode(idList3))
+    println("***")
 }

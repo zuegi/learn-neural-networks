@@ -11,7 +11,7 @@
 
     <modules>
         <module>llm</module>
-        <module>kapitel1</module>
+        <module>kapitel2</module>
         <module>shared</module>
     </modules>
 

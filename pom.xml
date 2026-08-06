@@ -13,6 +13,7 @@
         <module>llm</module>
         <module>kapitel2</module>
         <module>shared</module>
+        <module>kapitel3</module>
     </modules>
 
     <properties>

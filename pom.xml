@@ -10,8 +10,9 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>chapter-1</module>
         <module>llm</module>
+        <module>kapitel1</module>
+        <module>shared</module>
     </modules>
 
     <properties>

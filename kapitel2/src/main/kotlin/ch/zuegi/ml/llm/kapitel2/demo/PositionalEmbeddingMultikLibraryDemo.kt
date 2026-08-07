@@ -1,8 +1,8 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
+import ch.zuegi.ml.llm.kapitel2.library.GPT2Tokenizer
 import ch.zuegi.ml.llm.kapitel2.library.PositionalEmbeddingMultik
 import ch.zuegi.ml.llm.kapitel2.library.TokenEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.api.mk
@@ -12,7 +12,7 @@ import org.jetbrains.kotlinx.multik.ndarray.operations.toList
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = SimpleTokenizerV1(rawText)
+    val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     val contextLength = 4

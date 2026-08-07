@@ -12,7 +12,8 @@ import org.jetbrains.kotlinx.multik.ndarray.operations.toList
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = GPT2Tokenizer()
+    val tokenizer =
+        GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     val contextLength = 4
@@ -23,13 +24,29 @@ fun main() {
     val vocabSize = 50257 // R50K_BASE Größe
     val inputEmbedding =
         InputEmbeddingMultik(
-            tokenEmbedding = TokenEmbeddingMultik(vocabSize, embeddingDim, seed = 42),
-            positionalEmbedding = PositionalEmbeddingMultik(contextLength, embeddingDim, seed = 42),
+            tokenEmbedding =
+                TokenEmbeddingMultik(
+                    vocabSize,
+                    embeddingDim,
+                    seed = 42,
+                ),
+            positionalEmbedding =
+                PositionalEmbeddingMultik(
+                    contextLength,
+                    embeddingDim,
+                    seed = 42,
+                ),
         )
 
     val firstSample = loader.samples().first()
     val embeddings = inputEmbedding.forward(firstSample.inputIds)
-    val attention = SelfAttentionMultik(embeddingDim = embeddingDim, dK = 64, seed = 42, causal = true)
+    val attention =
+        SelfAttentionMultik(
+            embeddingDim = embeddingDim,
+            dK = 64,
+            seed = 42,
+            causal = true,
+        )
     val context = attention.forward(embeddings) // [ctx, 64]
 
     println("inputIds: ${firstSample.inputIds}")

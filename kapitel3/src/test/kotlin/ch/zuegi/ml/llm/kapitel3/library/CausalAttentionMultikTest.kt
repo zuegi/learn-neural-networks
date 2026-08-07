@@ -1,6 +1,7 @@
-package ch.zuegi.ml.llm.kapitel3.library
+package ch.zuegi.ml.llm.kapitel3.ch.zuegi.ml.llm.kapitel3.library
 
-import library.CausalAttentionMultik
+import ch.zuegi.ml.llm.kapitel3.library.CausalAttentionMultik
+import ch.zuegi.ml.llm.kapitel3.library.SelfAttentionMultik
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.ndarray.data.D2
@@ -17,7 +18,13 @@ import kotlin.math.abs
 class CausalAttentionMultikTest {
     @Test
     fun `forward liefert output mit shape context x dK`() {
-        val model = CausalAttentionMultik(embeddingDim = 4, dK = 3, dropoutProb = 0.0, seed = 42)
+        val model =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.0,
+                seed = 42,
+            )
         val input =
             matrixOf(
                 listOf(
@@ -35,8 +42,20 @@ class CausalAttentionMultikTest {
 
     @Test
     fun `gleiches seed und eval modus erzeugen gleiche outputs`() {
-        val m1 = CausalAttentionMultik(embeddingDim = 4, dK = 3, dropoutProb = 0.3, seed = 7)
-        val m2 = CausalAttentionMultik(embeddingDim = 4, dK = 3, dropoutProb = 0.3, seed = 7)
+        val m1 =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.3,
+                seed = 7,
+            )
+        val m2 =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.3,
+                seed = 7,
+            )
 
         val input =
             matrixOf(
@@ -55,8 +74,20 @@ class CausalAttentionMultikTest {
 
     @Test
     fun `causal attention unterscheidet sich von self attention ohne maskierung`() {
-        val causal = CausalAttentionMultik(embeddingDim = 4, dK = 3, dropoutProb = 0.0, seed = 99)
-        val nonCausal = SelfAttentionMultik(embeddingDim = 4, dK = 3, causal = false, seed = 99)
+        val causal =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.0,
+                seed = 99,
+            )
+        val nonCausal =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                causal = false,
+                seed = 99,
+            )
 
         val input =
             matrixOf(
@@ -76,8 +107,20 @@ class CausalAttentionMultikTest {
 
     @Test
     fun `dropout im training beeinflusst output`() {
-        val noDropout = CausalAttentionMultik(embeddingDim = 4, dK = 3, dropoutProb = 0.0, seed = 11)
-        val withDropout = CausalAttentionMultik(embeddingDim = 4, dK = 3, dropoutProb = 0.5, seed = 11)
+        val noDropout =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.0,
+                seed = 11,
+            )
+        val withDropout =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.5,
+                seed = 11,
+            )
 
         val input =
             matrixOf(
@@ -97,7 +140,13 @@ class CausalAttentionMultikTest {
 
     @Test
     fun `forward wirft exception bei falscher input embedding dim`() {
-        val model = CausalAttentionMultik(embeddingDim = 4, dK = 2, dropoutProb = 0.0, seed = 1)
+        val model =
+            CausalAttentionMultik(
+                embeddingDim = 4,
+                dK = 2,
+                dropoutProb = 0.0,
+                seed = 1,
+            )
         val wrongInput =
             matrixOf(
                 listOf(

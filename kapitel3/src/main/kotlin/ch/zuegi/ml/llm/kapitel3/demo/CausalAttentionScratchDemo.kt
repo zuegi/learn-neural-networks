@@ -10,7 +10,8 @@ import ch.zuegi.ml.llm.shared.readVerdictText
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = SimpleTokenizerV1(rawText)
+    val tokenizer =
+        SimpleTokenizerV1(rawText)
     val tokenIds = tokenizer.encode(rawText)
 
     val contextLength = 4
@@ -20,8 +21,18 @@ fun main() {
 
     val inputEmbedding =
         InputEmbedding(
-            tokenEmbedding = TokenEmbedding(tokenizer.vocabSize, embeddingDim, seed = 42),
-            positionalEmbedding = PositionalEmbedding(contextLength, embeddingDim, seed = 42),
+            tokenEmbedding =
+                TokenEmbedding(
+                    tokenizer.vocabSize,
+                    embeddingDim,
+                    seed = 42,
+                ),
+            positionalEmbedding =
+                PositionalEmbedding(
+                    contextLength,
+                    embeddingDim,
+                    seed = 42,
+                ),
         )
 
     val firstSample = loader.samples().first()

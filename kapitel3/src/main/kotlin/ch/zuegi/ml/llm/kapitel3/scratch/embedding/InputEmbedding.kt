@@ -12,8 +12,8 @@ package ch.zuegi.ml.llm.kapitel3.scratch.embedding
  * @param positionalEmbedding lernbare Positional-Embedding-Tabelle.
  */
 class InputEmbedding(
-    private val tokenEmbedding: TokenEmbedding,
-    private val positionalEmbedding: PositionalEmbedding,
+    private val tokenEmbedding: ch.zuegi.ml.llm.kapitel3.scratch.embedding.TokenEmbedding,
+    private val positionalEmbedding: ch.zuegi.ml.llm.kapitel3.scratch.embedding.PositionalEmbedding,
 ) {
     /**
      * Erzeugt die Input-Embeddings für eine Token-ID-Sequenz.

@@ -1,5 +1,7 @@
-package ch.zuegi.ml.llm.kapitel3.scratch
+package ch.zuegi.ml.llm.kapitel3.ch.zuegi.ml.llm.kapitel3.scratch
 
+import ch.zuegi.ml.llm.kapitel3.scratch.CausalAttention
+import ch.zuegi.ml.llm.kapitel3.scratch.SelfAttention
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -10,7 +12,13 @@ import kotlin.math.abs
 class CausalAttentionTest {
     @Test
     fun `forward liefert output mit shape context x dK`() {
-        val model = CausalAttention(embeddingDim = 4, dK = 3, dropoutProb = 0.0, seed = 42)
+        val model =
+            CausalAttention(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.0,
+                seed = 42,
+            )
         val input =
             matrixOf(
                 doubleArrayOf(1.0, 0.0, 0.5, -1.0),
@@ -26,8 +34,20 @@ class CausalAttentionTest {
 
     @Test
     fun `gleiches seed und eval modus erzeugen gleiche outputs`() {
-        val m1 = CausalAttention(embeddingDim = 4, dK = 3, dropoutProb = 0.3, seed = 7)
-        val m2 = CausalAttention(embeddingDim = 4, dK = 3, dropoutProb = 0.3, seed = 7)
+        val m1 =
+            CausalAttention(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.3,
+                seed = 7,
+            )
+        val m2 =
+            CausalAttention(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.3,
+                seed = 7,
+            )
 
         val input =
             matrixOf(
@@ -44,8 +64,20 @@ class CausalAttentionTest {
 
     @Test
     fun `causal attention unterscheidet sich von self attention ohne maskierung`() {
-        val causal = CausalAttention(embeddingDim = 4, dK = 3, dropoutProb = 0.0, seed = 99)
-        val nonCausal = SelfAttention(embeddingDim = 4, dK = 3, causal = false, seed = 99)
+        val causal =
+            CausalAttention(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.0,
+                seed = 99,
+            )
+        val nonCausal =
+            SelfAttention(
+                embeddingDim = 4,
+                dK = 3,
+                causal = false,
+                seed = 99,
+            )
 
         val input =
             matrixOf(
@@ -63,8 +95,20 @@ class CausalAttentionTest {
 
     @Test
     fun `dropout im training beeinflusst output`() {
-        val noDropout = CausalAttention(embeddingDim = 4, dK = 3, dropoutProb = 0.0, seed = 11)
-        val withDropout = CausalAttention(embeddingDim = 4, dK = 3, dropoutProb = 0.5, seed = 11)
+        val noDropout =
+            CausalAttention(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.0,
+                seed = 11,
+            )
+        val withDropout =
+            CausalAttention(
+                embeddingDim = 4,
+                dK = 3,
+                dropoutProb = 0.5,
+                seed = 11,
+            )
 
         val input =
             matrixOf(

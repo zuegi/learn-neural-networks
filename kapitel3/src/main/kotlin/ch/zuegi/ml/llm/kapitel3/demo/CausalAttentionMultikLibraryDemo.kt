@@ -1,5 +1,6 @@
-package demo
+package ch.zuegi.ml.llm.kapitel3.demo
 
+import ch.zuegi.ml.llm.kapitel3.library.CausalAttentionMultik
 import ch.zuegi.ml.llm.kapitel3.library.embedding.InputEmbeddingMultik
 import ch.zuegi.ml.llm.kapitel3.library.embedding.PositionalEmbeddingMultik
 import ch.zuegi.ml.llm.kapitel3.library.embedding.TokenEmbeddingMultik
@@ -7,7 +8,6 @@ import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.EncodingType
-import library.CausalAttentionMultik
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 import org.jetbrains.kotlinx.multik.ndarray.operations.toList
 
@@ -26,8 +26,18 @@ fun main() {
 
     val inputEmbedding =
         InputEmbeddingMultik(
-            tokenEmbedding = TokenEmbeddingMultik(vocabSize, embeddingDim, seed = 42),
-            positionalEmbedding = PositionalEmbeddingMultik(contextLength, embeddingDim, seed = 42),
+            tokenEmbedding =
+                TokenEmbeddingMultik(
+                    vocabSize,
+                    embeddingDim,
+                    seed = 42,
+                ),
+            positionalEmbedding =
+                PositionalEmbeddingMultik(
+                    contextLength,
+                    embeddingDim,
+                    seed = 42,
+                ),
         )
 
     val firstSample = loader.samples().first()

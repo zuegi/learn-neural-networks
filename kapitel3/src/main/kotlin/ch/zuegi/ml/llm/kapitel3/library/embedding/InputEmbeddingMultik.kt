@@ -7,8 +7,8 @@ import org.jetbrains.kotlinx.multik.ndarray.data.NDArray
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 
 class InputEmbeddingMultik(
-    private val tokenEmbedding: TokenEmbeddingMultik,
-    private val positionalEmbedding: PositionalEmbeddingMultik,
+    private val tokenEmbedding: ch.zuegi.ml.llm.kapitel3.library.embedding.TokenEmbeddingMultik,
+    private val positionalEmbedding: ch.zuegi.ml.llm.kapitel3.library.embedding.PositionalEmbeddingMultik,
 ) {
     fun forward(tokenIds: List<Int>): NDArray<Double, D2> {
         val tokenVectors = tokenEmbedding.lookup(tokenIds)

@@ -1,5 +1,6 @@
-package ch.zuegi.ml.llm.kapitel3.library
+package ch.zuegi.ml.llm.kapitel3.ch.zuegi.ml.llm.kapitel3.library
 
+import ch.zuegi.ml.llm.kapitel3.library.SelfAttentionMultik
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.ndarray.data.D2
@@ -10,11 +11,18 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import kotlin.math.abs
 
 class SelfAttentionMultikTest {
     @Test
     fun `forward liefert output mit shape context x dK`() {
-        val model = SelfAttentionMultik(embeddingDim = 4, dK = 3, causal = false, seed = 42)
+        val model =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                causal = false,
+                seed = 42,
+            )
         val input =
             matrixOf(
                 listOf(
@@ -32,8 +40,20 @@ class SelfAttentionMultikTest {
 
     @Test
     fun `gleiches seed erzeugt gleiche gewichte und outputs`() {
-        val m1 = SelfAttentionMultik(embeddingDim = 4, dK = 3, causal = false, seed = 7)
-        val m2 = SelfAttentionMultik(embeddingDim = 4, dK = 3, causal = false, seed = 7)
+        val m1 =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                causal = false,
+                seed = 7,
+            )
+        val m2 =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                causal = false,
+                seed = 7,
+            )
 
         val input =
             matrixOf(
@@ -51,8 +71,20 @@ class SelfAttentionMultikTest {
 
     @Test
     fun `causal true unterscheidet sich von causal false bei gleichem seed`() {
-        val nonCausal = SelfAttentionMultik(embeddingDim = 4, dK = 3, causal = false, seed = 99)
-        val causal = SelfAttentionMultik(embeddingDim = 4, dK = 3, causal = true, seed = 99)
+        val nonCausal =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                causal = false,
+                seed = 99,
+            )
+        val causal =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 3,
+                causal = true,
+                seed = 99,
+            )
 
         val input =
             matrixOf(
@@ -72,7 +104,13 @@ class SelfAttentionMultikTest {
 
     @Test
     fun `forward wirft exception bei falscher input embedding dim`() {
-        val model = SelfAttentionMultik(embeddingDim = 4, dK = 2, causal = false, seed = 1)
+        val model =
+            SelfAttentionMultik(
+                embeddingDim = 4,
+                dK = 2,
+                causal = false,
+                seed = 1,
+            )
         val wrongInput =
             matrixOf(
                 listOf(
@@ -118,7 +156,7 @@ class SelfAttentionMultikTest {
 
         for (i in 0 until a.shape[0]) {
             for (j in 0 until a.shape[1]) {
-                if (kotlin.math.abs(a[i][j] - b[i][j]) > eps) return false
+                if (abs(a[i][j] - b[i][j]) > eps) return false
             }
         }
         return true

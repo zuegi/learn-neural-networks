@@ -12,8 +12,7 @@ import org.jetbrains.kotlinx.multik.ndarray.operations.toList
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer =
-        GPT2Tokenizer()
+    val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     val contextLength = 4

@@ -14,6 +14,7 @@
         <module>kapitel2</module>
         <module>shared</module>
         <module>kapitel3</module>
+        <module>kapitel4</module>
     </modules>
 
     <properties>

@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel1.scratch.embedding
+package ch.zuegi.ml.llm.kapitel3.scratch.embedding
 
 import java.util.Random
 

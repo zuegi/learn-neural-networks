@@ -1,6 +1,6 @@
-package ch.zuegi.ml.llm.kapitel1.demo
+package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel1.scratch.SimpleTokenizerV1
+import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.readVerdictText
 
 fun main() {

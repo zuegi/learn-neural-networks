@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel1.scratch
+package ch.zuegi.ml.llm.kapitel3.scratch
 
 /**
  * Einfacher regelbasierter Tokenizer für Textdaten.

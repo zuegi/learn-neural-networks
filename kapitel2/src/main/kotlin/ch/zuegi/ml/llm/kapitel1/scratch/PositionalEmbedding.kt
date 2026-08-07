@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel1.scratch
+package ch.zuegi.ml.llm.kapitel2.scratch
 
 import java.util.Random
 

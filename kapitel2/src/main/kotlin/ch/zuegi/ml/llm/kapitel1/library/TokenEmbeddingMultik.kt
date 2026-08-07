@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel1.library
+package ch.zuegi.ml.llm.kapitel2.library
 
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray

@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel1.library.embedding
+package ch.zuegi.ml.llm.kapitel3.library.embedding
 
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray

@@ -1,9 +1,9 @@
-package ch.zuegi.ml.llm.kapitel1.demo
+package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel1.scratch.InputEmbedding
-import ch.zuegi.ml.llm.kapitel1.scratch.PositionalEmbedding
-import ch.zuegi.ml.llm.kapitel1.scratch.SimpleTokenizerV1
-import ch.zuegi.ml.llm.kapitel1.scratch.TokenEmbedding
+import ch.zuegi.ml.llm.kapitel2.scratch.InputEmbedding
+import ch.zuegi.ml.llm.kapitel2.scratch.PositionalEmbedding
+import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
+import ch.zuegi.ml.llm.kapitel2.scratch.TokenEmbedding
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 

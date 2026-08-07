@@ -1,9 +1,9 @@
-package ch.zuegi.ml.llm.kapitel1.demo
+package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel1.library.InputEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel1.library.PositionalEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel1.library.TokenEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel1.scratch.SimpleTokenizerV1
+import ch.zuegi.ml.llm.kapitel2.library.InputEmbeddingMultik
+import ch.zuegi.ml.llm.kapitel2.library.PositionalEmbeddingMultik
+import ch.zuegi.ml.llm.kapitel2.library.TokenEmbeddingMultik
+import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.ndarray.data.get

@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel1.scratch
+package ch.zuegi.ml.llm.kapitel2.scratch
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy

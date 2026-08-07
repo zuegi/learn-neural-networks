@@ -4,23 +4,16 @@ import ch.zuegi.ml.llm.kapitel3.library.SelfAttentionMultik
 import ch.zuegi.ml.llm.kapitel3.library.embedding.InputEmbeddingMultik
 import ch.zuegi.ml.llm.kapitel3.library.embedding.PositionalEmbeddingMultik
 import ch.zuegi.ml.llm.kapitel3.library.embedding.TokenEmbeddingMultik
+import ch.zuegi.ml.llm.kapitel3.library.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
-import com.knuddels.jtokkit.Encodings
-import com.knuddels.jtokkit.api.EncodingType
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 import org.jetbrains.kotlinx.multik.ndarray.operations.toList
 
 fun main() {
-    // 1. Registry laden
-    val registry = Encodings.newDefaultEncodingRegistry()
-
-    // 2. GPT-2 Encoding (r50k_base) abrufen
-    val tokenizer = registry.getEncoding(EncodingType.R50K_BASE)
-
-    // 3. Text codieren
     val rawText = readVerdictText()
-    val tokenIds = tokenizer.encode(rawText).toArray().toList()
+    val tokenizer = GPT2Tokenizer()
+    val tokenIds = tokenizer.encode(rawText)
 
     val contextLength = 4
     val embeddingDim = 256

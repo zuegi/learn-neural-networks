@@ -23,7 +23,7 @@ MNIST-Training starten:
 mvn -pl chapter-1 exec:java
 ```
 
-GPT-Demo ausführen. `main()` tokenisiert den Text und erzeugt aus einem untrainierten `GPTModel` zufälligen Text; `mainTrain()` trainiert `GPTModelLayer` auf dem Text und generiert danach per Sampling.
+GPT-Demo ausführen. `main()` tokenisiert den Text und erzeugt aus einem untrainierten `GPTModel` zufälligen Text; `mainTrain()` trainiert `GPTModel` auf dem Text und generiert danach per Sampling.
 
 ```bash
 mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt

@@ -122,7 +122,7 @@ Matrizen werden flach (row-major) in `DoubleArray` gehalten; die Form wird über
 
 ### Training
 
-Mit `SGD` und den `*Layer`-Bausteinen ist das gesamte Modell trainierbar. Der Trainings-Loop (`mainTrain()` in `Main.kt`) folgt dem Standardmuster:
+Mit `SGDTensorMultik` und den `*Layer`-Bausteinen ist das gesamte Modell trainierbar. Der Trainings-Loop (`mainTrain()` in `Main.kt`) folgt dem Standardmuster:
 
 ```text
 für jede Epoche, für jedes TrainingSample:
@@ -136,7 +136,7 @@ Auf `the-verdict.txt` fällt der Loss so von ~6.96 (Zufalls-Niveau `ln(vocabSize
 
 ### Nächster Schritt
 
-Das komplette trainierbare GPT steht: Tokenizer → `TextDataLoader` → `GPTModelLayer.loss` → `backward()` → `SGD` → `generate()`, alle Autograd-Ops per Gradient-Check verifiziert. Mögliche Erweiterungen: größeres Modell / mehr Trainingsdaten (ggf. Performance des Scalar/Tensor-Autograds optimieren), Batch-Verarbeitung mehrerer Samples, ein besserer Tokenizer (BPE) oder Lernraten-Scheduling.
+Das komplette trainierbare GPT steht: Tokenizer → `TextDataLoader` → `GPTModelLayer.loss` → `backward()` → `SGDTensorMultik` → `generate()`, alle Autograd-Ops per Gradient-Check verifiziert. Mögliche Erweiterungen: größeres Modell / mehr Trainingsdaten (ggf. Performance des Scalar/Tensor-Autograds optimieren), Batch-Verarbeitung mehrerer Samples, ein besserer Tokenizer (BPE) oder Lernraten-Scheduling.
 
 ## Getting Started
 

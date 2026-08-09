@@ -9,12 +9,14 @@ class GPTModelMultikTest {
     fun `forward liefert logits mit shape contextLength mal vocabSize`() {
         val model =
             GPTModelMultik(
-                vocabSize = 20,
-                contextLength = 4,
-                embeddingDim = 8,
-                numLayers = 2,
-                numHeads = 2,
-                seed = 42L,
+                GPTConfig(
+                    vocabSize = 20,
+                    contextLength = 4,
+                    embeddingDim = 8,
+                    numLayers = 2,
+                    numHeads = 2,
+                    seed = 42L,
+                ),
             )
 
         val logits = model.forward(listOf(1, 2, 3, 4), training = false)
@@ -27,12 +29,14 @@ class GPTModelMultikTest {
     fun `loss liefert finite zahl`() {
         val model =
             GPTModelMultik(
-                vocabSize = 20,
-                contextLength = 4,
-                embeddingDim = 8,
-                numLayers = 1,
-                numHeads = 2,
-                seed = 7L,
+                GPTConfig(
+                    vocabSize = 20,
+                    contextLength = 4,
+                    embeddingDim = 8,
+                    numLayers = 1,
+                    numHeads = 2,
+                    seed = 7L,
+                ),
             )
 
         val loss = model.loss(tokenIds = listOf(1, 2, 3, 4), targetIds = listOf(2, 3, 4, 5))
@@ -44,12 +48,14 @@ class GPTModelMultikTest {
     fun `generate liefert start plus maxNewTokens`() {
         val model =
             GPTModelMultik(
-                vocabSize = 20,
-                contextLength = 4,
-                embeddingDim = 8,
-                numLayers = 1,
-                numHeads = 2,
-                seed = 21L,
+                GPTConfig(
+                    vocabSize = 20,
+                    contextLength = 4,
+                    embeddingDim = 8,
+                    numLayers = 1,
+                    numHeads = 2,
+                    seed = 21L,
+                ),
             )
 
         val start = listOf(1, 2, 3, 4)
@@ -62,12 +68,14 @@ class GPTModelMultikTest {
     fun `generate ist reproduzierbar mit generatorSeed`() {
         val model =
             GPTModelMultik(
-                vocabSize = 20,
-                contextLength = 4,
-                embeddingDim = 8,
-                numLayers = 1,
-                numHeads = 2,
-                seed = 99L,
+                GPTConfig(
+                    vocabSize = 20,
+                    contextLength = 4,
+                    embeddingDim = 8,
+                    numLayers = 1,
+                    numHeads = 2,
+                    seed = 99L,
+                ),
             )
 
         val start = listOf(1, 2, 3, 4)

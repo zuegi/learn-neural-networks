@@ -1,5 +1,6 @@
 package ch.zuegi.ml.llm.kapitel4.demo
 
+import ch.zuegi.ml.llm.kapitel4.GPTConfig
 import ch.zuegi.ml.llm.kapitel4.GPTModelMultik
 import ch.zuegi.ml.llm.kapitel4.library.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.readVerdictText
@@ -11,25 +12,22 @@ fun main() {
     val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
-    val contextLength = 4
-    val embeddingDim = 64
-    val numLayers = 2
-    val numHeads = 8
-
-    val model =
-        GPTModelMultik(
+    val config =
+        GPTConfig(
             vocabSize = tokenizer.vocabSize,
-            contextLength = contextLength,
-            embeddingDim = embeddingDim,
-            numLayers = numLayers,
-            numHeads = numHeads,
+            contextLength = 4,
+            embeddingDim = 64,
+            numLayers = 2,
+            numHeads = 8,
             seed = 42L,
         )
+
+    val model = GPTModelMultik(config)
 
     println("tokenizer vocabSize: ${tokenizer.vocabSize}")
     println("model vocabSize: ${tokenizer.vocabSize}")
 
-    val startIds = tokenIds.take(contextLength)
+    val startIds = tokenIds.take(config.contextLength)
     println("startIds size: ${startIds.size}")
     println("startIds text: ${tokenizer.decode(startIds)}")
 

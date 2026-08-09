@@ -8,6 +8,8 @@ import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 import org.jetbrains.kotlinx.multik.ndarray.data.set
+import java.time.LocalTime
+import kotlin.time.measureTime
 
 fun main() {
     val rawText = readVerdictText()
@@ -51,36 +53,39 @@ fun main() {
 
     val samples = loader.samples().take(trainingSampleSize)
     val optimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
+    println("${LocalTime.now()} - Start calculation epochs")
+    val timeDuration =
+        measureTime {
+            for (epoch in 1..epochs) {
+                var epochLoss = 0.0
+                var batchCount = 0
+                var index = 0
 
-    for (epoch in 1..epochs) {
-        var epochLoss = 0.0
-        var batchCount = 0
-        var index = 0
+                while (index < samples.size) {
+                    val end = minOf(index + batchSize, samples.size)
+                    val batch = samples.subList(index, end)
 
-        while (index < samples.size) {
-            val end = minOf(index + batchSize, samples.size)
-            val batch = samples.subList(index, end)
+                    optimizer.zeroGrad()
 
-            optimizer.zeroGrad()
+                    var batchLoss = 0.0
+                    for (sample in batch) {
+                        val loss = model.loss(sample.inputIds, sample.targetIds)
+                        loss.backward()
+                        batchLoss += loss.data[0]
+                    }
 
-            var batchLoss = 0.0
-            for (sample in batch) {
-                val loss = model.loss(sample.inputIds, sample.targetIds)
-                loss.backward()
-                batchLoss += loss.data[0]
+                    clipGradients(model.parameters(), maxNorm = 1.0)
+                    optimizer.step()
+
+                    epochLoss += batchLoss
+                    batchCount += 1
+                    index = end
+                }
+
+                val avgLoss = epochLoss / batchCount
+                println("${LocalTime.now()} - epoch $epoch/$epochs  loss=${"%.4f".format(avgLoss)}")
             }
-
-            clipGradients(model.parameters(), maxNorm = 1.0)
-            optimizer.step()
-
-            epochLoss += batchLoss
-            batchCount += 1
-            index = end
         }
-
-        val avgLoss = epochLoss / batchCount
-        println("epoch $epoch/$epochs  loss=${"%.4f".format(avgLoss)}")
-    }
 
     val startIds = tokenIds.take(config.contextLength)
     val generated =
@@ -88,9 +93,9 @@ fun main() {
             startIds,
             generationConfig,
         )
-
-    println("start:     ${tokenizer.decode(startIds)}")
-    println("generated: ${tokenizer.decode(generated)}")
+    println("${LocalTime.now()} - Zeit des Trainings: ${timeDuration.inWholeSeconds} Sekunden")
+    println("${LocalTime.now()} - start:     ${tokenizer.decode(startIds)}")
+    println("${LocalTime.now()} - generated: ${tokenizer.decode(generated)}")
 }
 
 fun clipGradients(

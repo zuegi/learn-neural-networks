@@ -1,10 +1,8 @@
 package ch.zuegi.ml.llm.kapitel5.library.autograd
 
-import org.jetbrains.kotlinx.multik.api.linalg.dot
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.ndarray.data.D1
-import org.jetbrains.kotlinx.multik.ndarray.data.D2
 import org.jetbrains.kotlinx.multik.ndarray.data.NDArray
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 import org.jetbrains.kotlinx.multik.ndarray.data.set
@@ -15,7 +13,7 @@ class TensorMultik(
     private val children: List<TensorMultik> = emptyList(),
 ) {
     val grad: NDArray<Double, D1> = mk.ndarray(DoubleArray(data.size) { 0.0 })
-    private var backwardStep: () -> Unit = {}
+    var backwardStep: () -> Unit = {}
     val size: Int get() = data.size
 
     companion object {
@@ -128,10 +126,12 @@ class TensorMultik(
         require(size == rows * cols) { "size $size passt nicht zu rows*cols=${rows * cols}" }
         require(row.size == cols) { "row.size ${row.size} passt nicht zu cols=$cols" }
 
-        val matrix2D = as2D(data, rows, cols)
-        val rowVec2D = as2D(row.data, cols, 1)
-        val dot2D = mk.linalg.dot(matrix2D, rowVec2D)
-        val result = DoubleArray(rows) { i -> dot2D[i, 0] }
+        val result =
+            DoubleArray(rows) { i ->
+                var sum = 0.0
+                for (c in 0 until cols) sum += data[i * cols + c] * row.data[c]
+                sum
+            }
 
         val out = TensorMultik(mk.ndarray(result), listOf(this, row))
         out.backwardStep = {
@@ -153,11 +153,13 @@ class TensorMultik(
     ): TensorMultik {
         require(size == n) { "Eingabegroesse $size passt nicht zu n=$n" }
         require(weight.size == m * n) { "weight.size ${weight.size} passt nicht zu m*n=${m * n}" }
-        val weight2D = as2D(weight.data, m, n)
-        val input2D = as2D(data, n, 1)
-        val dot2D = mk.linalg.dot(weight2D, input2D)
-        val result = DoubleArray(m) { i -> dot2D[i, 0] }
-
+        val result = DoubleArray(m)
+        for (row in 0 until m) {
+            var sum = 0.0
+            val base = row * n
+            for (col in 0 until n) sum += weight.data[base + col] * data[col]
+            result[row] = sum
+        }
         val out = TensorMultik(mk.ndarray(result), listOf(this, weight))
         out.backwardStep = {
             for (col in 0 until n) {
@@ -182,12 +184,14 @@ class TensorMultik(
     ): TensorMultik {
         require(size == p * q) { "this.size $size passt nicht zu p*q=${p * q}" }
         require(other.size == q * r) { "other.size ${other.size} passt nicht zu q*r=${q * r}" }
-
-        val left2D = as2D(data, p, q)
-        val right2D = as2D(other.data, q, r)
-        val product2D = mk.linalg.dot(left2D, right2D)
-        val result = flatten2D(product2D)
-
+        val result = DoubleArray(p * r)
+        for (i in 0 until p) {
+            for (j in 0 until r) {
+                var sum = 0.0
+                for (k in 0 until q) sum += data[i * q + k] * other.data[k * r + j]
+                result[i * r + j] = sum
+            }
+        }
         val out = TensorMultik(mk.ndarray(result), listOf(this, other))
         out.backwardStep = {
             for (i in 0 until p) {
@@ -227,7 +231,7 @@ class TensorMultik(
     fun softmax(): TensorMultik {
         val max = (0 until size).maxOf { data[it] }
         val exps = DoubleArray(size) { i -> kotlin.math.exp(data[i] - max) }
-        val sumExp = mk.math.sum(mk.ndarray(exps))
+        val sumExp = exps.sum()
         val probs = DoubleArray(size) { i -> exps[i] / sumExp }
 
         val out = TensorMultik(mk.ndarray(probs), listOf(this))
@@ -244,7 +248,7 @@ class TensorMultik(
 
         val max = (0 until size).maxOf { data[it] }
         val exps = DoubleArray(size) { i -> kotlin.math.exp(data[i] - max) }
-        val sumExp = mk.math.sum(mk.ndarray(exps))
+        val sumExp = exps.sum()
         val probs = DoubleArray(size) { i -> exps[i] / sumExp }
 
         val loss = -kotlin.math.ln(probs[target])
@@ -452,27 +456,5 @@ class TensorMultik(
             }
         }
         return out
-    }
-
-    private fun as2D(
-        source: NDArray<Double, D1>,
-        rows: Int,
-        cols: Int,
-    ): org.jetbrains.kotlinx.multik.ndarray.data.MultiArray<Double, D2> {
-        require(source.size == rows * cols) { "size ${source.size} passt nicht zu rows*cols=${rows * cols}" }
-        val nested = List(rows) { r -> List(cols) { c -> source[r * cols + c] } }
-        return mk.ndarray(nested)
-    }
-
-    private fun flatten2D(arr: org.jetbrains.kotlinx.multik.ndarray.data.MultiArray<Double, D2>): DoubleArray {
-        val rows = arr.shape[0]
-        val cols = arr.shape[1]
-        val flat = DoubleArray(rows * cols)
-        for (r in 0 until rows) {
-            for (c in 0 until cols) {
-                flat[r * cols + c] = arr[r, c]
-            }
-        }
-        return flat
     }
 }

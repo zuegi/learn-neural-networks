@@ -2,6 +2,8 @@ package ch.zuegi.ml.llm.kapitel5.library.autograd
 
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
+import org.jetbrains.kotlinx.multik.ndarray.data.get
+import org.jetbrains.kotlinx.multik.ndarray.data.set
 import java.util.Random
 import kotlin.math.sqrt
 
@@ -158,11 +160,29 @@ class MultiHeadAttentionMultikTensor(
         value: TensorMultik,
         ctx: Int,
     ): TensorMultik {
-        var acc = weights.row(0, 1).broadcastMul(value.row(0, dK))
-        for (i in 1 until ctx) {
-            acc = acc + weights.row(i, 1).broadcastMul(value.row(i, dK))
+        require(weights.size == ctx) { "weights.size ${weights.size} passt nicht zu ctx=$ctx" }
+        require(value.size == ctx * dK) { "value.size ${value.size} passt nicht zu ctx*dK=${ctx * dK}" }
+
+        val result = DoubleArray(dK)
+        for (c in 0 until dK) {
+            var sum = 0.0
+            for (i in 0 until ctx) {
+                sum += weights.data[i] * value.data[i * dK + c]
+            }
+            result[c] = sum
         }
-        return acc
+
+        val out = TensorMultik(mk.ndarray(result), listOf(weights, value))
+        out.backwardStep = {
+            for (c in 0 until dK) {
+                val gradC = out.grad[c]
+                for (i in 0 until ctx) {
+                    weights.grad[i] += value.data[i * dK + c] * gradC
+                    value.grad[i * dK + c] += weights.data[i] * gradC
+                }
+            }
+        }
+        return out
     }
 
     private fun TensorMultik.withOptionalBias(

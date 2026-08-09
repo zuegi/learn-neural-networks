@@ -14,10 +14,10 @@ fun main() {
     val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
-    val trainingSampleSize = 100
+    val trainingSampleSize = 50
     val learningRate = 0.01
     val epochs = 10
-    val batchSize = 8
+    val batchSize = 2
 
     val generationConfig =
         GenerationConfig(

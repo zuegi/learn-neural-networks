@@ -1,4 +1,4 @@
-import ch.zuegi.ml.llm.kapitel5.library.autograd.SGDTensorMultik
+import ch.zuegi.ml.llm.kapitel5.library.autograd.AdamOptimizer
 import ch.zuegi.ml.llm.kapitel5.library.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.kapitel5.model.GPTConfig
 import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
@@ -48,7 +48,7 @@ fun main() {
         )
 
     val samples = loader.samples().take(trainingSampleSize)
-    val sgd = SGDTensorMultik(model.parameters(), learningRate = learningRate)
+    val adamOptimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
 
     for (epoch in 1..epochs) {
         var epochLoss = 0.0
@@ -61,7 +61,7 @@ fun main() {
             val end = minOf(index + batchSize, sampleList.size)
             val batch = sampleList.subList(index, end)
 
-            sgd.zeroGrad()
+            adamOptimizer.zeroGrad()
 
             var batchLossSum = 0.0
             for (sample in batch) {
@@ -76,7 +76,7 @@ fun main() {
             batchCount += 1
 
             // EIN Optimizer-Step pro Batch
-            sgd.step()
+            adamOptimizer.step()
 
             index = end
         }

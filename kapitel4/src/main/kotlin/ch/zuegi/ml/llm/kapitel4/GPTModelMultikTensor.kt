@@ -36,6 +36,8 @@ class GPTModelMultikTensor(
                 hiddenDim = config.hiddenDim,
                 causal = config.causal,
                 dropoutProb = config.dropoutProb,
+                useQkvBias = config.useQkvBias,
+                useOutputBias = config.useOutputBias,
                 seed = config.seed?.let { it + (layerIndex + 1) * BLOCK_SEED_OFFSET },
             )
         }

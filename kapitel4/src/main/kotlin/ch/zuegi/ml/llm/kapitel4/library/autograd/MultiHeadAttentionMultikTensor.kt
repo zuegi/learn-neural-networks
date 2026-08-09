@@ -16,6 +16,8 @@ import kotlin.math.sqrt
  * @param dK Dimension pro Kopf.
  * @param causal wenn true, wird Zukunft maskiert.
  * @param dropoutProb Attention-Dropout auf den Softmax-Gewichten.
+ * @param useQkvBias wenn true, werden Query/Key/Value-Bias verwendet.
+ * @param useOutputBias wenn true, wird Output-Bias verwendet.
  * @param seed optionaler Seed für reproduzierbare Initialisierung.
  */
 class MultiHeadAttentionMultikTensor(
@@ -24,6 +26,8 @@ class MultiHeadAttentionMultikTensor(
     private val dK: Int,
     private val causal: Boolean = false,
     private val dropoutProb: Double = 0.0,
+    private val useQkvBias: Boolean = true,
+    private val useOutputBias: Boolean = true,
     seed: Long? = null,
 ) {
     init {
@@ -53,6 +57,15 @@ class MultiHeadAttentionMultikTensor(
             mk.ndarray(DoubleArray(headDim * embeddingDim) { rnd.nextGaussian() * INIT_SCALE }),
         )
 
+    val bQuery: TensorMultik? =
+        if (useQkvBias) TensorMultik(mk.ndarray(DoubleArray(headDim))) else null
+    val bKey: TensorMultik? =
+        if (useQkvBias) TensorMultik(mk.ndarray(DoubleArray(headDim))) else null
+    val bValue: TensorMultik? =
+        if (useQkvBias) TensorMultik(mk.ndarray(DoubleArray(headDim))) else null
+    val bOutput: TensorMultik? =
+        if (useOutputBias) TensorMultik(mk.ndarray(DoubleArray(embeddingDim))) else null
+
     /**
      * @param input Matrix-Tensor [ctx, embeddingDim], row-major.
      * @param ctx Anzahl Positionen.
@@ -68,9 +81,20 @@ class MultiHeadAttentionMultikTensor(
             "input.size ${input.size} passt nicht zu ctx*embeddingDim=${ctx * embeddingDim}"
         }
 
-        val query = input.matMul(wQuery, p = ctx, q = embeddingDim, r = headDim)
-        val key = input.matMul(wKey, p = ctx, q = embeddingDim, r = headDim)
-        val value = input.matMul(wValue, p = ctx, q = embeddingDim, r = headDim)
+        val query =
+            input
+                .matMul(wQuery, p = ctx, q = embeddingDim, r = headDim)
+                .withOptionalBias(ctx, headDim, bQuery)
+
+        val key =
+            input
+                .matMul(wKey, p = ctx, q = embeddingDim, r = headDim)
+                .withOptionalBias(ctx, headDim, bKey)
+
+        val value =
+            input
+                .matMul(wValue, p = ctx, q = embeddingDim, r = headDim)
+                .withOptionalBias(ctx, headDim, bValue)
 
         val headOutputs =
             (0 until numHeads).map { h ->
@@ -85,10 +109,23 @@ class MultiHeadAttentionMultikTensor(
             }
 
         val concatenated = TensorMultik.concatCols(headOutputs, ctx = ctx, colsEach = dK)
-        return concatenated.matMul(wOutput, p = ctx, q = headDim, r = embeddingDim)
+
+        return concatenated
+            .matMul(wOutput, p = ctx, q = headDim, r = embeddingDim)
+            .withOptionalBias(ctx, embeddingDim, bOutput)
     }
 
-    fun parameters(): List<TensorMultik> = listOf(wQuery, wKey, wValue, wOutput)
+    fun parameters(): List<TensorMultik> =
+        buildList {
+            add(wQuery)
+            add(wKey)
+            add(wValue)
+            add(wOutput)
+            bQuery?.let { add(it) }
+            bKey?.let { add(it) }
+            bValue?.let { add(it) }
+            bOutput?.let { add(it) }
+        }
 
     private fun forwardHead(
         query: TensorMultik,
@@ -127,6 +164,12 @@ class MultiHeadAttentionMultikTensor(
         }
         return acc
     }
+
+    private fun TensorMultik.withOptionalBias(
+        rows: Int,
+        cols: Int,
+        bias: TensorMultik?,
+    ): TensorMultik = if (bias != null) addBias(rows, cols, bias) else this
 
     companion object {
         private const val INIT_SCALE = 0.02

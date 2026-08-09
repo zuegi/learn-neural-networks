@@ -7,6 +7,8 @@ class TransformerBlockMultikTensor(
     hiddenDim: Int = 4 * embeddingDim,
     causal: Boolean = false,
     dropoutProb: Double = 0.0,
+    useQkvBias: Boolean = true,
+    useOutputBias: Boolean = true,
     seed: Long? = null,
 ) {
     init {
@@ -24,6 +26,8 @@ class TransformerBlockMultikTensor(
             dK = dK,
             causal = causal,
             dropoutProb = dropoutProb,
+            useQkvBias = useQkvBias,
+            useOutputBias = useOutputBias,
             seed = seed,
         )
 

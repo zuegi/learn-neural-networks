@@ -443,4 +443,32 @@ class TensorMultik(
         }
         return out
     }
+
+    fun addBias(
+        rows: Int,
+        cols: Int,
+        bias: TensorMultik,
+    ): TensorMultik {
+        require(size == rows * cols) { "size $size passt nicht zu rows*cols=${rows * cols}" }
+        require(bias.size == cols) { "bias.size ${bias.size} passt nicht zu cols=$cols" }
+
+        val result = DoubleArray(size)
+        for (r in 0 until rows) {
+            for (c in 0 until cols) {
+                result[r * cols + c] = data[r * cols + c] + bias.data[c]
+            }
+        }
+
+        val out = TensorMultik(mk.ndarray(result), listOf(this, bias))
+        out.backwardStep = {
+            for (r in 0 until rows) {
+                for (c in 0 until cols) {
+                    val g = out.grad[r * cols + c]
+                    grad[r * cols + c] += g
+                    bias.grad[c] += g
+                }
+            }
+        }
+        return out
+    }
 }

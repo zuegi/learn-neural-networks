@@ -14,10 +14,10 @@ fun main() {
     val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
-    val trainingSampleSize = 500
+    val trainingSampleSize = 100
     val learningRate = 0.05
-    val epochs = 50
-    val batchSize = 8
+    val epochs = 10
+    val batchSize = 1
 
     val generationConfig =
         GenerationConfig(
@@ -31,10 +31,13 @@ fun main() {
     val config =
         GPTConfig(
             vocabSize = tokenizer.vocabSize,
-            contextLength = 16,
+            contextLength = 32,
             embeddingDim = 64,
             numLayers = 2,
-            numHeads = 8,
+            numHeads = 4,
+            dropoutProb = 0.1,
+            useQkvBias = false,
+            useOutputBias = false,
             seed = 42L,
         )
 

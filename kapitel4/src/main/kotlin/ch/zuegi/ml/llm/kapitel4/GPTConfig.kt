@@ -22,6 +22,8 @@ data class GPTConfig(
     val hiddenDim: Int = 4 * embeddingDim,
     val causal: Boolean = true,
     val dropoutProb: Double = 0.1,
+    val useQkvBias: Boolean = false,
+    val useOutputBias: Boolean = false,
     val seed: Long? = null,
 ) {
     init {

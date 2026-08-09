@@ -1,4 +1,5 @@
 import ch.zuegi.ml.llm.kapitel5.library.autograd.AdamOptimizer
+import ch.zuegi.ml.llm.kapitel5.library.autograd.TensorMultik
 import ch.zuegi.ml.llm.kapitel5.library.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.kapitel5.model.GPTConfig
 import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
@@ -6,6 +7,7 @@ import ch.zuegi.ml.llm.kapitel5.model.GenerationConfig
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.ndarray.data.get
+import org.jetbrains.kotlinx.multik.ndarray.data.set
 
 fun main() {
     val rawText = readVerdictText()
@@ -13,9 +15,9 @@ fun main() {
     val tokenIds = tokenizer.encode(rawText)
 
     val trainingSampleSize = 100
-    val learningRate = 0.05
+    val learningRate = 0.01
     val epochs = 10
-    val batchSize = 1
+    val batchSize = 8
 
     val generationConfig =
         GenerationConfig(
@@ -48,41 +50,36 @@ fun main() {
         )
 
     val samples = loader.samples().take(trainingSampleSize)
-    val adamOptimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
+    val optimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
 
     for (epoch in 1..epochs) {
         var epochLoss = 0.0
         var batchCount = 0
-
-        val sampleList = samples.toList()
         var index = 0
 
-        while (index < sampleList.size) {
-            val end = minOf(index + batchSize, sampleList.size)
-            val batch = sampleList.subList(index, end)
+        while (index < samples.size) {
+            val end = minOf(index + batchSize, samples.size)
+            val batch = samples.subList(index, end)
 
-            adamOptimizer.zeroGrad()
+            optimizer.zeroGrad()
 
-            var batchLossSum = 0.0
+            var batchLoss = 0.0
             for (sample in batch) {
-                val loss = model.loss(sample.inputIds, sample.targetIds) // TensorMultik (Skalar)
-                loss.backward() // Gradienten akkumulieren
-                batchLossSum += loss.data[0]
+                val loss = model.loss(sample.inputIds, sample.targetIds)
+                loss.backward()
+                batchLoss += loss.data[0]
             }
 
-            // Mittelwert innerhalb Batch für Logging
-            val batchAvgLoss = batchLossSum / batch.size
-            epochLoss += batchAvgLoss
+            clipGradients(model.parameters(), maxNorm = 1.0)
+            optimizer.step()
+
+            epochLoss += batchLoss
             batchCount += 1
-
-            // EIN Optimizer-Step pro Batch
-            adamOptimizer.step()
-
             index = end
         }
 
-        val avg = epochLoss / batchCount
-        println("epoch $epoch/$epochs  loss=${"%.4f".format(avg)}")
+        val avgLoss = epochLoss / batchCount
+        println("epoch $epoch/$epochs  loss=${"%.4f".format(avgLoss)}")
     }
 
     val startIds = tokenIds.take(config.contextLength)
@@ -94,4 +91,26 @@ fun main() {
 
     println("start:     ${tokenizer.decode(startIds)}")
     println("generated: ${tokenizer.decode(generated)}")
+}
+
+fun clipGradients(
+    parameters: List<TensorMultik>,
+    maxNorm: Double = 1.0,
+) {
+    var norm = 0.0
+    for (param in parameters) {
+        for (i in 0 until param.size) {
+            norm += param.grad[i] * param.grad[i]
+        }
+    }
+    norm = kotlin.math.sqrt(norm)
+
+    if (norm > maxNorm) {
+        val scale = maxNorm / norm
+        for (param in parameters) {
+            for (i in 0 until param.size) {
+                param.grad[i] *= scale
+            }
+        }
+    }
 }

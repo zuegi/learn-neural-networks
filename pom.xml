@@ -15,6 +15,7 @@
         <module>shared</module>
         <module>kapitel3</module>
         <module>kapitel4</module>
+        <module>kapitel5</module>
     </modules>
 
     <properties>
@@ -27,6 +28,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <kotlin.compiler.jvmTarget>17</kotlin.compiler.jvmTarget>
+        <multik.version>0.3.1</multik.version>
     </properties>
 
     <repositories>
@@ -130,12 +132,18 @@
             <dependency>
                 <groupId>org.jetbrains.kotlinx</groupId>
                 <artifactId>multik-core-jvm</artifactId>
-                <version>0.3.1</version>
+                <version>${multik.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlinx</groupId>
                 <artifactId>multik-default-jvm</artifactId>
-                <version>0.3.1</version>
+                <version>${multik.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlinx</groupId>
+                <artifactId>multik-openblas-jvm</artifactId>
+                <version>${multik.version}</version>
+                <scope>compile</scope>
             </dependency>
 
             <dependency>

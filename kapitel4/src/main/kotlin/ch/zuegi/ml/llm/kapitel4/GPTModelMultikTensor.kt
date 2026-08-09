@@ -7,7 +7,6 @@ import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 import java.util.Random
-import kotlin.collections.flatMap
 import kotlin.math.exp
 
 class GPTModelMultikTensor(
@@ -94,27 +93,33 @@ class GPTModelMultikTensor(
 
     fun generate(
         startIds: List<Int>,
-        maxNewTokens: Int,
-        temperature: Double = 1.0,
-        topK: Int = 0,
-        greedy: Boolean = false,
-        generatorSeed: Long? = null,
+        generatedConfig: GenerationConfig,
     ): List<Int> {
         require(startIds.size >= contextLength) {
             "startIds.size ${startIds.size} muss >= contextLength $contextLength sein"
         }
-        require(maxNewTokens >= 0) { "maxNewTokens muss >= 0 sein" }
-        require(temperature > 0.0) { "temperature muss > 0 sein" }
+        require(generatedConfig.maxNewTokens >= 0) { "maxNewTokens muss >= 0 sein" }
+        require(generatedConfig.temperature > 0.0) { "temperature muss > 0 sein" }
 
-        val generator = if (generatorSeed != null) Random(generatorSeed) else Random()
+        val generator = if (generatedConfig.generatorSeed != null) Random(generatedConfig.generatorSeed) else Random()
         val sequence = startIds.toMutableList()
 
-        repeat(maxNewTokens) {
+        repeat(generatedConfig.maxNewTokens) {
             val logits = forward(sequence.takeLast(contextLength), training = false)
             val last = logits.row(contextLength - 1, vocabSize)
             val lastArray = DoubleArray(vocabSize) { i -> last.data[i] }
 
-            val next = if (greedy) argmax(lastArray) else sampleFromLogits(lastArray, temperature, topK, generator)
+            val next =
+                if (generatedConfig.greedy) {
+                    argmax(lastArray)
+                } else {
+                    sampleFromLogits(
+                        lastArray,
+                        generatedConfig.temperature,
+                        generatedConfig.topK,
+                        generator,
+                    )
+                }
             sequence.add(next)
         }
 

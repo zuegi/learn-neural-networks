@@ -51,7 +51,7 @@ fun main() {
     val generated =
         model.generate(
             startIds,
-            maxNewTokens = 20,
+            maxNewTokens = 10,
             temperature = 0.8,
             topK = 5,
             generatorSeed = 123,

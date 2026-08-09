@@ -23,7 +23,7 @@ MNIST-Training starten:
 mvn -pl chapter-1 exec:java
 ```
 
-GPT-Demo ausführen. `main()` tokenisiert den Text und erzeugt aus einem untrainierten `GPTModel` zufälligen Text; `mainTrain()` trainiert `GPTModelLayer` auf dem Text und generiert danach per Sampling.
+GPT-Demo ausführen. `main()` tokenisiert den Text und erzeugt aus einem untrainierten `GPTModel` zufälligen Text; `mainTrain()` trainiert `GPTModel` auf dem Text und generiert danach per Sampling.
 
 ```bash
 mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt
@@ -34,7 +34,7 @@ mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt
 | Modul | Beschreibung | README |
 |-------|-------------|--------|
 | `chapter-1` | MNIST-Trainingsanwendung mit einfachem neuronalen Netz in Kotlin | [README](chapter-1/README.md) |
-| `llm` | Kotlin-Modul mit Regex-Tokenizer, DataLoader, Embeddings, Transformer-Bausteinen (Attention, LayerNorm, FeedForward), `GPTModel` mit Textgenerierung sowie einem eigenen Autograd-System (`Value`, `Tensor`, `SGD`) und trainierbaren `*Layer`-Bausteinen, mit denen ein komplettes GPT von Grund auf trainiert wird | [README](llm/README.md) |
+| `llm` | Kotlin-Modul mit Regex-Tokenizer, DataLoader, Embeddings, Transformer-Bausteinen (Attention, LayerNorm, FeedForward), `GPTModel` mit Textgenerierung sowie einem eigenen Autograd-System (`Value`, `Tensor`, `SGDTensorMultik`) und trainierbaren `*Layer`-Bausteinen, mit denen ein komplettes GPT von Grund auf trainiert wird | [README](llm/README.md) |
 
 ## Top 10 Libraries
 

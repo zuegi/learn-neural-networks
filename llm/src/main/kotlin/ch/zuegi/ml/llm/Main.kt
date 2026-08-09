@@ -94,7 +94,7 @@ fun mainTrain() {
             startIds,
             maxNewTokens = 20,
             temperature = 0.8,
-            topK = 10,
+            topK = 5,
             generatorSeed = 123,
         )
     println("start:     ${tokenizer.decode(startIds)}")

@@ -1,5 +1,6 @@
 package ch.zuegi.ml.llm
 
+import ch.zuegi.ml.llm.kapitel2.scratch.SelfAttention
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

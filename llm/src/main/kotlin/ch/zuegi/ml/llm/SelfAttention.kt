@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm
+package ch.zuegi.ml.llm.kapitel2.scratch
 
 import java.util.Random
 import kotlin.math.exp

@@ -11,11 +11,11 @@ Das Modul liest den Text `the-verdict.txt` aus den Ressourcen, baut daraus ein V
 Es gibt zwei parallele Ausbaustufen der Modellbausteine:
 
 - **Forward-only** (`SelfAttention`, `MultiHeadAttention`, `LayerNorm`, `FeedForward`, `TransformerBlock`, `GPTModel`): arbeiten direkt auf `Array<DoubleArray>`, dienen als lesbare Referenz und Vergleichs-Orakel.
-- **Trainierbar** (`autograd/*Layer`): bauen auf dem `Tensor`-Autograd auf, halten lernbare Parameter und liefern über `parameters()` die Gewichte für den Optimizer. Damit ist das gesamte `GPTModelLayer` end-to-end trainierbar.
+- **Trainierbar** (`autograd/*Layer`): bauen auf dem `Tensor`-Autograd auf, halten lernbare Parameter und liefern über `parameters()` die Gewichte für den Optimizer. Damit ist das gesamte `GPTModel` end-to-end trainierbar.
 
 Forward-only Bausteine:
 
-- `Main.kt`: Einstiegspunkt. `main()` zeigt den untrainierten Forward-only-`GPTModel`-Pfad, `mainTrain()` trainiert `GPTModelLayer` auf `the-verdict.txt` und generiert Text
+- `Main.kt`: Einstiegspunkt. `main()` zeigt den untrainierten Forward-only-`GPTModel`-Pfad, `mainTrain()` trainiert `GPTModel` auf `the-verdict.txt` und generiert Text
 - `SimpleTokenizerV1.kt`: Tokenisierung, Vokabular, Encoding, Decoding
 - `TextDataLoader.kt`: Sliding-Window über Token-IDs, erzeugt `TrainingSample`s und Batches
 - `TokenEmbedding.kt`: lernbare Token-Embedding-Tabelle `[vocabSize, embeddingDim]`, Zeilen-Lookup pro Token-ID
@@ -37,7 +37,7 @@ Autograd und trainierbare Bausteine (Paket `autograd`):
 - `FeedForwardLayer.kt`: trainierbares Feed-Forward-Netz (zwei lineare Schichten + GELU) auf `Tensor`
 - `SelfAttentionLayer.kt`: trainierbare Single-Head Self-Attention, optional Causal
 - `MultiHeadAttentionLayer.kt`: mehrere `SelfAttentionLayer` + Output-Projektion `Wo`
-- `TransformerBlockLayer.kt`: Pre-LN + Residual über `MultiHeadAttentionLayer` und `FeedForwardLayer`
+- `TransformerBlockLayer.kt`: Pre-LN + Residual über `MultiHeadAttentionLayer` und `FeedForward`
 - `GPTModelLayer.kt`: trainierbares GPT (Embeddings → N Blöcke → finale LN → Output-Projektion) mit `loss()` (mittlerer Cross-Entropy) und `generate()` (greedy oder Sampling mit Temperature/top-k)
 
 Tests:
@@ -63,7 +63,7 @@ Text
 
 Alle Bausteine ab `InputEmbedding` bis zur finalen Norm behalten die Form `[contextLength, embeddingDim]`, sodass Residual-Verbindungen greifen und sich mehrere Blöcke stapeln lassen. Erst die Output-Projektion in `GPTModel` bildet auf `vocabSize` ab.
 
-Im trainierbaren Pfad (`GPTModelLayer`) ist der Ablauf identisch, nur werden alle Zwischengrößen als `Tensor` (flache row-major Matrix) durch den Autograd-Graphen geführt. Aus den Logits berechnet `loss()` den mittleren `softmaxCrossEntropy` gegen die Ziel-Tokens; `backward()` propagiert die Gradienten bis in die Embedding-Tabellen zurück, `SGD.step()` aktualisiert alle Parameter.
+Im trainierbaren Pfad (`GPTModel`) ist der Ablauf identisch, nur werden alle Zwischengrößen als `Tensor` (flache row-major Matrix) durch den Autograd-Graphen geführt. Aus den Logits berechnet `loss()` den mittleren `softmaxCrossEntropy` gegen die Ziel-Tokens; `backward()` propagiert die Gradienten bis in die Embedding-Tabellen zurück, `SGD.step()` aktualisiert alle Parameter.
 
 ### Warum `DoubleArray`
 
@@ -122,7 +122,7 @@ Matrizen werden flach (row-major) in `DoubleArray` gehalten; die Form wird über
 
 ### Training
 
-Mit `SGD` und den `*Layer`-Bausteinen ist das gesamte Modell trainierbar. Der Trainings-Loop (`mainTrain()` in `Main.kt`) folgt dem Standardmuster:
+Mit `SGDTensorMultik` und den `*Layer`-Bausteinen ist das gesamte Modell trainierbar. Der Trainings-Loop (`mainTrain()` in `Main.kt`) folgt dem Standardmuster:
 
 ```text
 für jede Epoche, für jedes TrainingSample:
@@ -136,7 +136,7 @@ Auf `the-verdict.txt` fällt der Loss so von ~6.96 (Zufalls-Niveau `ln(vocabSize
 
 ### Nächster Schritt
 
-Das komplette trainierbare GPT steht: Tokenizer → `TextDataLoader` → `GPTModelLayer.loss` → `backward()` → `SGD` → `generate()`, alle Autograd-Ops per Gradient-Check verifiziert. Mögliche Erweiterungen: größeres Modell / mehr Trainingsdaten (ggf. Performance des Scalar/Tensor-Autograds optimieren), Batch-Verarbeitung mehrerer Samples, ein besserer Tokenizer (BPE) oder Lernraten-Scheduling.
+Das komplette trainierbare GPT steht: Tokenizer → `TextDataLoader` → `GPTModelLayer.loss` → `backward()` → `SGDTensorMultik` → `generate()`, alle Autograd-Ops per Gradient-Check verifiziert. Mögliche Erweiterungen: größeres Modell / mehr Trainingsdaten (ggf. Performance des Scalar/Tensor-Autograds optimieren), Batch-Verarbeitung mehrerer Samples, ein besserer Tokenizer (BPE) oder Lernraten-Scheduling.
 
 ## Getting Started
 
@@ -151,7 +151,7 @@ Tests ausführen:
 mvn -pl llm test
 ```
 
-Demo ausführen. `main()` tokenisiert den Text, baut ein untrainiertes Forward-only-`GPTModel` und erzeugt aus einer Start-Sequenz autoregressiv neue Tokens (der Text ist zufällig). `mainTrain()` trainiert stattdessen `GPTModelLayer` auf dem Text (Loss fällt pro Epoche) und generiert danach per Sampling.
+Demo ausführen. `main()` tokenisiert den Text, baut ein untrainiertes Forward-only-`GPTModel` und erzeugt aus einer Start-Sequenz autoregressiv neue Tokens (der Text ist zufällig). `mainTrain()` trainiert stattdessen `GPTModel` auf dem Text (Loss fällt pro Epoche) und generiert danach per Sampling.
 
 ```bash
 mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt

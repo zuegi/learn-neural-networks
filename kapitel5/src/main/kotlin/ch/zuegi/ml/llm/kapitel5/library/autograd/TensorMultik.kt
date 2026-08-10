@@ -8,6 +8,15 @@ import org.jetbrains.kotlinx.multik.ndarray.data.get
 import org.jetbrains.kotlinx.multik.ndarray.data.set
 import java.util.Collections.emptyList
 
+/**
+ * TensorMultik
+ *
+ * Jeder Op gib ein neues TensorMultik Objekt zurück, weil jede OP ein neuer Knoten im Rechengraph ist.
+ * * Op wie plus, times, matMul erzeugt Ergebnis + setzt children + setzt eigenes backwardStep.
+ * * Dieses Ergebnis braucht eigene grad.
+ * * Backward läuft dann über Graph-Kette (buildTopo in backward()).
+ */
+
 class TensorMultik(
     val data: NDArray<Double, D1>,
     private val children: List<TensorMultik> = emptyList(),

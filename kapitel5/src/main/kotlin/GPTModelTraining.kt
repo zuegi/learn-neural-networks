@@ -23,7 +23,7 @@ fun main() {
 
     val generationConfig =
         GenerationConfig(
-            maxNewTokens = 10,
+            maxNewTokens = 4,
             temperature = 0.9,
             topK = 20,
             generatorSeed = 123,

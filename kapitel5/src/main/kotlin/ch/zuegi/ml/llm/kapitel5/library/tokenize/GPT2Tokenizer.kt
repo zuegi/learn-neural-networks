@@ -1,11 +1,12 @@
 package ch.zuegi.ml.llm.kapitel5.library.tokenize
 
+import ch.zuegi.ml.llm.shared.Tokenizer
 import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
 import com.knuddels.jtokkit.api.IntArrayList
 
-class GPT2Tokenizer {
+class GPT2Tokenizer : Tokenizer {
     private val encoding: Encoding =
         Encodings
             .newDefaultEncodingRegistry()
@@ -13,9 +14,9 @@ class GPT2Tokenizer {
 
     val vocabSize: Int = 50257
 
-    fun encode(text: String): List<Int> = encoding.encode(text).toArray().toList()
+    override fun encode(text: String): List<Int> = encoding.encode(text).toArray().toList()
 
-    fun decode(tokenIds: List<Int>): String = encoding.decode(tokenIds.toIntArray())
+    override fun decode(tokenIds: List<Int>): String = encoding.decode(tokenIds.toIntArray())
 
     /**
      Encodes the given text into a list of token ids.

@@ -33,7 +33,7 @@ fun main() {
     val config =
         GPTConfig(
             vocabSize = tokenizer.vocabSize,
-            contextLength = 32,
+            contextLength = 32, // die Anzahl tokens
             embeddingDim = 64,
             numLayers = 2,
             numHeads = 4,

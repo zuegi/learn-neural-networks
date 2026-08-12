@@ -1,13 +1,11 @@
 import ch.zuegi.ml.llm.kapitel5.library.autograd.AdamOptimizer
-import ch.zuegi.ml.llm.kapitel5.library.autograd.TensorMultik
 import ch.zuegi.ml.llm.kapitel5.library.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.kapitel5.model.GPTConfig
 import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
 import ch.zuegi.ml.llm.kapitel5.model.GenerationConfig
+import ch.zuegi.ml.llm.kapitel5.training.GPTTrainer
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
-import org.jetbrains.kotlinx.multik.ndarray.data.get
-import org.jetbrains.kotlinx.multik.ndarray.data.set
 import java.time.LocalTime
 import kotlin.time.measureTime
 
@@ -33,7 +31,7 @@ fun main() {
     val config =
         GPTConfig(
             vocabSize = tokenizer.vocabSize,
-            contextLength = 32, // die Anzahl tokens
+            contextLength = 32,
             embeddingDim = 64,
             numLayers = 2,
             numHeads = 4,
@@ -53,36 +51,13 @@ fun main() {
 
     val samples = loader.samples().take(trainingSampleSize)
     val optimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
+    val trainer = GPTTrainer(model, optimizer)
+
     println("${LocalTime.now()} - Start calculation epochs")
     val timeDuration =
         measureTime {
             for (epoch in 1..epochs) {
-                var epochLoss = 0.0
-                var batchCount = 0
-                var index = 0
-
-                while (index < samples.size) {
-                    val end = minOf(index + batchSize, samples.size)
-                    val batch = samples.subList(index, end)
-
-                    optimizer.zeroGrad()
-
-                    var batchLoss = 0.0
-                    for (sample in batch) {
-                        val loss = model.loss(sample.inputIds, sample.targetIds)
-                        loss.backward()
-                        batchLoss += loss.data[0]
-                    }
-
-                    clipGradients(model.parameters(), maxNorm = 1.0)
-                    optimizer.step()
-
-                    epochLoss += batchLoss
-                    batchCount += 1
-                    index = end
-                }
-
-                val avgLoss = epochLoss / batchCount
+                val avgLoss = trainer.trainEpoch(samples, batchSize)
                 println("${LocalTime.now()} - epoch $epoch/$epochs  loss=${"%.4f".format(avgLoss)}")
             }
         }
@@ -93,29 +68,8 @@ fun main() {
             startIds,
             generationConfig,
         )
+
     println("${LocalTime.now()} - Zeit des Trainings: ${timeDuration.inWholeSeconds} Sekunden")
     println("${LocalTime.now()} - start:     ${tokenizer.decode(startIds)}")
     println("${LocalTime.now()} - generated: ${tokenizer.decode(generated)}")
-}
-
-fun clipGradients(
-    parameters: List<TensorMultik>,
-    maxNorm: Double = 1.0,
-) {
-    var norm = 0.0
-    for (param in parameters) {
-        for (i in 0 until param.size) {
-            norm += param.grad[i] * param.grad[i]
-        }
-    }
-    norm = kotlin.math.sqrt(norm)
-
-    if (norm > maxNorm) {
-        val scale = maxNorm / norm
-        for (param in parameters) {
-            for (i in 0 until param.size) {
-                param.grad[i] *= scale
-            }
-        }
-    }
 }

@@ -1,6 +1,6 @@
 package ch.zuegi.ml.llm.kapitel5.library.tokenize
 
-import ch.zuegi.ml.llm.shared.Tokenizer
+import ch.zuegi.ml.llm.shared.`interface`.Tokenizer
 import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType

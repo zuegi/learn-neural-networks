@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.shared
+package ch.zuegi.ml.llm.shared.`interface`
 
 interface Tokenizer {
     fun encode(text: String): List<Int>

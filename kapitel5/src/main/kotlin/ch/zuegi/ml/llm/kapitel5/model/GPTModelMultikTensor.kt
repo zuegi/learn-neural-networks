@@ -1,4 +1,5 @@
 package ch.zuegi.ml.llm.kapitel5.model
+
 import ch.zuegi.ml.llm.kapitel5.library.autograd.LayerNormMultikTensor
 import ch.zuegi.ml.llm.kapitel5.library.autograd.TensorMultik
 import ch.zuegi.ml.llm.kapitel5.library.autograd.TransformerBlockMultikTensor
@@ -79,12 +80,13 @@ class GPTModelMultikTensor(
     fun loss(
         tokenIds: List<Int>,
         targetIds: List<Int>,
+        training: Boolean = false,
     ): TensorMultik {
         require(targetIds.size == contextLength) {
             "targetIds.size ${targetIds.size} passt nicht zu contextLength $contextLength"
         }
 
-        val logits = forward(tokenIds, training = false)
+        val logits = forward(tokenIds, training = training)
         var total = logits.row(0, vocabSize).softmaxCrossEntropy(targetIds[0])
         for (pos in 1 until contextLength) {
             total = total + logits.row(pos, vocabSize).softmaxCrossEntropy(targetIds[pos])

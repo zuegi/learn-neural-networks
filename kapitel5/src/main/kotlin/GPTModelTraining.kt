@@ -5,6 +5,7 @@ import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
 import ch.zuegi.ml.llm.kapitel5.model.GenerationConfig
 import ch.zuegi.ml.llm.kapitel5.training.GPTTrainer
 import ch.zuegi.ml.llm.shared.TextDataLoader
+import ch.zuegi.ml.llm.shared.TrainingSample
 import ch.zuegi.ml.llm.shared.readVerdictText
 import java.time.LocalTime
 import kotlin.time.measureTime
@@ -14,9 +15,9 @@ fun main() {
     val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
-    val trainingSampleSize = 50
-    val learningRate = 0.01
-    val epochs = 10
+    val trainingSampleSize = 500
+    val learningRate = 0.001
+    val epochs = 4
     val batchSize = 2
 
     val generationConfig =
@@ -32,9 +33,9 @@ fun main() {
         GPTConfig(
             vocabSize = tokenizer.vocabSize,
             contextLength = 32,
-            embeddingDim = 64,
-            numLayers = 2,
-            numHeads = 4,
+            embeddingDim = 32,
+            numLayers = 1,
+            numHeads = 2,
             dropoutProb = 0.1,
             useQkvBias = false,
             useOutputBias = false,
@@ -46,10 +47,11 @@ fun main() {
         TextDataLoader(
             tokenIds = tokenIds,
             contextLength = config.contextLength,
-            stride = config.contextLength,
+            stride = 1,
         )
 
     val samples = loader.samples().take(trainingSampleSize)
+    val (trainingSamples, validationSamples) = splitSamples(samples)
     val optimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
     val trainer = GPTTrainer(model, optimizer)
 
@@ -57,8 +59,11 @@ fun main() {
     val timeDuration =
         measureTime {
             for (epoch in 1..epochs) {
-                val avgLoss = trainer.trainEpoch(samples, batchSize)
-                println("${LocalTime.now()} - epoch $epoch/$epochs  loss=${"%.4f".format(avgLoss)}")
+                val trainLoss = trainer.trainEpoch(trainingSamples, batchSize)
+                val validationLoss = trainer.validate(validationSamples, batchSize)
+                println(
+                    "${LocalTime.now()} - epoch $epoch/$epochs train=${"%.4f".format(trainLoss)} val=${"%.4f".format(validationLoss)}",
+                )
             }
         }
 
@@ -73,3 +78,14 @@ fun main() {
     println("${LocalTime.now()} - start:     ${tokenizer.decode(startIds)}")
     println("${LocalTime.now()} - generated: ${tokenizer.decode(generated)}")
 }
+
+private fun splitSamples(samples: List<TrainingSample>): Pair<List<TrainingSample>, List<TrainingSample>> {
+    require(samples.size >= 2) { "Mindestens 2 Samples für Training und Validation nötig" }
+
+    val validationCount = (samples.size * VALIDATION_RATIO).toInt().coerceIn(1, samples.lastIndex)
+    val trainingSamples = samples.dropLast(validationCount)
+    val validationSamples = samples.takeLast(validationCount)
+    return trainingSamples to validationSamples
+}
+
+private const val VALIDATION_RATIO = 0.2

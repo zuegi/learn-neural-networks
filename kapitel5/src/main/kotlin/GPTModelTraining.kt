@@ -62,7 +62,9 @@ fun main() {
                 val trainLoss = trainer.trainEpoch(trainingSamples, batchSize)
                 val validationLoss = trainer.validate(validationSamples, batchSize)
                 println(
-                    "${LocalTime.now()} - epoch $epoch/$epochs train=${"%.4f".format(trainLoss)} val=${"%.4f".format(validationLoss)}",
+                    "${LocalTime.now()} - epoch $epoch/$epochs trainTokenLoss=${"%.4f".format(
+                        trainLoss,
+                    )} valTokenLoss=${"%.4f".format(validationLoss)}",
                 )
             }
         }

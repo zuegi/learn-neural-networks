@@ -16,7 +16,7 @@ class GPTTrainer(
         samples: List<TrainingSample>,
         batchSize: Int,
     ): Double {
-        var epochLossSum = 0.0
+        var totalSampleLoss = 0.0
         var sampleCount = 0
         var index = 0
 
@@ -26,7 +26,6 @@ class GPTTrainer(
 
             optimizer.zeroGrad()
 
-            var batchLossSum = 0.0
             for (sample in batch) {
                 val loss =
                     model.loss(
@@ -35,25 +34,23 @@ class GPTTrainer(
                         training = true,
                     )
                 loss.backward()
-                batchLossSum += loss.data[0]
+                totalSampleLoss += loss.data[0]
                 sampleCount += 1
             }
 
             clipGradients(model.parameters())
             optimizer.step()
-
-            epochLossSum += batchLossSum
             index = end
         }
 
-        return epochLossSum / sampleCount
+        return totalSampleLoss / sampleCount
     }
 
     fun validate(
         samples: List<TrainingSample>,
         batchSize: Int,
     ): Double {
-        var totalLossSum = 0.0
+        var totalSampleLoss = 0.0
         var sampleCount = 0
         var index = 0
 
@@ -68,14 +65,14 @@ class GPTTrainer(
                         targetIds = sample.targetIds,
                         training = false,
                     )
-                totalLossSum += loss.data[0]
+                totalSampleLoss += loss.data[0]
                 sampleCount += 1
             }
 
             index = end
         }
 
-        return totalLossSum / sampleCount
+        return totalSampleLoss / sampleCount
     }
 
     private fun clipGradients(parameters: List<TensorMultik>) {

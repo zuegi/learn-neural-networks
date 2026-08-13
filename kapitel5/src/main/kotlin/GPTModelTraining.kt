@@ -17,7 +17,7 @@ fun main() {
 
     val trainingSampleSize = 500
     val learningRate = 0.001
-    val epochs = 4
+    val epochs = 10
     val batchSize = 2
 
     val generationConfig =
@@ -55,16 +55,29 @@ fun main() {
     val optimizer = AdamOptimizer(model.parameters(), learningRate = learningRate)
     val trainer = GPTTrainer(model, optimizer)
 
-    println("${LocalTime.now()} - Start calculation epochs")
+    println("${LocalTime.now()} - Start calculation $epochs epochs")
     val timeDuration =
         measureTime {
             for (epoch in 1..epochs) {
-                val trainLoss = trainer.trainEpoch(trainingSamples, batchSize)
-                val validationLoss = trainer.validate(validationSamples, batchSize)
+                var trainLoss = 0.0
+                var validationLoss = 0.0
+
+                val epochMeasureTime =
+                    measureTime {
+                        trainLoss = trainer.trainEpoch(trainingSamples, batchSize)
+                        validationLoss = trainer.validate(validationSamples, batchSize)
+                    }
+
+                val trainPpl = kotlin.math.exp(trainLoss)
+                val validationPpl = kotlin.math.exp(validationLoss)
+
                 println(
-                    "${LocalTime.now()} - epoch $epoch/$epochs trainTokenLoss=${"%.4f".format(
-                        trainLoss,
-                    )} valTokenLoss=${"%.4f".format(validationLoss)}",
+                    "${LocalTime.now()} - epoch $epoch/$epochs " +
+                        "train=${"%.4f".format(trainLoss)} " +
+                        "val=${"%.4f".format(validationLoss)} " +
+                        "train_ppl=${"%.2f".format(trainPpl)} " +
+                        "val_ppl=${"%.2f".format(validationPpl)} " +
+                        "epoch_time=${epochMeasureTime.inWholeSeconds}s",
                 )
             }
         }

@@ -2,67 +2,19 @@
 
 <!-- TODO: Beschreibung in pom.xml ergänzen -->
 
-Kotlin/Maven Multi-Module-Projekt zum Lernen von neuronalen Netzen und LLM-Grundlagen. Das Projekt enthält ein MNIST-Trainingsmodul und ein LLM-Modul mit einfachem Tokenizer.
+Kotlin/Maven Multi-Module-Projekt zum Lernen von neuronalen Netzen und LLM-Grundlagen. 
 
-## Getting Started
+## Was sind die nächsten Schritte
+1. Code technisch weiterführen (jetzt)
+* Eval-Loop sauber: val-loss, perplexity, best-checkpoint, early-stop.
+* Reproduzierbarkeit: Seed, Config-Snapshot, Run-Logs.
+* Save/Load robust testen (Roundtrip-Test, Shape-Checks, Fehlerfälle).
 
-Voraussetzungen:
+2. Doku aufbauen (parallel ab jetzt, intensiv danach)
+* Kapitel 1..5: pro Kapitel Ziel, Kernideen, wichtigste Klassen, Datenfluss.
+* Fokus auf “wie Training wirklich läuft” statt nur API-Liste.
+* Kleine Runbooks: “Train starten”, “Checkpoint laden”, “Metriken lesen”.
 
-- JDK 8 oder neuer
-- Maven 3.8 oder neuer
-
-Build und Tests:
-
-```bash
-mvn clean test
-```
-
-MNIST-Training starten:
-
-```bash
-mvn -pl chapter-1 exec:java
-```
-
-GPT-Demo ausführen. `main()` tokenisiert den Text und erzeugt aus einem untrainierten `GPTModel` zufälligen Text; `mainTrain()` trainiert `GPTModel` auf dem Text und generiert danach per Sampling.
-
-```bash
-mvn -pl llm exec:java -Dexec.mainClass=ch.zuegi.ml.llm.MainKt
-```
-
-## Module
-
-| Modul | Beschreibung | README |
-|-------|-------------|--------|
-| `chapter-1` | MNIST-Trainingsanwendung mit einfachem neuronalen Netz in Kotlin | [README](chapter-1/README.md) |
-| `llm` | Kotlin-Modul mit Regex-Tokenizer, DataLoader, Embeddings, Transformer-Bausteinen (Attention, LayerNorm, FeedForward), `GPTModel` mit Textgenerierung sowie einem eigenen Autograd-System (`Value`, `Tensor`, `SGDTensorMultik`) und trainierbaren `*Layer`-Bausteinen, mit denen ein komplettes GPT von Grund auf trainiert wird | [README](llm/README.md) |
-
-## Top 10 Libraries
-
-| # | Library | Version |
-|---|---------|---------|
-| 1 | JUnit Jupiter | 5.10.0 |
-| 2 | Kotlin Standard Library | 2.4.0 |
-| 3 | Kotlin Test JUnit 5 | 2.4.0 |
-| 4 | AssertJ Core | 3.26.3 |
-| 5 | Kotlin Deep Learning Dataset | 0.5.2 |
-| 6 | Kotlin Deep Learning ONNX | 0.5.2 |
-| 7 | Kotlin Deep Learning TensorFlow | 0.5.2 |
-| 8 | Kotlinx Coroutines Core | 1.11.0 |
-
-## Projektstruktur
-
-```text
-.
-├── pom.xml
-├── chapter-1
-│   ├── pom.xml
-│   └── src/main
-│       ├── kotlin
-│       └── resources/mnist
-└── llm
-    ├── pom.xml
-    └── src
-        ├── main/kotlin/ch/zuegi/ml/llm
-        ├── main/resources/text
-        └── test/kotlin/ch/zuegi/ml/llm
-```
+3. Pretrained-Weights später, aber realistisch
+* Erst mit offenem Checkpoint testen (z. B. kleines GPT2-kompatibles Modell)
+* Danach Import-Adapter bauen (name mapping + tensor reshape + validation script).

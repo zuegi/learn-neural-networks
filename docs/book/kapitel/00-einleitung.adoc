@@ -1,0 +1,65 @@
+== Einleitung
+
+Dieses Buch dokumentiert die Implementierung eines Large Language Models (LLM)
+in Kotlin, entstanden aus dem Wunsch, das zugrunde liegende Konzept nicht nur
+zu lesen, sondern selbst nachzubauen.
+
+=== Ziel dieses Buches
+
+* Die zentralen Bausteine einer LLM Schritt für Schritt erklären
+* Jeden Baustein mit dem tatsächlichen Kotlin-Code im Projekt verknüpfen
+* Design-Entscheidungen und bewusste Vereinfachungen dokumentieren
+* Stolpersteine und Erkenntnisse festhalten
+
+=== Aufbau
+
+Die Kapitel folgen dem Datenfluss einer LLM: von der Tokenisierung der
+Eingabe bis zur Textgenerierung bei der Inferenz.
+
+[cols="1,3", options="header"]
+|===
+| Kapitel | Inhalt
+
+| Tokenisierung
+| Wie Text in Token zerlegt wird
+
+| Embeddings
+| Wie Token zu Vektoren werden
+
+| Attention
+| Der Kern-Mechanismus, der Kontext herstellt
+
+| Transformer-Block
+| Wie die Bausteine zusammengesetzt werden
+
+| Trainingsschleife
+| Wie das Modell aus Daten lernt
+
+| Inferenz
+| Wie aus dem trainierten Modell Text generiert wird
+
+| Lessons Learned
+| Was beim Nachbau überraschend oder schwierig war
+|===
+
+TIP: Jedes Kapitel enthält Code-Ausschnitte, die direkt aus den echten
+Quelldateien eingebunden sind (siehe <<Attention>> für ein Beispiel). Ändert
+sich der Code, bleibt die Doku beim nächsten Build automatisch aktuell.
+
+
+== LLMs verstehen
+Large Language Models (LLM, grosse Sprachmodelle) sind über tiefe neuronale Netwzerke (Deep Neural Networks) geprägt.
+In den letzten Jahren hat die Entwicklung dieser Modelle eine Revolution in der Verarbeitung der natürlichen Sprache (NLP, Natural Language Processing) ausgelöst.
+
+Moderne LLMs können die menschliche Sprache verstehen, interpretieren und darauf reagieren - heisst "Sprache" zu erzeugen.
+Es ist unglaublich zu was diese LLMs in Kombination mit ChatBots und Agents in der Lage sind.
+Faszinierend und gerade zu beängstigend.
+Und wenn man sich mit einem ChatBot unterhält, dann könnte man tatsächlich meinen, dass da ein menschliches Bewusstsein
+gegenüber steht.
+Und obwohl es so aussieht, also ob die LLMs Texte wie die Menschen verstehen können, ist es nicht so.
+In einer LLM wird ein Text in mathematische Gebilde umgewandelt, mit Algorithmen und mathematischen Modellen bearbeitet
+und zum Schluss wieder in Text umgewandelt. Diese Modelle funktionieren mittlerweile so gut, dass uns die generierten Texte
+glaubhaft vorkommen.
+Damit diese Algorithmen und mathematischen Modelle greifen und glaubhafte Resultate liefern, braucht es eine Unmengen an
+Daten um diese Modelle zu trainieren. Und weil diese Algorithmen sehr rechenintensiv sind, wächst die Zeit, die es braucht
+um ein Modell zu trainieren (was wir noch sehen werden).

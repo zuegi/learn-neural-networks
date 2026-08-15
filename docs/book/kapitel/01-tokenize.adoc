@@ -1,0 +1,37 @@
+[[Tokenize]]
+== Tokenize
+
+blabla
+
+=== Konzept
+
+// TODO: Kurze konzeptionelle Erklärung von Query/Key/Value und Scaled
+// Dot-Product Attention ergänzen.
+
+=== Implementierung
+
+blabla
+
+// WICHTIG: Pfad unten an dein echtes Maven-Modul anpassen, z.B.
+// ../../../src/main/kotlin/llm/attention/Attention.kt
+[source,kotlin]
+----
+//include::../../../src-example/Attention.kt[tags=attention-score]
+----
+
+Der vollständige Forward-Pass nutzt diese Funktion und wendet anschließend
+Softmax sowie die Multiplikation mit den Values an:
+
+[source,kotlin]
+----
+//include::../../../src-example/Attention.kt[tags=attention-forward]
+----
+
+=== Design-Entscheidungen
+
+// TODO: z.B. "Multi-Head Attention wurde bewusst weggelassen, um den
+// Kernmechanismus isoliert nachvollziehbar zu halten" o.ä.
+
+=== Stolpersteine
+
+// TODO: Was war beim Nachbau schwierig oder überraschend?

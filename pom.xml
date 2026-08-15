@@ -95,6 +95,33 @@
                         <sourceRoots>${project.build.sourceDirectory}</sourceRoots>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.asciidoctor</groupId>
+                    <artifactId>asciidoctor-maven-plugin</artifactId>
+                    <version>3.2.0</version>
+                    <executions>
+                        <execution>
+                            <id>generate-book-html</id>
+                            <phase>generate-resources</phase>
+                            <goals>
+                                <goal>process-asciidoc</goal>
+                            </goals>
+                            <configuration>
+                                <sourceDirectory>${project.basedir}/docs/book</sourceDirectory>
+                                <sourceDocumentName>book.adoc</sourceDocumentName>
+                                <outputDirectory>${project.build.directory}/generated-docs</outputDirectory>
+                                <backend>html5</backend>
+                                <attributes>
+                                    <toc>left</toc>
+                                    <toclevels>3</toclevels>
+                                    <sectnums>true</sectnums>
+                                    <source-highlighter>rouge</source-highlighter>
+                                    <icons>font</icons>
+                                </attributes>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>

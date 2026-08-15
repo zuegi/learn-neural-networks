@@ -1,0 +1,33 @@
+= Wie baut man eine LLM – Eine Kotlin-Implementierung
+Dein Name <du@example.com>
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:sectnumlevels: 3
+:source-highlighter: rouge
+:icons: font
+:imagesdir: images
+:experimental:
+:xrefstyle: short
+
+// ---------------------------------------------------------------
+// Dies ist das Hauptdokument. Es bindet nur die einzelnen Kapitel
+// aus dem Ordner kapitel/ ein. Neue Kapitel werden hier registriert.
+// ---------------------------------------------------------------
+
+include::kapitel/00-einleitung.adoc[leveloffset=+1]
+
+include::kapitel/01-tokenize.adoc[leveloffset=+1]
+
+include::kapitel/02-embeddings.adoc[leveloffset=+1]
+
+include::kapitel/03-attention.adoc[leveloffset=+1]
+
+//include::kapitel/04-transformer-block.adoc[leveloffset=+1]
+
+//include::kapitel/05-training-loop.adoc[leveloffset=+1]
+
+//include::kapitel/06-inferenz.adoc[leveloffset=+1]
+
+//include::kapitel/07-lessons-learned.adoc[leveloffset=+1]

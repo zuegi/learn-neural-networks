@@ -51,7 +51,7 @@ sich der Code, bleibt die Doku beim nächsten Build automatisch aktuell.
 Large Language Models (LLM, grosse Sprachmodelle) sind über tiefe neuronale Netwzerke (Deep Neural Networks) geprägt.
 In den letzten Jahren hat die Entwicklung dieser Modelle eine Revolution in der Verarbeitung der natürlichen Sprache (NLP, Natural Language Processing) ausgelöst.
 
-Moderne LLMs können die menschliche Sprache verstehen, interpretieren und darauf reagieren - heisst "Sprache" zu erzeugen.
+Moderne LLMs können die menschliche Sprache verstehen, interpretieren und darauf reagieren - heisst "Sprache" erzeugen.
 Es ist unglaublich zu was diese LLMs in Kombination mit ChatBots und Agents in der Lage sind.
 Faszinierend und gerade zu beängstigend.
 Und wenn man sich mit einem ChatBot unterhält, dann könnte man tatsächlich meinen, dass da ein menschliches Bewusstsein
@@ -63,3 +63,58 @@ glaubhaft vorkommen.
 Damit diese Algorithmen und mathematischen Modelle greifen und glaubhafte Resultate liefern, braucht es eine Unmengen an
 Daten um diese Modelle zu trainieren. Und weil diese Algorithmen sehr rechenintensiv sind, wächst die Zeit, die es braucht
 um ein Modell zu trainieren (was wir noch sehen werden).
+
+Der Erfolg der LLMs basiert auf der Transformer Architektur und den riesigen Datenmengen um die LLMS zu trainieren.
+Vorgestellt in dem Paper "All you need is attention" prozessiert sie mit dem self-attention Mechanismus ganze Daten-Sequenzen parallel und bildet den Grundstein für Large Language Models wie GPT.
+Neben dem Self Attention Mechanismus gibt es noch weitere Core Komponenten wie der Tokenizer, Embeddings, Feed Forward Schichten und weitere, auf die wir in den nächsten Kapiteln eingehen werden.
+
+=== Was ist ein LLM
+Ein Large Language Model kann einen Text verstehen, darauf reagieren und als Antwort einen neuen kontext-bezogenen Text erzeugen. Es nutzt neuronale Netzwerke und riesige Datenmengen um in einem eingegebenenm Text das nächste wahrscheinliche Wort zu generieren. Bei dieser Vorhersage berechnet das Model Wort für Wort um die bestmögliche nächste Antwort zu geben.
+Ein Model haben oft dutzenden oder hunderten von Milliarden Parameter bzw. anpassbare Gewichte, die währen eines Trainings optimiert werden, um das nächste Wort zu einer Text Sequenz vorherzusagen. Um das nächste Wort richtig zu "erraten", muss das Model den Sinn des bisherigen Textes perfekt begreifen.
+
+Technisch gesehen ist ein LLM ein gigantisches mathematischen Funktionswerk, das auf den Prinzipien der Statistik und Wahrscheinlichkeitsrechnun basiert.
+Ein LLM basiert fast immer auf der **Transformer-Architektur**. Diese Architektur besteht aus einzelnen Komponenten und Parametern (Gewichten), welche zusammengesetzt ein künstliches neurales Netz mit extrem vielen Schichten (Deep Learning) aufbaut.
+
+=== Die Bausteine eines LLM
+Das Model liest keine ganzen Wörter im klassichen Sinn ein, sondern Textstücke (Tokens). Ein Token kann trotzdem aus einem einzelnen Wort, Teil eines Wortes oder eines einzeln Satzzeichen sein.
+
+Trotz der Aufssplittung in Tokens, kann ein Computer noch immer keine Tokens verstehen. Diese werden deshalb
+in eine lange Reihe von Zahlen (einen Vektor) umgewandelt. Diese Zahlen spiegeln die Bedeutung des Wortes wider. Und Wörter mit ähnlicher Bedeutung (Hund und Welpe) liegen dabei im mathematischen Raum nahe beieinander.
+
+Über die Parameter wird beinflusst wie stark die Signale zwischen den Neuronen in fliessen. Meist als Gewichte
+bezeichnet sind sie die Stellschrauben eines Modells, die während eines Trainsings immer wieder optimiert und perfekt eingestellt werden.
+
+Das Herzstück einer LLM ist aber der Self Attention Mechanismus. Er erlaubt es dem Modell, beim Verarbeiten eines Wortes immer den gesamten  Satz im Kontext zu behalten.
+
+So sorgt der Self Attention Mechanismus dafür, dass im Satz "Die Bank am Fluss war nass", dass das Modell das Wort "Bank" mit "Sitzbank" und "Fluss" verknüpft und nicht mit einem Finanzinstitut.
+
+=== Der Ablauf einer Berechnung (Inferenz)
+[literal]
+....
+[Eingabetext (Prompt)]
+       │
+       ▼
+[Tokenisierung] (Text wird in Token zerlegt)
+       │
+       ▼
+[Embeddings] (Token werden zu Zahlenvektoren)
+       │
+       ▼
+[Transformer-Schichten] (Milliarden Berechnungen mit Parametern & Attention)
+       │
+       ▼
+[Wahrscheinlichkeitsverteilung] (Modell berechnet Chancen für das nächste Token)
+       │
+       ▼
+[Ausgabe] (Das wahrscheinlichste Token wird als Text ausgegeben)
+....
+
+
+
+=== Erstellen und Verwenden einer LLM
+==== Warum sollten wir unsere eigene LLM erstellen?
+Eine LLM von Grund auf zu erstellen ist ein ausgzeichneter Vorgang um die Konzepte, Mechanismen und Abläufe sowie deren Grenzen zu verstehen.
+
+Und weil ich mich dazu entschieden habe, diese Übung in Kotlin zu machen, werden wir vorallem an Grenzen stossen. Ich arbeite sei einigen Jahren als Backend Software Entwickler mit Kotlin und habe mich immer gewundert, warum im Thema Künstliche Intelligenz und Software immer Python verwendet wird. Nun im Lauf dieser Dokumentation werden wir schnell herausfinden warum. Das vorliegende Kotlin Projekt kann gerade deshalb als grosse, naive Dummheit bezeichnen, weil es nie einen Stand erreichen wird, um es sinvoll einzusetzen. Das war aber auch nie das Ziel, sondern das Ziel war es die Mechanismen einer LLM zu lernen und dabei mit Kotlin die Grenzen auszuloten.
+
+Fortsetzun folgt...

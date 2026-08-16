@@ -39,7 +39,9 @@ class SimpleTokenizerV1(
     // end::tokenRegex[]
     private var tokens: List<String> = emptyList()
     private var vocab: Map<String, Int> = emptyMap()
+    // tag::idToToken[]
     private var idToToken: Map<Int, String> = emptyMap()
+    // end::idToToken[]
     val vocabSize: Int get() = vocab.size
 
     companion object {
@@ -172,6 +174,7 @@ class SimpleTokenizerV1(
      * @param tokens Tokens aus dem Trainings-/Rohtext.
      * @return stabile Map von Token zu numerischer ID.
      */
+    // tag::buildTokenId[]
     private fun buildTokenToId(tokens: List<String>): Map<String, Int> {
         val tokenToId = LinkedHashMap<String, Int>() // Reihenfolge stabil
         for (token in tokens) {
@@ -183,4 +186,5 @@ class SimpleTokenizerV1(
         tokenToId[ENDOFTEXT] = tokenToId.size
         return tokenToId
     }
+    // end::buildTokenId[]
 }

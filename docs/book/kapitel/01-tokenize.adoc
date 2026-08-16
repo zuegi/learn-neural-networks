@@ -36,21 +36,31 @@ Der rawText wird mit der Methode tokenize()
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenize]
 ----
 in eine Liste von Token-String zerlegt. Dafür nutzt sie tokenRegex.findAll(rawText), also alle Regex-Treffer in Originalreihenfolge.
-Die Regex
+Die *Regex*
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1[tag=tokenRegex]
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenRegex]
 ----
 erkennt Special Tokens (<|unk|>, <|endoftext|>), Wörter mit Unicode-Buchstaben und internen Zeichen wie _, ', ’, - sowie einzelne Satzzeichen.
 Leerzeichen selbst werden nicht als Tokens ausgegeben, weil nur gefundene Muster (it.value) gesammelt und als List<String> zurückgegeben werden.
 
-Das Vocabular wird aus den tokens aufgebaut wobei jedes neue Token in Reihenfolge seines ersten Auftretens die nächste freie ID bekommt (`LinkedHashMap` hält Reihenfolge stabil).
+Das *Vocabular* wird aus den tokens aufgebaut wobei jedes neue Token in Reihenfolge seines ersten Auftretens die nächste freie ID bekommt (`LinkedHashMap` hält Reihenfolge stabil).
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=buildTokenId]
+----
 Nach allen normalen Tokens fügt buildTokenToId immer zusätzlich UNKNOWN (<|unk|>) und ENDOFTEXT (<|endoftext|>) mit eigenen IDs an.
 encode nutzt dieses Vokabular für Token→ID (unbekanntes Token fällt auf UNKNOWN zurück), und decode nutzt die inverse Map idToToken für ID→Token.
 
-TODO:: Beschreibe die idToToken Map
+Die Variable idToToken
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=idToToken]
+----
+wird über alle Einträge der `vocab`-Map erstellt.
+Dabei wird jedes Paar von `token -> id` in ein neues Paar `id -> token` umgedreht.
+`associate` baut aus diesen umgedrehten Paaren eine neue Map und weist sie `idToToken` zu.
+So kann die `decode`-Methode später eine Token-ID schnell wieder in den zugehörigen Token-Text zurückübersetzen.
 
---- encode ---
+TODO::encode
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=encode]

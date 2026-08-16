@@ -20,3 +20,20 @@ This is a personal learning project exploring LLM architecture using Kotlin.
 The codebase and parts of the documentation are largely AI-generated. This project
 is for educational purposes only. There is no guarantee of correctness,
 completeness, or optimal performance. Use at your own risk.
+
+
+## 📚 Architektur & Quellen / Architecture & References
+
+### Deutsch
+Die Struktur dieses Projekts orientiert sich eng an dem Buch **„Large Language Models selbst programmieren“ von Sebastian Raschka** (erschienen im dpunkt.verlag).
+
+Daher entspricht der konzeptionelle Aufbau des Codes (z. B. Datenvorbereitung, Attention-Mechanismus, GPT-Architektur und Trainingsschleife) der im Buch beschriebenen Vorgehensweise.
+* **Besonderheit:** Der Code wurde von Python/PyTorch nach **Kotlin** übersetzt.
+* **Erstellung:** Die Portierung und Code-Generierung erfolgten zu grossen Teilen mithilfe von Künstlicher Intelligenz (LLMs) zu persönlichen Lernzwecken.
+
+### English
+The architecture of this project is heavily inspired by the book **"Build a Large Language Model (From Scratch)" by Sebastian Raschka** (Manning Publications).
+
+The structural pipeline (Data processing, Attention mechanics, GPT-style architecture, and Training loops) closely mirrors the book's implementation.
+* **Core Difference:** The implementation is rewritten from Python/PyTorch into **Kotlin**.
+* **Generation:** The porting and code generation were largely driven by Artificial Intelligence (LLMs) for educational purposes.

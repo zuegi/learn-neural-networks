@@ -11,6 +11,15 @@ zu lesen, sondern selbst nachzubauen.
 * Design-Entscheidungen und bewusste Vereinfachungen dokumentieren
 * Stolpersteine und Erkenntnisse festhalten
 
+[NOTE]
+====
+Dieses Repository dokumentiert ein persönliches Lernprojekt zum Aufbau eines LLMs.
+Die Inhalte und Code-Erklärungen erheben keinen Anspruch auf wissenschaftliche
+Vollständigkeit oder absolute Korrektheit. Da dieses Projekt dem eigenen
+Wissensaufbau dient, können sich Textpassagen oder Code-Strukturen mit bestehenden
+Online-Quellen, Papers oder Büchern überschneiden.
+====
+
 === Aufbau
 
 Die Kapitel folgen dem Datenfluss einer LLM: von der Tokenisierung der

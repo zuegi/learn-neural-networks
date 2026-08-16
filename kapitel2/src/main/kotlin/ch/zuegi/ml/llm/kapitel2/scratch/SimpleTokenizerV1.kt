@@ -34,7 +34,9 @@ package ch.zuegi.ml.llm.kapitel2.scratch
 class SimpleTokenizerV1(
     rawText: String,
 ) {
+    // tag::tokenRegex[]
     private val tokenRegex = Regex("""<\|unk\|>|<\|endoftext\|>|\p{L}+(?:[_'’\-]\p{L}+)*|[.,!?;:"()]""")
+    // end::tokenRegex[]
     private var tokens: List<String> = emptyList()
     private var vocab: Map<String, Int> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
@@ -45,11 +47,13 @@ class SimpleTokenizerV1(
         const val ENDOFTEXT = "<|endoftext|>"
     }
 
+    // tag::initSimpleTokenizerV1[]
     init {
         tokens = tokenize(rawText)
         vocab = buildTokenToId(tokens)
         idToToken = vocab.entries.associate { (token, id) -> id to token }
     }
+    // end::initSimpleTokenizerV1[]
 
     /**
      * Wandelt Text in Token-IDs um.
@@ -64,10 +68,12 @@ class SimpleTokenizerV1(
      * @param text Text, der encodiert werden soll.
      * @return Liste von Token-IDs.
      */
+    // tag::encode[]
     fun encode(text: String): List<Int> {
         val unkId = vocab[UNKNOWN] ?: error("UNK-Token fehlt")
         return tokenize(text).map { token -> vocab[token] ?: unkId }
     }
+    // end::encode[]
 
     /**
      * Wandelt Token-IDs zurück in Text.
@@ -153,7 +159,9 @@ class SimpleTokenizerV1(
      * @param rawText Text, der tokenisiert werden soll.
      * @return Liste erkannter Tokens in Originalreihenfolge.
      */
+    // tag::tokenize[]
     private fun tokenize(rawText: String): List<String> = tokenRegex.findAll(rawText).map { it.value }.toList()
+    // end::tokenize[]
 
     /**
      * Erstellt das Vokabular `Token -> ID`.

@@ -1,22 +1,59 @@
 [[Tokenize]]
 == Tokenize
 
-blabla
+Das LLM kann wie schon gesagt nichts mit Text anfangen. Deshalb braucht es einen Mechanismus den Text in einzelne Tokens aufzuteilen und diese Tokens in Zahlen zu wandeln und damit mathematische Operationen ermöglichen.
+Ein Tokenzizer zerstückelt einen Text in kleine Bausteine, sogennante Tokens. Ein Token kann ein ganzes Wort, Teile eines Wortes oder eine Sequenz von Zeichen inklusive Satzzeichen darstellen. Jedem dieser Token wird eine Token-Id zugeteilt.
+
 
 === Konzept
 
-// TODO: Kurze konzeptionelle Erklärung von Query/Key/Value und Scaled
-// Dot-Product Attention ergänzen.
+Die Klasse SimpleTokenizerV1.kt ist ein einfacher regelbasierter Tokenizer, der aus rawText ein Vocabular mit stabilen numerischen IDs aufbaut.
+Er erkennt Wörter mit Apostroph, typografischem Apostroph, Bindestrich und Unterstrich, einfache Satzzeichen sowie die Special Tokens "<|unk|>" und "<|endoftext|>".
+
+Die Methode *encode* zerlegt neuen Text mit derselben Regex und mappt unbekannte Tokens auf die ID von UNKNOWN, statt sie zu verwerfen oder einen Fehler zu werfen.
+
+Die Methode *decode* übersetzt IDs zurück in Tokens und setzt sie mit einfachen Leerzeichen- und Anführungszeichen-Regeln wieder zu Text zusammen.
+Zusätzlich hält die Klasse ein Reverse-Mapping idToToken, stellt vocabSize bereit und ergänzt UNKNOWN sowie ENDOFTEXT immer am Ende des Vokabulars.
 
 === Implementierung
 
-blabla
+Beim Erstellen des SimpleTokenizerV1 Object wird ein String als rawText übergeben.
+[source, kotlin]
+----
+    val rawText = "Das ist irgend ein Text der als String definiert ist..."
+    val tokenizer = SimpleTokenizerV1(rawText)
+----
 
-// WICHTIG: Pfad unten an dein echtes Maven-Modul anpassen, z.B.
-// ../../../src/main/kotlin/llm/attention/Attention.kt
+Beim Initialisieren des Objekts wird eine Liste von Strings als Tokens aus dem rawText erstellt, ein Vocabular in Form einer Map<String, Int> und eine idToToken Map<Int, String> erzeugt.
 [source,kotlin]
 ----
-//include::../../../src-example/Attention.kt[tags=attention-score]
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
+----
+
+Der rawText wird mit der Methode tokenize()
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenize]
+----
+in eine Liste von Token-String zerlegt. Dafür nutzt sie tokenRegex.findAll(rawText), also alle Regex-Treffer in Originalreihenfolge.
+Die Regex
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1[tag=tokenRegex]
+----
+erkennt Special Tokens (<|unk|>, <|endoftext|>), Wörter mit Unicode-Buchstaben und internen Zeichen wie _, ', ’, - sowie einzelne Satzzeichen.
+Leerzeichen selbst werden nicht als Tokens ausgegeben, weil nur gefundene Muster (it.value) gesammelt und als List<String> zurückgegeben werden.
+
+Das Vocabular wird aus den tokens aufgebaut wobei jedes neue Token in Reihenfolge seines ersten Auftretens die nächste freie ID bekommt (`LinkedHashMap` hält Reihenfolge stabil).
+Nach allen normalen Tokens fügt buildTokenToId immer zusätzlich UNKNOWN (<|unk|>) und ENDOFTEXT (<|endoftext|>) mit eigenen IDs an.
+encode nutzt dieses Vokabular für Token→ID (unbekanntes Token fällt auf UNKNOWN zurück), und decode nutzt die inverse Map idToToken für ID→Token.
+
+TODO:: Beschreibe die idToToken Map
+
+--- encode ---
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=encode]
 ----
 
 Der vollständige Forward-Pass nutzt diese Funktion und wendet anschließend

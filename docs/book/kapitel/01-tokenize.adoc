@@ -30,12 +30,13 @@ Beim Initialisieren des Objekts wird eine Liste von Strings als Tokens aus dem r
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
 ----
 
-Der rawText wird mit der Methode tokenize()
+Der rawText wird mit der Function tokenize()
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenize]
 ----
-in eine Liste von Token-String zerlegt. Dafür nutzt sie tokenRegex.findAll(rawText), also alle Regex-Treffer in Originalreihenfolge.
+
+in eine Liste von Token-String zerlegt. Dafür nutzt sie *tokenRegex.findAll(rawText)*, also alle Regex-Treffer in Originalreihenfolge.
 Die *Regex*
 [source,kotlin]
 ----
@@ -60,19 +61,58 @@ Dabei wird jedes Paar von `token -> id` in ein neues Paar `id -> token` umgedreh
 `associate` baut aus diesen umgedrehten Paaren eine neue Map und weist sie `idToToken` zu.
 So kann die `decode`-Methode später eine Token-ID schnell wieder in den zugehörigen Token-Text zurückübersetzen.
 
-TODO::encode
+Somit sind wir nun in der Lage einen Text in Tokens bzw. Token-IDs aufzusplitten. Wir können nun einer Function *encode(text: String)* übergeben und dieser wird anhand des Vokabular in Token-IDs umgewandelt. Ist ein Token aus dem Text dem Vokabular unbekannt, so wird anstelle das Enum UNKNOWN (`const val UNKNOWN = "<|unk|>"`) zurückgegeben.
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=encode]
 ----
 
-Der vollständige Forward-Pass nutzt diese Funktion und wendet anschließend
-Softmax sowie die Multiplikation mit den Values an:
+So wird aus einem rawText "Darling, do you like water?" ein Vocabular aus Tokens und Token-IDs erstellt, welches dann über den text "Hello, do you like tea?" encoded wird.
+Wie man unschwer erkennen kann unterscheidet sich der Text vom Vocabular in den 2 Wörtern Darling -> Hello, water -> tea.
 
-[source,kotlin]
+Das Vocabular wurde über die obengenannte Regex in folgende 7 folgende Tokens aufgesplittet:
+
+1. Darling
+2. ,
+3. do
+4. you
+5. like
+6. tea
+7. ?
+
+[source, kotlin]
 ----
-//include::../../../src-example/Attention.kt[tags=attention-forward]
+val rawText = "Darling, do you like water?"
+val tokenizer = SimpleTokenizerV1(rawText)
+val text = "Hello, do you like tea?"
+val idList: List<Int> = tokenizer.encode(text)
+println("idList.size: ${idList.size}")
+println("idList: $idList")
+println("Vokabular.size: ${tokenizer.vocabSize}")
 ----
+Nicht überraschend, dass die idList 7 Elemente enthält. Auffallend aber, dass die ID 7 2x vorkommt.
+[source, terminaloutput]
+----
+idList.size: 7
+idList: [7, 1, 2, 3, 4, 7, 6]
+Vokabular.size: 9
+Vokabular: {Darling=0, ,=1, do=2, you=3, like=4, water=5, ?=6, <|unk|>=7, <|endoftext|>=8}
+----
+
+Die Vokabulargrösse ist 9, weil nach den über den rawText erstellten Tokens die beiden Konstanten
+const val UNKNOWN = "<|unk|>"
+const val ENDOFTEXT = "<|endoftext|>"
+hinzugefügt werden.
+
+
+Der zu enkodierende Text wird ebenfalls mit der tokenize() in Tokens aufgeteilt, welche dann im Vocabular gesucht werden und bei einem Treffer mit der zum im Vokabular zugehörigen ID zurück gegeben wird. Wird kein entsprechendes Token im Vokabular zurückgegeben wird die ID des UNKNOWN Tokens zurück gegeben. Die beiden Wörter Hello und tea aus dem Text sind im Vokabular nicht bekannt und dürften somit die ID des UNKNOWN Token erhalten. Naheliegend dass diese ID 7 sein könnte.
+
+Lass und das mit der Function decode(ids: List<Int>) beweisen.
+
+TODO:: Beschreibe decode und beweise!
+
+
+
 
 === Design-Entscheidungen
 

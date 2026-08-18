@@ -38,7 +38,8 @@ class SimpleTokenizerV1(
     private val tokenRegex = Regex("""<\|unk\|>|<\|endoftext\|>|\p{L}+(?:[_'’\-]\p{L}+)*|[.,!?;:"()]""")
     // end::tokenRegex[]
     private var tokens: List<String> = emptyList()
-    private var vocab: Map<String, Int> = emptyMap()
+    var vocab: Map<String, Int> = emptyMap()
+
     // tag::idToToken[]
     private var idToToken: Map<Int, String> = emptyMap()
     // end::idToToken[]

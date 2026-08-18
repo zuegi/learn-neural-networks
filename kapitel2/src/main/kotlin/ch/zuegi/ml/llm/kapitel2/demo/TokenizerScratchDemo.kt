@@ -26,15 +26,27 @@ fun main() {
     println("-> decoded token id: $randomTokenId -> $decodedTokenId")
     println("***")
 
-    // Fehler Fall: Token nicht im Vokabular: 'Hello' und wird mit <|unk|> ersetzt
-    val text2 = "Hello, do you like tea?"
-    val idList: List<Int> = tokenizer.encode(text2)
-    println(idList)
-    println(tokenizer.decode(idList))
-
     val text3 = "Akwirw ier"
     val idList3: List<Int> = tokenizer.encode(text3)
     println(idList3)
     println(tokenizer.decode(idList3))
     println("***")
+
+    // Fehler Fall: Token nicht im Vokabular: 'Hello' und wird mit <|unk|> ersetzt
+    tokenNotInVocabular()
+}
+
+private fun tokenNotInVocabular() {
+    println("*** token not in vocabular ***")
+    val rawText = "Darling, do you like water?"
+    println("Vokabular: $rawText")
+    val tokenizer = SimpleTokenizerV1(rawText)
+    val text = "Hello, do you like tea?"
+    println("Text zu encode: $text")
+    val idList: List<Int> = tokenizer.encode(text)
+    println("idList.size: ${idList.size}")
+    println("Vokabular.size: ${tokenizer.vocabSize}")
+    println("Vokabular: ${tokenizer.vocab}")
+    println(tokenizer.decode(idList))
+
 }

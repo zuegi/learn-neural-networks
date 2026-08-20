@@ -37,13 +37,14 @@ class SimpleTokenizerV1(
     // tag::tokenRegex[]
     private val tokenRegex = Regex("""<\|unk\|>|<\|endoftext\|>|\p{L}+(?:[_'’\-]\p{L}+)*|[.,!?;:"()]""")
     // end::tokenRegex[]
-    private var tokens: List<String> = emptyList()
-    var vocab: Map<String, Int> = emptyMap()
 
-    // tag::idToToken[]
+    // tag::initVars[]
+    private var tokens: List<String> = emptyList()
+    private var _vocab: Map<String, Int> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
-    // end::idToToken[]
-    val vocabSize: Int get() = vocab.size
+    val vocab: Map<String, Int> get() = _vocab
+    // end::initVars[]
+    val vocabSize: Int get() = _vocab.size
 
     companion object {
         const val UNKNOWN = "<|unk|>"
@@ -53,10 +54,14 @@ class SimpleTokenizerV1(
     // tag::initSimpleTokenizerV1[]
     init {
         tokens = tokenize(rawText)
-        vocab = buildTokenToId(tokens)
-        idToToken = vocab.entries.associate { (token, id) -> id to token }
+        _vocab = buildTokenToId(tokens)
+        idToToken = _vocab.entries.associate { (token, id) -> id to token }
     }
     // end::initSimpleTokenizerV1[]
+
+
+
+    // tag::encode[]
 
     /**
      * Wandelt Text in Token-IDs um.
@@ -71,12 +76,14 @@ class SimpleTokenizerV1(
      * @param text Text, der encodiert werden soll.
      * @return Liste von Token-IDs.
      */
-    // tag::encode[]
+
     fun encode(text: String): List<Int> {
-        val unkId = vocab[UNKNOWN] ?: error("UNK-Token fehlt")
-        return tokenize(text).map { token -> vocab[token] ?: unkId }
+        val unkId = _vocab[UNKNOWN] ?: error("UNK-Token fehlt")
+        return tokenize(text).map { token -> _vocab[token] ?: unkId }
     }
     // end::encode[]
+
+    // tag::decode[]
 
     /**
      * Wandelt Token-IDs zurück in Text.
@@ -98,7 +105,9 @@ class SimpleTokenizerV1(
             }
         return joinTokens(tokens)
     }
+    // end::decode[]
 
+    // tag::joinTokens[]
     private fun joinTokens(tokens: List<String>): String {
         if (tokens.isEmpty()) return ""
 
@@ -142,6 +151,7 @@ class SimpleTokenizerV1(
 
         return out.toString()
     }
+    // end::joinTokens[]
 
     private fun tokenAtEnd(out: StringBuilder): String {
         // Wir brauchen nur den letzten sichtbaren "Token-Anker" für Spacing-Regeln.

@@ -1,71 +1,95 @@
 [[Tokenize]]
 == Tokenize
 
-Das LLM kann wie schon gesagt nichts mit Text anfangen. Deshalb braucht es einen Mechanismus den Text in einzelne Tokens aufzuteilen und diese Tokens in Zahlen zu wandeln und damit mathematische Operationen ermöglichen.
-Ein Tokenzizer zerstückelt einen Text in kleine Bausteine, sogennante Tokens. Ein Token kann ein ganzes Wort, Teile eines Wortes oder eine Sequenz von Zeichen inklusive Satzzeichen darstellen. Jedem dieser Token wird eine Token-Id zugeteilt.
-
+Ein Tokenizer ist ein Werkzeug oder Programm, das Rohtext (wie Sätze oder Wörter) in kleinere Einheiten, sogenannte Tokens (Wörter, Wortteile oder Zeichen), zerlegt und diese in Zahlenwerte umwandelt. Dieser Schritt ist notwendig, da KI-Modelle und Computer keine Buchstaben direkt lesen können, sondern nur mit Zahlen und Vektoren arbeiten.
 
 === Konzept
 
-Die Klasse SimpleTokenizerV1.kt ist ein einfacher regelbasierter Tokenizer, der aus rawText ein Vocabular mit stabilen numerischen IDs aufbaut.
-Er erkennt Wörter mit Apostroph, typografischem Apostroph, Bindestrich und Unterstrich, einfache Satzzeichen sowie die Special Tokens "<|unk|>" und "<|endoftext|>".
+Zum Verständnis bauen wir einen einfachen, regelbasierten Tokenizer (mit einer Regex), der aus Rohtext ein Vokabular mit stabilen, numerischen IDs aufbaut.
+Er erkennt Wörter mit Apostroph, typografischem Apostroph, Bindestrich und Unterstrich sowie einfache Satzzeichen und die Special Tokens „<|unk|>” und „<|endoftext|>”.
 
-Die Methode *encode* zerlegt neuen Text mit derselben Regex und mappt unbekannte Tokens auf die ID von UNKNOWN, statt sie zu verwerfen oder einen Fehler zu werfen.
+Die Methode *encode* zerlegt neuen Text mit derselben Regelbasis und mappt unbekannte Tokens auf die ID von UNKNOWN, anstatt sie zu verwerfen oder eine Fehlermeldung auszugeben.
 
-Die Methode *decode* übersetzt IDs zurück in Tokens und setzt sie mit einfachen Leerzeichen- und Anführungszeichen-Regeln wieder zu Text zusammen.
-Zusätzlich hält die Klasse ein Reverse-Mapping idToToken, stellt vocabSize bereit und ergänzt UNKNOWN sowie ENDOFTEXT immer am Ende des Vokabulars.
+Die Methode *decode* übersetzt IDs zurück in Tokens und setzt sie mithilfe einfacher Leerzeichen- und Anführungszeichen-Regeln wieder zu Text zusammen.
+Zusätzlich hält die Klasse ein Reverse-Mapping idToToken bereit, stellt size bereit und ergänzt UNKNOWN sowie ENDOFTEXT immer am Ende des Vokabulars.
 
 === Implementierung
+Wenn wir obiges Konzept in Code giessen wollen brauchen wir
 
-Beim Erstellen des SimpleTokenizerV1 Object wird ein String als rawText übergeben.
-[source, kotlin]
-----
-    val rawText = "Das ist irgend ein Text der als String definiert ist..."
-    val tokenizer = SimpleTokenizerV1(rawText)
-----
+* eine Liste mit String, in die wir die Tokens packen
+* ein Map in der wir pro Token eine Zahl vergeben, was wir als Vokabular bezeichnen
+* eine weitere Map in der wir die Zahl mit dem Token verbinden
 
-Beim Initialisieren des Objekts wird eine Liste von Strings als Tokens aus dem rawText erstellt, ein Vocabular in Form einer Map<String, Int> und eine idToToken Map<Int, String> erzeugt.
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initVars]
+----
+`_vocab` wird als komplett privates Backing-Field + eigene Read-Only-Property gesetzt.
+`vocab` ist eine eigene öffentliche Read-Only-Property mit explizitem Getter. Das lohnt sich vor allem, wenn du später zusätzliche Logik im Getter brauchst (z. B. eine defensive Kopie zurückgeben) oder wenn intern ein anderer Typ verwendet wird als extern exponiert werden soll.
+
+Zudem müssen wir die oben deklarierten Variablen auch initalisieren.
+
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
 ----
 
-Der rawText wird mit der Function tokenize()
+Die Liste der Tokens (tokens) wird über die function tokenize erstellt. In der Signature der Methode wird der Rohtext (rawText) als String übergeben.
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenize]
 ----
 
-in eine Liste von Token-String zerlegt. Dafür nutzt sie *tokenRegex.findAll(rawText)*, also alle Regex-Treffer in Originalreihenfolge.
-Die *Regex*
+Der Rohtext selber wird über eine Regelbasis (Regex) in die Tokens zerlegt.
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenRegex]
 ----
-erkennt Special Tokens (<|unk|>, <|endoftext|>), Wörter mit Unicode-Buchstaben und internen Zeichen wie _, ', ’, - sowie einzelne Satzzeichen.
-Leerzeichen selbst werden nicht als Tokens ausgegeben, weil nur gefundene Muster (it.value) gesammelt und als List<String> zurückgegeben werden.
 
-Das *Vocabular* wird aus den tokens aufgebaut wobei jedes neue Token in Reihenfolge seines ersten Auftretens die nächste freie ID bekommt (`LinkedHashMap` hält Reihenfolge stabil).
+Das Vokabular (vocab) wird mit einer LinkedHashMap, bei der die Reihenfolg der Tokens stabil ist, erzeugt.
+Nach den aus der tokens Liste erzeugten Map Einträge, werde die beiden Tokens UNKNOWN und ENDOFTEXT Tokens mit einer Zahl/Id versehen
+und dem Vokabular hinzugefügt.
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=buildTokenId]
 ----
-Nach allen normalen Tokens fügt buildTokenToId immer zusätzlich UNKNOWN (<|unk|>) und ENDOFTEXT (<|endoftext|>) mit eigenen IDs an.
-encode nutzt dieses Vokabular für Token→ID (unbekanntes Token fällt auf UNKNOWN zurück), und decode nutzt die inverse Map idToToken für ID→Token.
 
-Die Variable idToToken
-----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=idToToken]
-----
-wird über alle Einträge der `vocab`-Map erstellt.
-Dabei wird jedes Paar von `token -> id` in ein neues Paar `id -> token` umgedreht.
-`associate` baut aus diesen umgedrehten Paaren eine neue Map und weist sie `idToToken` zu.
-So kann die `decode`-Methode später eine Token-ID schnell wieder in den zugehörigen Token-Text zurückübersetzen.
+Die idToToken Map wird aus vocab abgeleitet:
 
-Somit sind wir nun in der Lage einen Text in Tokens bzw. Token-IDs aufzusplitten. Wir können nun einer Function *encode(text: String)* übergeben und dieser wird anhand des Vokabular in Token-IDs umgewandelt. Ist ein Token aus dem Text dem Vokabular unbekannt, so wird anstelle das Enum UNKNOWN (`const val UNKNOWN = "<|unk|>"`) zurückgegeben.
+* vocab.entries liefert alle Einträge des Vokabulars als Map.Entry<String, Int>
+* { (token, id) -> ... } destrukturiert jeden Eintrag in token (Key) und id (Value)
+* id to token erzeugt ein Pair<Int, String> – also genau umgekehrt zur ursprünglichen Zuordnung
+associate { ... } baut daraus eine neue Map<Int, String>
+
+Ergebnis: Aus {"the" -> 42, "cat" -> 17} wird {42 -> "the", 17 -> "cat"}.
+
+*Zusammengefasst*: Für die Tokenisierung brauchen wir `vocab` (Text -> IDs), für die Eingabe des Modells).
+Für die Detokenisierung bei der Textgenerierung braucht es die umgekehrte Richtung `idToToken` (IDs -> Text), um die vom Modell erzeugten Token-IDs wieder in lesbaren Text zurückzuwanden.
+
+
+
+Somit sind wir nun in der Lage einen Text in Tokens bzw. Token-IDs aufzusplitten.
+Die Funktion `encode` wandelt einen Eingabetext in eine Liste von Token-IDs um, indem sie zunächst mit derselben Regex tokenisiert, die auch beim Aufbau des Vokabulars verwendet wurde. Jedes so entstandene Token wird über die `vocab`-Map in seine ID übersetzt; ist ein Token unbekannt, wird stattdessen die zuvor ermittelte ID von `[UNKNOWN]` verwendet. Die ID von `[ENDOFTEXT]` erscheint dabei nur dann in der Ausgabe, wenn der Eingabetext das spezielle Token `<|endoftext|>` tatsächlich enthält – es wird also nicht künstlich ergänzt. Die Funktion bildet damit das Gegenstück zu `decode` und wird typischerweise verwendet, um rohen Text vor der Verarbeitung durch das Modell in die numerische Eingabeform zu bringen.
+
 [source,kotlin]
 ----
 include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=encode]
 ----
+
+Die Funktion `decode` wandelt eine Liste von Token-IDs mithilfe der Reverse-Map `idToToken` zurück in ihre ursprünglichen Token-Strings und wirft dabei eine `IllegalStateException`, falls eine ID nicht im Vokabular vorhanden ist. Anschließend werden diese Tokens über `joinTokens` zu einem zusammenhängenden Text zusammengesetzt, wobei einfache Spacing-Regeln angewendet werden – etwa kein Leerzeichen vor Satzzeichen (`.`, `,`, `!`, `?`) oder vor Spezial-Tokens wie `[UNKNOWN]` und `[ENDOFTEXT]`. Zusätzlich gibt es eine vereinfachte Behandlung von Anführungszeichen, um den rekonstruierten Text natürlicher wirken zu lassen. Die Funktion bildet damit das Gegenstück zur Tokenisierung und wird typischerweise genutzt, um die vom Modell erzeugten Token-IDs während der Inferenz wieder in lesbaren Text umzuwandeln.
+
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=decode]
+----
+
+`joinTokens` fügt eine Liste von Tokens zu einem lesbaren Text zusammen, indem es anhand von zwei Regelmengen (`noSpaceBefore` für Satzzeichen/Sonder-Tokens, `noSpaceAfter` für öffnende Klammern) entscheidet, ob vor dem jeweils nächsten Token ein Leerzeichen eingefügt werden muss. Für Anführungszeichen wird zusätzlich der Zustand `quoteIsOpen` mitgeführt, um zu unterscheiden, ob ein `"` gerade ein öffnendes oder ein schließendes Anführungszeichen ist, und das Spacing entsprechend anzupassen (kein Space nach öffnendem, kein Space vor schließendem Quote). Das Ergebnis wird schrittweise in einem `StringBuilder` aufgebaut, wobei das erste Token ohne vorangehende Prüfung direkt übernommen wird.
+
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=joinTokens]
+----
+
+= TODO:: Baue die Klasse zusammen und starte die Beispiele die den Beweis liefern sollen für das Funktionieren des Tokenizer
 
 So wird aus einem rawText "Darling, do you like water?" ein Vocabular aus Tokens und Token-IDs erstellt, welches dann über den text "Hello, do you like tea?" encoded wird.
 Wie man unschwer erkennen kann unterscheidet sich der Text vom Vocabular in den 2 Wörtern Darling -> Hello, water -> tea.

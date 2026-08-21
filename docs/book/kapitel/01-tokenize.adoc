@@ -207,3 +207,20 @@ Damit ist das Verhalten von `encode` und `decode` fuer unbekannte Tokens konsist
 * **Unicode-Apostrophe:** `'` und `’` muessen beide sauber erkannt werden.
 * **Satzzeichen als eigene Tokens:** Spacing bei `decode` braucht explizite Regeln.
 * **Spezial-Tokens im Text:** `<|unk|>` und `<|endoftext|>` muessen vor allgemeinen Wortregeln erkannt werden.
+
+=== Byte Pair Encoding
+In den GPT Modellen werden aber weit effizientere Tokenizer verwendet, als der von uns entwickelte SimpleTokenizerV1.
+Das Konzept für diese Tokenizer nennt sich `Byte Pair Encoding`. Ein BPE zerlegt ebenso wie unser SimpleTokenizer den Text in Bruchteile von Wörtern (Subword), indem er iterativ die im Trainingskorpus am häufigsten vorkommenden benachbarten Zeichenpaare sucht und zu einem neuen, gemeinsamen Token zusammenfügt, bis eine gewünschte Vokabulargröße erreicht ist.
+Einen BPE Tokenizer zu implementieren ist aufwändig und kompliziert. Deshalb werden wir einen Open-Source BPE Tokenizer namens link:https://jtokkit.knuddels.de/[JTokkit].
+
+Auch wenn wir diesen Tokenizer nur für unseren Wissensaufbau für das Erstellen einer LLM (die nie einen produktiven Charakter ausweisen wird), ist es schon auffällig, dass die JVM Community den Trend für die LLMS verschlafen oder schon wieder aufgegeben haben.
+Auch das JTokkit Framework wird seit ca 2 Jahren kaum mehr gepflegt. Im Gegensatzu dazu die Python tiktoken Implementierung die immer noch aktiv weiter entwickelt wird.
+Wie wir noch sehen werden sind viele gute Absichten Code Komponenten, die für das Bilden einer LLM notwendig sind, zu entwicklen wieder auf Eis gelegt worden
+
+TODO:: Erkläre die JTokkit Library
+
+
+==== References
+* Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].
+* Knuddels, link:https://jtokkit.knuddels.de/[JTokkit Documentation]
+* Knuddels, link:https://github.com/knuddelsgmbh/jtokkit[Knuddels JTokkit Github]

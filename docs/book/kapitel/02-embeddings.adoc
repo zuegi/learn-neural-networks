@@ -1,7 +1,8 @@
 [[Embeddings]]
 == Embeddings
 
-blabla
+TODO: Abklären für den Einsatz des Vector API von Java
+
 
 === Konzept
 

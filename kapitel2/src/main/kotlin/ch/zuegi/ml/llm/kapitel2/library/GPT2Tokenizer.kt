@@ -4,12 +4,14 @@ import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
 import com.knuddels.jtokkit.api.IntArrayList
+import com.knuddels.jtokkit.api.ModelType
 
 class GPT2Tokenizer {
     private val encoding: Encoding =
         Encodings
             .newDefaultEncodingRegistry()
-            .getEncoding(EncodingType.R50K_BASE)
+            .getEncodingForModel(ModelType.GPT_3_5_TURBO)
+//            .getEncoding(EncodingType.R50K_BASE)
 
     val vocabSize: Int = 50257
 

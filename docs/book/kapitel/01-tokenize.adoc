@@ -14,7 +14,7 @@ Er erkennt:
 
 `encode` tokenisiert neuen Text mit derselben Regelbasis und mappt unbekannte Tokens auf die ID von `UNKNOWN`.
 `decode` übersetzt IDs zurueck in Tokens und setzt sie mit einfachen Spacing-Regeln wieder zu Text zusammen.
-Zusätzlich hät die Klasse ein Reverse-Mapping `idToToken` bereit und ergaänzt `UNKNOWN` sowie `ENDOFTEXT` immer am Ende des Vokabulars.
+Zusätzlich hält die Klasse ein Reverse-Mapping `idToToken` bereit und ergänzt `UNKNOWN` sowie `ENDOFTEXT` immer am Ende des Vokabulars.
 
 === Implementierung
 Für die Implementierung brauchen wir:
@@ -66,11 +66,11 @@ Die Map `idToToken` wird direkt aus `vocab` abgeleitet:
 
 Ergebnis: Aus {"the" -> 42, "cat" -> 17} wird {42 -> "the", 17 -> "cat"}.
 
-*Zusammengefasst*: Fuer die Tokenisierung braucht es `vocab` (Text -> IDs), fuer die Rueckuebersetzung `idToToken` (IDs -> Text).
+*Zusammengefasst*: Für die Tokenisierung braucht es `vocab` (Text -> IDs), für die Rückübersetzung `idToToken` (IDs -> Text).
 
 ==== encode und decode
 `encode` wandelt einen Eingabetext in eine Liste von Token-IDs um.
-Bekannte Tokens werden über `vocab` aufgeloest, unbekannte auf die ID von `UNKNOWN` gemappt.
+Bekannte Tokens werden über `vocab` aufgelöst, unbekannte auf die ID von `UNKNOWN` gemappt.
 `<|endoftext|>` erscheint nur dann in der Ausgabe, wenn es auch im Eingabetext steht.
 
 [source,kotlin]
@@ -103,7 +103,7 @@ include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/Simp
 
 === Beispiel: Roundtrip mit bekannten Tokens
 
-Erster Beweis: Fuer bekannte Tokens gilt Roundtrip.
+Erster Beweis: Für bekannte Tokens gilt Roundtrip.
 Wenn alle Tokens im Vokabular enthalten sind, dann liefert `decode(encode(text))` wieder den Originaltext.
 
 [source,kotlin]
@@ -141,17 +141,11 @@ Interpretation:
 
 Aus `rawText = "Darling, do you like water?"` wird das Vokabular aufgebaut.
 Danach wird `"Hello, do you like tea?"` encodiert.
-Die Woerter `Hello` und `tea` kommen im Vokabular nicht vor und werden deshalb auf `UNKNOWN` gemappt.
+Die Wörter `Hello` und `tea` kommen im Vokabular nicht vor und werden deshalb auf `UNKNOWN` gemappt.
 
 Aus dem `rawText` entstehen diese 7 Tokens:
 
-1. Darling
-2. ,
-3. do
-4. you
-5. like
-6. water
-7. ?
+`["Darling", ",", "do", "you", "like", "water", "?"]`
 
 [source, kotlin]
 ----
@@ -176,7 +170,7 @@ Vokabular: {Darling=0, ,=1, do=2, you=3, like=4, water=5, ?=6, <|unk|>=7, <|endo
 decoded: <|unk|>, do you like <|unk|>?
 ----
 
-Die Vokabulargroesse ist 9, weil nach den 7 Tokens aus dem `rawText` zwei Konstanten ergaenzt werden:
+Die Vokabulargrösse ist 9, weil nach den 7 Tokens aus dem `rawText` zwei Konstanten ergänzt werden:
 
 [source,kotlin]
 ----
@@ -187,38 +181,77 @@ const val ENDOFTEXT = "<|endoftext|>"
 Interpretation des Nachweises:
 
 * ID `7` ist `UNKNOWN`
-* `7` kommt in `idList` genau fuer `Hello` und `tea` vor
+* `7` kommt in `idList` genau für `Hello` und `tea` vor
 * `decode(idList)` macht das sichtbar als `<|unk|>, do you like <|unk|>?`
 
-Damit ist das Verhalten von `encode` und `decode` fuer unbekannte Tokens konsistent gezeigt.
+Damit ist das Verhalten von `encode` und `decode` für unbekannte Tokens konsistent gezeigt.
 
 === Design-Entscheidungen
 
 * **Regelbasiert statt gelernt:** Fokus auf Nachvollziehbarkeit und reproduzierbare Ergebnisse.
 * **Stabile IDs mit LinkedHashMap:** Reihenfolge folgt dem ersten Auftreten im Trainings-/Rohtext.
 * **UNKNOWN statt Fehler:** Unbekannte Eingaben bleiben verarbeitbar; Pipeline bricht nicht.
-* **ENDOFTEXT nicht automatisch anfuegen:** Keine implizite Semantik; nur explizite Tokens werden encodiert.
-* **Einfache Spacing-Regeln in `joinTokens`:** Gut lesbare Rueckuebersetzung ohne komplexen Detokenizer.
+* **ENDOFTEXT nicht automatisch anfügen:** Keine implizite Semantik; nur explizite Tokens werden encodiert.
+* **Einfache Spacing-Regeln in `joinTokens`:** Gut lesbare Rückübersetzung ohne komplexen Detokenizer.
 
 === Stolpersteine
 
-* **Regex-Details:** Kleine Aenderungen in der Regex aendern Token-Grenzen stark.
+* **Regex-Details:** Kleine Änderungen in der Regex ändern Token-Grenzen stark.
 * **Gross-/Kleinschreibung:** `Hello` und `hello` sind unterschiedliche Tokens.
-* **Unicode-Apostrophe:** `'` und `’` muessen beide sauber erkannt werden.
+* **Unicode-Apostrophe:** `'` und `’` müssen beide sauber erkannt werden.
 * **Satzzeichen als eigene Tokens:** Spacing bei `decode` braucht explizite Regeln.
-* **Spezial-Tokens im Text:** `<|unk|>` und `<|endoftext|>` muessen vor allgemeinen Wortregeln erkannt werden.
+* **Spezial-Tokens im Text:** `<|unk|>` und `<|endoftext|>` müssen vor allgemeinen Wortregeln erkannt werden.
 
 === Byte Pair Encoding
 In den GPT Modellen werden aber weit effizientere Tokenizer verwendet, als der von uns entwickelte SimpleTokenizerV1.
 Das Konzept für diese Tokenizer nennt sich `Byte Pair Encoding`. Ein BPE zerlegt ebenso wie unser SimpleTokenizer den Text in Bruchteile von Wörtern (Subword), indem er iterativ die im Trainingskorpus am häufigsten vorkommenden benachbarten Zeichenpaare sucht und zu einem neuen, gemeinsamen Token zusammenfügt, bis eine gewünschte Vokabulargröße erreicht ist.
 Einen BPE Tokenizer zu implementieren ist aufwändig und kompliziert. Deshalb werden wir einen Open-Source BPE Tokenizer namens link:https://jtokkit.knuddels.de/[JTokkit].
 
-Auch wenn wir diesen Tokenizer nur für unseren Wissensaufbau für das Erstellen einer LLM (die nie einen produktiven Charakter ausweisen wird), ist es schon auffällig, dass die JVM Community den Trend für die LLMS verschlafen oder schon wieder aufgegeben haben.
-Auch das JTokkit Framework wird seit ca 2 Jahren kaum mehr gepflegt. Im Gegensatzu dazu die Python tiktoken Implementierung die immer noch aktiv weiter entwickelt wird.
-Wie wir noch sehen werden sind viele gute Absichten Code Komponenten, die für das Bilden einer LLM notwendig sind, zu entwicklen wieder auf Eis gelegt worden
+Dieses Kapitel verfolgt ein Lernziel und keinen produktiven Einsatz.
+Dabei zeigt sich eine praktische Herausforderung im JVM-Umfeld: Einige LLM-Bausteine werden langsamer weiterentwickelt als in Python-Ökosystemen.
+Auch JTokkit wird derzeit weniger aktiv gepflegt, während https://github.com/openai/tiktoken[tiktoken] in Python weiterhin stark weiterentwickelt wird.
+Für den Nachbau bedeutet das: Manche Komponenten sind nutzbar, andere erfordern Anpassungen, Workarounds oder alternative Bibliotheken.
 
-TODO:: Erkläre die JTokkit Library
+==== Warum JTokkit
 
+Wir verwenden JTokkit, weil es OpenAI-kompatible Encodings fuer die JVM bereitstellt.
+
+* JTokkit liefert OpenAI-kompatible BPE-Tokenisierung für Java/Kotlin.
+* Entscheidend ist die Encoding-Wahl; in diesem Kapitel nutzen wir `r50k_base` (Ada-nah).
+* `encode`/`decode` bilden Text und Token-IDs konsistent ineinander ab; `encodeOrdinary` behandelt Special Tokens als normalen Text.
+* Damit sparen wir Implementierungsaufwand für Merge-Regeln, Vokabularverwaltung und Byte-Level-Logik.
+
+Eine dünne Wrapper-Klasse (`OpenAiBpeTokenizer`) kapselt Library-Details und stabilisiert unsere API (`encode`, `decode`, `encodeOrdinary`).
+[source,kotlin]
+----
+include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/library/OpenAiBpeTokenizer.kt[]
+----
+
+==== Encoding-Wahl im Kapitel
+
+Für dieses Kapitel verwenden wir ein Ada-nahes Setup auf Basis von `r50k_base`.
+
+* Encoding: `r50k_base`
+* Vokabulargrösse: `50.257` Tokens
+* Typische Modelle: GPT-2 sowie fruehe GPT-3-Familie (`ada`, `babbage`, `curie`, `davinci`)
+
+[IMPORTANT]
+====
+Tokenizer-Encoding und Zielmodell müssen zusammenpassen, sonst unterscheiden sich Token-Grenzen und Token-IDs.
+====
+
+
+==== Warum `r50k_base` in diesem Kapitel
+"Ada" bezieht sich auf eines der ursprünglichen GPT-3-Modelle von OpenAI (Ada, Babbage, Curie, Davinci).
+Für dieses Kapitel verwenden wir aus Performance- und Reproduzierbarkeitsgründen ein Ada-nahes Tokenizer-Setup auf Basis von `EncodingType.R50K_BASE`.
+
+Wichtige Eckdaten:
+
+* Encoding-Name: `r50k_base`
+* Vokabulargrösse: `50.257` Tokens
+* Verwendet von: GPT-2, GPT-3 (`ada`, `babbage`, `curie`, `davinci`), `text-ada-001`
+
+Wichtig: `vocabSize = 50.257` ist nur dann fachlich korrekt, wenn das aktive Encoding zur R50K-/P50K-Familie gehört.
 
 ==== References
 * Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].

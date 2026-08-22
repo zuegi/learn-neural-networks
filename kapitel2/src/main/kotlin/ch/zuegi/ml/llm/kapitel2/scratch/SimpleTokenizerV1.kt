@@ -43,6 +43,7 @@ class SimpleTokenizerV1(
     private var _vocab: Map<String, Int> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
     val vocab: Map<String, Int> get() = _vocab
+
     // end::initVars[]
     val vocabSize: Int get() = _vocab.size
 
@@ -59,10 +60,6 @@ class SimpleTokenizerV1(
     }
     // end::initSimpleTokenizerV1[]
 
-
-
-    // tag::encode[]
-
     /**
      * Wandelt Text in Token-IDs um.
      *
@@ -76,14 +73,13 @@ class SimpleTokenizerV1(
      * @param text Text, der encodiert werden soll.
      * @return Liste von Token-IDs.
      */
-
+    @Suppress("ktlint:standard:no-consecutive-comments")
+    // tag::encode[]
     fun encode(text: String): List<Int> {
         val unkId = _vocab[UNKNOWN] ?: error("UNK-Token fehlt")
         return tokenize(text).map { token -> _vocab[token] ?: unkId }
     }
     // end::encode[]
-
-    // tag::decode[]
 
     /**
      * Wandelt Token-IDs zurück in Text.
@@ -98,6 +94,8 @@ class SimpleTokenizerV1(
      * @return rekonstruierter Text.
      * @throws IllegalStateException wenn eine ID nicht im Vokabular existiert.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
+    // tag::decode[]
     fun decode(ids: List<Int>): String {
         val tokens =
             ids.map { id ->
@@ -158,6 +156,7 @@ class SimpleTokenizerV1(
         return out.last().toString()
     }
 
+
     /**
      * Zerlegt Text in Tokens.
      *
@@ -172,6 +171,7 @@ class SimpleTokenizerV1(
      * @param rawText Text, der tokenisiert werden soll.
      * @return Liste erkannter Tokens in Originalreihenfolge.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
     // tag::tokenize[]
     private fun tokenize(rawText: String): List<String> = tokenRegex.findAll(rawText).map { it.value }.toList()
     // end::tokenize[]
@@ -185,6 +185,7 @@ class SimpleTokenizerV1(
      * @param tokens Tokens aus dem Trainings-/Rohtext.
      * @return stabile Map von Token zu numerischer ID.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
     // tag::buildTokenId[]
     private fun buildTokenToId(tokens: List<String>): Map<String, Int> {
         val tokenToId = LinkedHashMap<String, Int>() // Reihenfolge stabil

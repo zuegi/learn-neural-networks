@@ -1,6 +1,6 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.library.GPT2Tokenizer
+import ch.zuegi.ml.llm.kapitel2.library.R50kBpeTokenizer
 import ch.zuegi.ml.llm.shared.readVerdictText
 
 /**
@@ -8,7 +8,7 @@ import ch.zuegi.ml.llm.shared.readVerdictText
  */
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = GPT2Tokenizer()
+    val tokenizer = R50kBpeTokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     println("Token-Anzahl: ${tokenIds.size}")

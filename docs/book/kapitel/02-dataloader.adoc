@@ -189,3 +189,7 @@ Der `TextDataLoader` steht genau zwischen Tokenisierung und Embeddings:
 * Embeddings: `inputIds` -> Vektoren
 
 Damit ist der `TextDataLoader` die Brücke zwischen Rohdatenaufbereitung und eigentlichem Modell.
+
+
+=== References
+* Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].

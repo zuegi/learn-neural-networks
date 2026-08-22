@@ -15,8 +15,19 @@ Er erkennt:
 * die Special Tokens `<|unk|>` und `<|endoftext|>`
 
 `encode` tokenisiert neuen Text mit derselben Regelbasis und mappt unbekannte Tokens auf die ID von `UNKNOWN`.
-`decode` übersetzt IDs zurueck in Tokens und setzt sie mit einfachen Spacing-Regeln wieder zu Text zusammen.
+`decode` übersetzt IDs zurück in Tokens und setzt sie mit einfachen Spacing-Regeln wieder zu Text zusammen.
 Zusätzlich hält die Klasse ein Reverse-Mapping `idToToken` bereit und ergänzt `UNKNOWN` sowie `ENDOFTEXT` immer am Ende des Vokabulars.
+
+=== Warum ein Tokenizer?
+
+Ein Sprachmodell kann nicht direkt mit Zeichenketten arbeiten.
+Bevor aus Text Embeddings, Attention oder Training entstehen können, muss der Text daher in eine numerische Repräsentation überführt werden.
+
+Genau das leistet ein Tokenizer:
+
+* Er zerlegt Text in kleinere Einheiten.
+* Er ordnet diesen Einheiten stabile IDs zu.
+* Er schafft damit die Brücke zwischen Rohtext und Modellinput.
 
 === Implementierung
 Für die Implementierung brauchen wir:
@@ -38,21 +49,30 @@ Danach werden die Variablen initialisiert:
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
 ----
 
-Die Liste der Tokens wird über `tokenize(rawText)` erstellt:
+=== Die Methode `tokenize()`
+
+Die Liste der Tokens wird über `tokenize(rawText)` erstellt.
+Sie übernimmt den Rohtext und zerlegt ihn anhand der definierten Regex in eine geordnete Tokenfolge.
 
 [source,kotlin]
 ----
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=tokenize]
 ----
 
-Die zugrunde liegende Regelbasis (Regex):
+=== Die Regex-Regelbasis
+
+Die zugrunde liegende Regelbasis ist eine Regex.
+Sie legt fest, welche Zeichenfolgen als Wörter, Satzzeichen oder Special Tokens erkannt werden.
 
 [source,kotlin]
 ----
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=tokenRegex]
 ----
 
-Das Vokabular wird mit einer `LinkedHashMap` erzeugt, damit die Reihenfolge stabil bleibt. Anschliessend werden `UNKNOWN` und `ENDOFTEXT` immer am Ende ergänzt:
+=== Das Vokabular
+
+Das Vokabular wird mit einer `LinkedHashMap` erzeugt, damit die Reihenfolge stabil bleibt.
+Anschließend werden `UNKNOWN` und `ENDOFTEXT` immer am Ende ergänzt:
 
 [source,kotlin]
 ----
@@ -70,7 +90,8 @@ Ergebnis: Aus {"the" -> 42, "cat" -> 17} wird {42 -> "the", 17 -> "cat"}.
 
 *Zusammengefasst*: Für die Tokenisierung braucht es `vocab` (Text -> IDs), für die Rückübersetzung `idToToken` (IDs -> Text).
 
-==== encode und decode
+=== Die Methode `encode()`
+
 `encode` wandelt einen Eingabetext in eine Liste von Token-IDs um.
 Bekannte Tokens werden über `vocab` aufgelöst, unbekannte auf die ID von `UNKNOWN` gemappt.
 `<|endoftext|>` erscheint nur dann in der Ausgabe, wenn es auch im Eingabetext steht.
@@ -79,6 +100,8 @@ Bekannte Tokens werden über `vocab` aufgelöst, unbekannte auf die ID von `UNKN
 ----
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=encode]
 ----
+
+=== Die Methode `decode()`
 
 `decode` wandelt eine Liste von IDs über `idToToken` zurück in Token-Strings.
 Falls eine ID nicht im Vokabular liegt, wird eine `IllegalStateException` geworfen.
@@ -89,15 +112,26 @@ Danach setzt `joinTokens` die Tokens mit einfachen Spacing-Regeln zu Text zusamm
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=decode]
 ----
 
-`joinTokens` fügt eine Liste von Tokens zu einem lesbaren Text zusammen, indem es anhand von zwei Regelmengen (`noSpaceBefore` für Satzzeichen/Sonder-Tokens, `noSpaceAfter` für öffnende Klammern) entscheidet, ob vor dem jeweils nächsten Token ein Leerzeichen eingefügt werden muss. Für Anführungszeichen wird zusätzlich der Zustand `quoteIsOpen` mitgeführt, um zu unterscheiden, ob ein `"` gerade ein öffnendes oder ein schließendes Anführungszeichen ist, und das Spacing entsprechend anzupassen (kein Space nach öffnendem, kein Space vor schließendem Quote). Das Ergebnis wird schrittweise in einem `StringBuilder` aufgebaut, wobei das erste Token ohne vorangehende Prüfung direkt übernommen wird.
+=== Die Methode `joinTokens()`
+
+`joinTokens()` fügt eine Liste von Tokens zu einem lesbaren Text zusammen.
+Dabei verwendet die Methode zwei Regelmengen:
+
+* `noSpaceBefore` für Satzzeichen und Sonder-Tokens
+* `noSpaceAfter` für öffnende Klammern
+
+Zusätzlich wird für Anführungszeichen der Zustand `quoteIsOpen` mitgeführt.
+So kann unterschieden werden, ob ein `"` gerade ein öffnendes oder ein schließendes Anführungszeichen ist.
+Das Ergebnis wird schrittweise in einem `StringBuilder` aufgebaut.
 
 [source,kotlin]
 ----
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=joinTokens]
 ----
 
-==== SimpleTokenizerV1
-Die ganze Klasse SimpleTokenizerV1 sieht dann so aus
+=== Die komplette Klasse
+
+Die ganze Klasse `SimpleTokenizerV1` sieht dann so aus:
 [source,kotlin]
 ----
 include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[]
@@ -105,8 +139,8 @@ include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[]
 
 === Beispiel: Roundtrip mit bekannten Tokens
 
-Erster Beweis: Für bekannte Tokens gilt Roundtrip.
-Wenn alle Tokens im Vokabular enthalten sind, dann liefert `decode(encode(text))` wieder den Originaltext.
+Ein erster Nachweis zeigt den einfachsten Fall: Alle Tokens sind bekannt.
+Dann liefert `decode(encode(text))` wieder den ursprünglichen Text.
 
 [source,kotlin]
 ----
@@ -188,7 +222,7 @@ Vokabular: {Darling=0, ,=1, do=2, you=3, like=4, water=5, ?=6, <|unk|>=7, <|endo
 decoded: <|unk|>, do you like<|unk|>?
 ----
 
-Die Vokabulargrösse ist 9, weil nach den 7 Tokens aus dem `rawText` zwei Konstanten ergänzt werden:
+Die Vokabulargröße ist 9, weil nach den 7 Tokens aus dem `rawText` zwei Konstanten ergänzt werden:
 
 [source,kotlin]
 ----
@@ -216,24 +250,31 @@ Damit ist das Verhalten von `encode` und `decode` für unbekannte Tokens konsist
 === Stolpersteine
 
 * **Regex-Details:** Kleine Änderungen in der Regex ändern Token-Grenzen stark.
-* **Gross-/Kleinschreibung:** `Hello` und `hello` sind unterschiedliche Tokens.
+* **Groß-/Kleinschreibung:** `Hello` und `hello` sind unterschiedliche Tokens.
 * **Unicode-Apostrophe:** `'` und `’` müssen beide sauber erkannt werden.
 * **Satzzeichen als eigene Tokens:** Spacing bei `decode` braucht explizite Regeln.
 * **Spezial-Tokens im Text:** `<|unk|>` und `<|endoftext|>` müssen vor allgemeinen Wortregeln erkannt werden.
 
 === Byte Pair Encoding
-In den GPT Modellen werden aber weit effizientere Tokenizer verwendet, als der von uns entwickelte SimpleTokenizerV1.
-Das Konzept für diese Tokenizer nennt sich `Byte Pair Encoding`. Ein BPE zerlegt ebenso wie unser SimpleTokenizer den Text in Bruchteile von Wörtern (Subword), indem er iterativ die im Trainingskorpus am häufigsten vorkommenden benachbarten Zeichenpaare sucht und zu einem neuen, gemeinsamen Token zusammenfügt, bis eine gewünschte Vokabulargröße erreicht ist.
-Einen BPE Tokenizer zu implementieren ist aufwändig und kompliziert. Deshalb werden wir einen Open-Source BPE Tokenizer namens link:https://jtokkit.knuddels.de/[JTokkit].
+In GPT-Modellen werden deutlich effizientere Tokenizer verwendet als der von uns entwickelte `SimpleTokenizerV1`.
+Das zugrunde liegende Konzept heißt `Byte Pair Encoding`.
+
+Ein BPE zerlegt den Text ebenfalls in Bruchteile von Wörtern (`Subwords`).
+Dazu werden im Trainingskorpus häufig vorkommende benachbarte Zeichenpaare schrittweise zu gemeinsamen Tokens zusammengeführt, bis eine gewünschte Vokabulargröße erreicht ist.
+
+Einen BPE-Tokenizer von Grund auf selbst zu implementieren ist aufwändig.
+Deshalb verwenden wir hier die Open-Source-Bibliothek link:https://jtokkit.knuddels.de/[JTokkit].
 
 Dieses Kapitel verfolgt ein Lernziel und keinen produktiven Einsatz.
 Dabei zeigt sich eine praktische Herausforderung im JVM-Umfeld: Einige LLM-Bausteine werden langsamer weiterentwickelt als in Python-Ökosystemen.
 Auch JTokkit wird derzeit weniger aktiv gepflegt, während https://github.com/openai/tiktoken[tiktoken] in Python weiterhin stark weiterentwickelt wird.
 Für den Nachbau bedeutet das: Manche Komponenten sind nutzbar, andere erfordern Anpassungen, Workarounds oder alternative Bibliotheken.
 
+Im Folgenden betrachten wir, wie wir dieses Encoding mit JTokkit in unser Projekt einbinden.
+
 ==== Warum JTokkit
 
-Wir verwenden JTokkit, weil es OpenAI-kompatible Encodings fuer die JVM bereitstellt.
+Wir verwenden JTokkit, weil es OpenAI-kompatible Encodings für die JVM bereitstellt.
 
 * JTokkit liefert OpenAI-kompatible BPE-Tokenisierung für Java/Kotlin.
 * Entscheidend ist die Encoding-Wahl; in diesem Kapitel nutzen wir `r50k_base` (Ada-nah).
@@ -251,8 +292,8 @@ include::{sourceDirKapitel2}/library/R50kBpeTokenizer.kt[]
 Für dieses Kapitel verwenden wir ein Ada-nahes Setup auf Basis von `r50k_base`.
 
 * Encoding: `r50k_base`
-* Vokabulargrösse: `50.257` Tokens
-* Typische Modelle: GPT-2 sowie fruehe GPT-3-Familie (`ada`, `babbage`, `curie`, `davinci`)
+* Vokabulargröße: `50.257` Tokens
+* Typische Modelle: GPT-2 sowie frühe GPT-3-Familie (`ada`, `babbage`, `curie`, `davinci`)
 
 [IMPORTANT]
 ====
@@ -267,14 +308,14 @@ Für dieses Kapitel verwenden wir aus Performance- und Reproduzierbarkeitsgründ
 Wichtige Eckdaten:
 
 * Encoding-Name: `r50k_base`
-* Vokabulargrösse: `50.257` Tokens
+* Vokabulargröße: `50.257` Tokens
 * Verwendet von: GPT-2, GPT-3 (`ada`, `babbage`, `curie`, `davinci`), `text-ada-001`
 
 Wichtig: `vocabSize = 50.257` ist nur dann fachlich korrekt, wenn das aktive Encoding zur R50K-/P50K-Familie gehört.
 
-=== Beispiel: Roundtrip mit bekanntem Text im BPE-Tokenizer
+==== Beispiel: Roundtrip mit bekanntem Text im BPE-Tokenizer
 
-Beim `R50kBpeTokenizer` ist der erste Nachweis wieder ein Roundtrip.
+Ein erster Nachweis funktioniert auch beim BPE-Tokenizer über einen Roundtrip.
 Der Unterschied zum `SimpleTokenizerV1`: Das Vokabular wird nicht aus einem `rawText` aufgebaut, sondern kommt bereits aus dem gewählten Encoding `r50k_base`.
 
 [source,kotlin]
@@ -299,10 +340,10 @@ Interpretation:
 * `decode(ids)` rekonstruiert wieder exakt den ursprünglichen Text.
 * Der Roundtrip-Beweis funktioniert also auch mit dem BPE-Tokenizer.
 
-=== Beispiel: Special Token als normaler Text
+==== Beispiel: Special Token als normaler Text
 
-Mit `encodeOrdinary` können Special-Token-Sequenzen als normaler Text behandelt werden.
-Das ist didaktisch nützlich, weil man so sichtbar machen kann, dass `<|endoftext|>` nicht zwingend als Steuer-Token interpretiert werden muss.
+Ein zweiter Nachweis zeigt das Verhalten von `encodeOrdinary`.
+Mit dieser Methode können Special-Token-Sequenzen als normaler Text behandelt werden.
 
 [source,kotlin]
 ----
@@ -325,10 +366,10 @@ Interpretation:
 * Dadurch bleibt die Zeichenfolge beim Roundtrip unverändert erhalten.
 * Das Verhalten unterscheidet sich bewusst von Tokenizern, die Special Tokens direkt als Steuerinformation interpretieren.
 
-=== Beispiel: Unbekannte Wörter werden in Subwords zerlegt
+==== Beispiel: Unbekannte Wörter werden in Subwords zerlegt
 
-Der wichtigste Unterschied zum `SimpleTokenizerV1`: Der BPE-Tokenizer verwendet kein `UNKNOWN`-Token für unbekannte Wörter.
-Stattdessen zerlegt er unbekannte Wörter in bekannte Subwords beziehungsweise Byte-Sequenzen.
+Der wichtigste Unterschied zum `SimpleTokenizerV1` zeigt sich bei unbekannten Wörtern.
+Der BPE-Tokenizer verwendet kein `UNKNOWN`-Token, sondern zerlegt unbekannte Wörter in bekannte Subwords beziehungsweise Byte-Sequenzen.
 
 [source,kotlin]
 ----
@@ -353,12 +394,12 @@ Interpretation:
 * Es gibt kein Fallback auf ein einzelnes `UNKNOWN`-Token.
 * Stattdessen erzeugt das BPE-Encoding mehrere bekannte Teil-Tokens, die sich beim Decodieren wieder korrekt zusammensetzen lassen.
 
-Damit ist der qualitative Unterschied zwischen beiden Tokenizer-Arten sichtbar:
+Damit ist der qualitative Unterschied zwischen beiden Tokenizer-Arten klar sichtbar:
 
 * `SimpleTokenizerV1` mappt unbekannte Wörter auf `UNKNOWN`.
 * `R50kBpeTokenizer` zerlegt unbekannte Wörter in bekannte Subwords.
 
-==== References
+=== References
 * Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].
 * Knuddels, link:https://jtokkit.knuddels.de/[JTokkit Documentation]
 * Knuddels, link:https://github.com/knuddelsgmbh/jtokkit[Knuddels JTokkit Github]

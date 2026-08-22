@@ -1,0 +1,191 @@
+:sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
+:sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
+
+[[Dataloader]]
+== DataLoader
+
+Ein Tokenizer zerlegt Text in Token-IDs.
+Damit ein Sprachmodell daraus lernen kann, müssen diese Token-IDs in Trainingsbeispiele umgeformt werden.
+Genau diese Aufgabe übernimmt der `TextDataLoader`.
+
+=== Konzept
+
+Ein Sprachmodell für Next-Token-Prediction lernt aus Paaren von Eingabe- und Zielsequenzen:
+
+* `inputIds`: aktuelle Token-Folge
+* `targetIds`: dieselbe Folge, aber um ein Token nach rechts verschoben
+
+Das Modell lernt damit an jeder Position: «Welches Token kommt als Nächstes?»
+
+=== Warum ein DataLoader?
+
+Nach der Tokenisierung liegt der Text als lange Liste von Token-IDs vor.
+Ein Modell kann mit dieser langen Liste nicht direkt trainiert werden, sondern erwartet Trainingsfenster fester Länge.
+Der `TextDataLoader` erzeugt solche Fenster automatisiert.
+
+
+=== TrainingSample statt Tensor
+In Python- und PyTorch-Beispielen werden Trainingsfenster oft direkt als Tensoren zurückgegeben, weil sie dort unmittelbar an das Modell und die numerischen Operationen gekoppelt sind.
+In unserer Kotlin-Implementierung liefert der `TextDataLoader` stattdessen zunächst ein `TrainingSample` mit `inputIds` und `targetIds`.
+Das ist didaktisch gut lesbar, weil die fachliche Struktur der Trainingsdaten sichtbar bleibt, bevor sie in eine numerische Repräsentation überführt wird.
+Ein `TrainingSample` beschreibt also, *was* trainiert werden soll, während ein Tensor beschreibt, *in welchem numerischen Format* diese Daten verarbeitet werden.
+Sobald die Daten in Embeddings, Attention oder das eigentliche Training übergehen, können aus den `TrainingSample`-Objekten jederzeit Tensoren oder Matrizen erzeugt werden.
+
+=== Sliding Window
+
+Der `TextDataLoader` arbeitet mit einem Sliding-Window-Verfahren.
+Dabei wird ein Fenster mit fester Länge über die Token-ID-Sequenz geschoben.
+
+* `contextLength`: Anzahl Tokens pro Eingabefenster
+* `stride`: Schrittweite, mit der das Fenster weitergeschoben wird
+* `batchSize`: Anzahl Samples pro Mini-Batch
+
+=== Beispiel
+
+Angenommen, wir haben folgenden Tokenstream:
+
+[source,kotlin]
+----
+val tokenIds = listOf(10, 11, 12, 13, 14, 15)
+----
+
+Bei `contextLength = 4` entstehen diese Trainingsbeispiele:
+
+[source,text]
+----
+Sample 1
+inputIds  = [10, 11, 12, 13]
+targetIds = [11, 12, 13, 14]
+
+Sample 2
+inputIds  = [11, 12, 13, 14]
+targetIds = [12, 13, 14, 15]
+----
+
+Man sieht: `targetIds` ist dieselbe Sequenz wie `inputIds`, nur um eine Position nach rechts verschoben.
+
+=== Implementierung
+
+Die Klasse `TextDataLoader` kapselt genau diese Logik:
+
+[source,kotlin]
+----
+include::{sourceDirShared}/TextDataLoader.kt[]
+----
+
+=== Konstruktorparameter
+
+Der Konstruktor erwartet:
+
+* `tokenIds`: die vollständige Token-ID-Sequenz
+* `contextLength`: Fensterlänge für `inputIds`
+* `stride`: Schrittweite des Sliding Windows
+* `batchSize`: Anzahl Samples pro Batch
+
+=== Die Methode `samples()`
+
+`samples()` erzeugt alle Trainingsbeispiele in Sequenzreihenfolge.
+
+[source,kotlin]
+----
+include::{sourceDirShared}/TextDataLoader.kt[tags=samples]
+----
+
+Jedes Sample enthält:
+
+* `inputIds`
+* `targetIds`
+
+=== Die Methode `batches()`
+
+`batches()` gruppiert die Samples in Mini-Batches.
+
+[source,kotlin]
+----
+include::{sourceDirShared}/TextDataLoader.kt[tags=batches]
+----
+
+Der letzte Batch kann kleiner sein als `batchSize`.
+
+=== Die Methode `size()`
+
+Mit `size()` lässt sich berechnen, wie viele Trainingsfenster insgesamt erzeugt werden können.
+
+[source,kotlin]
+----
+include::{sourceDirShared}/TextDataLoader.kt[tags=size]
+----
+
+Das ist praktisch, wenn man vorab wissen will, wie viele Samples oder Batches entstehen.
+
+=== Beweis: Samples korrekt erzeugen
+
+Ein erster Nachweis besteht darin, mit einem kleinen, bekannten Tokenstream zu prüfen, ob `samples()` exakt die erwarteten Fenster liefert.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/demo/TextDataLoaderDemo.kt[tag=proveSamples]
+----
+
+Erwartet werden genau zwei Samples:
+
+[source,text]
+----
+[
+  TrainingSample(inputIds=[10, 11, 12, 13], targetIds=[11, 12, 13, 14]),
+  TrainingSample(inputIds=[11, 12, 13, 14], targetIds=[12, 13, 14, 15])
+]
+----
+
+=== Beweis: Batches korrekt gruppieren
+
+Mit `batchSize > 1` lässt sich zusätzlich zeigen, dass Samples korrekt in Mini-Batches gruppiert werden.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/demo/TextDataLoaderDemo.kt[tag=proveBatches]
+----
+
+Interpretation:
+
+* Zuerst werden alle Samples erzeugt.
+* Anschließend werden sie in Gruppen der Größe `batchSize` aufgeteilt.
+* Der Mechanismus entspricht dem typischen Mini-Batch-Training.
+
+=== Beweis: `size()` zählt die Fenster korrekt
+
+Neben `samples()` ist auch `size()` wichtig, weil sich damit die Anzahl der erzeugbaren Fenster ohne zusätzliche Ausgaben bestimmen lässt.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/demo/TextDataLoaderDemo.kt[tag=proveSize]
+----
+
+Interpretation:
+
+* Bei `contextLength = 3` und `stride = 2` entstehen Fenster mit den Startpositionen `0` und `2`.
+* Daher liefert `size()` korrekt den Wert `2`.
+
+=== Design-Entscheidungen
+
+* **Feste Fensterlänge:** Modelle erwarten Eingaben definierter Länge.
+* **Um 1 verschobene Targets:** Standardformulierung für Next-Token-Prediction.
+* **Sliding Window mit `stride`:** kontrolliert Überlappung und Anzahl Samples.
+* **Mini-Batches:** vorbereitend für effizientes Training.
+
+=== Stolpersteine
+
+* **Off-by-one-Fehler:** `targetIds` endet bei `start + contextLength`
+* **Zu kurze Sequenz:** `tokenIds.size` muss grösser als `contextLength` sein
+* **Großer `stride`:** reduziert Anzahl Samples stark
+* **Großer `batchSize`:** letzter Batch kann kleiner sein
+
+=== Einordnung im Gesamtfluss
+
+Der `TextDataLoader` steht genau zwischen Tokenisierung und Embeddings:
+
+* Tokenizer: Text -> Token-IDs
+* DataLoader: Token-IDs -> Trainingsfenster
+* Embeddings: `inputIds` -> Vektoren
+
+Damit ist der `TextDataLoader` die Brücke zwischen Rohdatenaufbereitung und eigentlichem Modell.

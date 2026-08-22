@@ -78,6 +78,24 @@ class TextDataLoaderTest {
     }
 
     @Test
+    fun `samples creates exactly one window when tokenIds size is contextLength plus one`() {
+        val loader =
+            TextDataLoader(
+                tokenIds = listOf(10, 11, 12),
+                contextLength = 2,
+                stride = 1,
+                batchSize = 1,
+            )
+
+        val samples = loader.samples()
+
+        assertThat(samples).hasSize(1)
+        assertThat(samples[0].inputIds).isEqualTo(listOf(10, 11))
+        assertThat(samples[0].targetIds).isEqualTo(listOf(11, 12))
+        assertThat(loader.size()).isEqualTo(1)
+    }
+
+    @Test
     fun `constructor rejects invalid parameters`() {
         assertThatThrownBy {
             TextDataLoader(
@@ -114,5 +132,6 @@ class TextDataLoaderTest {
                 batchSize = 1,
             )
         }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("tokenIds.size muss größer als contextLength sein")
     }
 }

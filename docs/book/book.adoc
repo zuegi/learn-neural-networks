@@ -20,9 +20,11 @@ include::kapitel/00-einleitung.adoc[leveloffset=+1]
 
 include::kapitel/01-tokenize.adoc[leveloffset=+1]
 
-include::kapitel/02-embeddings.adoc[leveloffset=+1]
+include::kapitel/02-dataloader.adoc[leveloffset=+1]
 
-include::kapitel/03-attention.adoc[leveloffset=+1]
+include::kapitel/03-embeddings.adoc[leveloffset=+1]
+
+include::kapitel/04-attention.adoc[leveloffset=+1]
 
 //include::kapitel/04-transformer-block.adoc[leveloffset=+1]
 

@@ -1,3 +1,4 @@
+:sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
 [[Tokenize]]
 == Tokenize
 
@@ -25,7 +26,7 @@ Für die Implementierung brauchen wir:
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initVars]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=initVars]
 ----
 `_vocab` ist ein privates Backing-Field, `vocab` eine öffentliche Read-Only-Property mit explizitem Getter.
 
@@ -33,28 +34,28 @@ Danach werden die Variablen initialisiert:
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
 ----
 
 Die Liste der Tokens wird über `tokenize(rawText)` erstellt:
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenize]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=tokenize]
 ----
 
 Die zugrunde liegende Regelbasis (Regex):
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=tokenRegex]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=tokenRegex]
 ----
 
 Das Vokabular wird mit einer `LinkedHashMap` erzeugt, damit die Reihenfolge stabil bleibt. Anschliessend werden `UNKNOWN` und `ENDOFTEXT` immer am Ende ergänzt:
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=buildTokenId]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=buildTokenId]
 ----
 
 Die Map `idToToken` wird direkt aus `vocab` abgeleitet:
@@ -75,7 +76,7 @@ Bekannte Tokens werden über `vocab` aufgelöst, unbekannte auf die ID von `UNKN
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=encode]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=encode]
 ----
 
 `decode` wandelt eine Liste von IDs über `idToToken` zurück in Token-Strings.
@@ -84,21 +85,21 @@ Danach setzt `joinTokens` die Tokens mit einfachen Spacing-Regeln zu Text zusamm
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=decode]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=decode]
 ----
 
 `joinTokens` fügt eine Liste von Tokens zu einem lesbaren Text zusammen, indem es anhand von zwei Regelmengen (`noSpaceBefore` für Satzzeichen/Sonder-Tokens, `noSpaceAfter` für öffnende Klammern) entscheidet, ob vor dem jeweils nächsten Token ein Leerzeichen eingefügt werden muss. Für Anführungszeichen wird zusätzlich der Zustand `quoteIsOpen` mitgeführt, um zu unterscheiden, ob ein `"` gerade ein öffnendes oder ein schließendes Anführungszeichen ist, und das Spacing entsprechend anzupassen (kein Space nach öffnendem, kein Space vor schließendem Quote). Das Ergebnis wird schrittweise in einem `StringBuilder` aufgebaut, wobei das erste Token ohne vorangehende Prüfung direkt übernommen wird.
 
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[tag=joinTokens]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=joinTokens]
 ----
 
 ==== SimpleTokenizerV1
 Die ganze Klasse SimpleTokenizerV1 sieht dann so aus
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/scratch/SimpleTokenizerV1.kt[]
+include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[]
 ----
 
 === Beispiel: Roundtrip mit bekannten Tokens
@@ -224,7 +225,7 @@ Wir verwenden JTokkit, weil es OpenAI-kompatible Encodings fuer die JVM bereitst
 Eine dünne Wrapper-Klasse (`OpenAiBpeTokenizer`) kapselt Library-Details und stabilisiert unsere API (`encode`, `decode`, `encodeOrdinary`).
 [source,kotlin]
 ----
-include::../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2/library/OpenAiBpeTokenizer.kt[]
+include::{sourceDirKapitel2}/library/R50kBpeTokenizer.kt[]
 ----
 
 ==== Encoding-Wahl im Kapitel
@@ -252,6 +253,9 @@ Wichtige Eckdaten:
 * Verwendet von: GPT-2, GPT-3 (`ada`, `babbage`, `curie`, `davinci`), `text-ada-001`
 
 Wichtig: `vocabSize = 50.257` ist nur dann fachlich korrekt, wenn das aktive Encoding zur R50K-/P50K-Familie gehört.
+
+// TODO: Kapitel überarbeiten
+Die nachweise für die bekannten und unbekannten Tokens müssen noch gemacht werden
 
 ==== References
 * Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].

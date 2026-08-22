@@ -115,12 +115,17 @@ val text = "Darling, do you like water?"
 
 val ids = tokenizer.encode(text)
 val decoded = tokenizer.decode(ids)
+val expectedIds = listOf(0, 1, 2, 3, 4, 5, 6)
 val isEqual = decoded == text
 
 println("text: $text")
 println("ids: $ids")
 println("decoded: $decoded")
+println("expectedIds: $expectedIds")
 println("roundtrip.equal: $isEqual")
+
+check(ids == expectedIds)
+check(isEqual)
 ----
 
 Erwartete Ausgabe:
@@ -136,6 +141,7 @@ Interpretation:
 
 * Alle Tokens sind bekannt (`Darling`, `,`, `do`, `you`, `like`, `water`, `?`).
 * Deshalb geht keine Information beim Encodieren verloren.
+* `ids` wird zusätzlich gegen die erwartete Liste `listOf(0, 1, 2, 3, 4, 5, 6)` geprüft.
 * `decode(encode(text)) == text` ist `true`.
 
 === Beispiel: Unbekannte Tokens sauber nachweisen
@@ -154,11 +160,21 @@ val rawText = "Darling, do you like water?"
 val tokenizer = SimpleTokenizerV1(rawText)
 val text = "Hello, do you like tea?"
 val idList: List<Int> = tokenizer.encode(text)
+val expectedIds = listOf(7, 1, 2, 3, 4, 7, 6)
+val expectedDecoded = "<|unk|>, do you like<|unk|>?"
+val decoded = tokenizer.decode(idList)
+
 println("idList.size: ${idList.size}")
 println("idList: $idList")
 println("Vokabular.size: ${tokenizer.vocabSize}")
 println("Vokabular: ${tokenizer.vocab}")
-println("decoded: ${tokenizer.decode(idList)}")
+println("decoded: $decoded")
+println("expectedIds: $expectedIds")
+println("expectedDecoded: $expectedDecoded")
+
+check(idList == expectedIds)
+check(decoded == expectedDecoded)
+check(tokenizer.vocabSize == 9)
 ----
 
 Erwartete Ausgabe:
@@ -168,7 +184,7 @@ idList.size: 7
 idList: [7, 1, 2, 3, 4, 7, 6]
 Vokabular.size: 9
 Vokabular: {Darling=0, ,=1, do=2, you=3, like=4, water=5, ?=6, <|unk|>=7, <|endoftext|>=8}
-decoded: <|unk|>, do you like <|unk|>?
+decoded: <|unk|>, do you like<|unk|>?
 ----
 
 Die Vokabulargrösse ist 9, weil nach den 7 Tokens aus dem `rawText` zwei Konstanten ergänzt werden:
@@ -183,7 +199,8 @@ Interpretation des Nachweises:
 
 * ID `7` ist `UNKNOWN`
 * `7` kommt in `idList` genau für `Hello` und `tea` vor
-* `decode(idList)` macht das sichtbar als `<|unk|>, do you like <|unk|>?`
+* `idList` wird explizit gegen `listOf(7, 1, 2, 3, 4, 7, 6)` geprüft
+* `decode(idList)` macht das sichtbar als `<|unk|>, do you like<|unk|>?`
 
 Damit ist das Verhalten von `encode` und `decode` für unbekannte Tokens konsistent gezeigt.
 
@@ -222,7 +239,7 @@ Wir verwenden JTokkit, weil es OpenAI-kompatible Encodings fuer die JVM bereitst
 * `encode`/`decode` bilden Text und Token-IDs konsistent ineinander ab; `encodeOrdinary` behandelt Special Tokens als normalen Text.
 * Damit sparen wir Implementierungsaufwand für Merge-Regeln, Vokabularverwaltung und Byte-Level-Logik.
 
-Eine dünne Wrapper-Klasse (`OpenAiBpeTokenizer`) kapselt Library-Details und stabilisiert unsere API (`encode`, `decode`, `encodeOrdinary`).
+Eine dünne Wrapper-Klasse (`R50kBpeTokenizer`) kapselt Library-Details und stabilisiert unsere API (`encode`, `decode`, `encodeOrdinary`).
 [source,kotlin]
 ----
 include::{sourceDirKapitel2}/library/R50kBpeTokenizer.kt[]
@@ -254,8 +271,91 @@ Wichtige Eckdaten:
 
 Wichtig: `vocabSize = 50.257` ist nur dann fachlich korrekt, wenn das aktive Encoding zur R50K-/P50K-Familie gehört.
 
-// TODO: Kapitel überarbeiten
-Die nachweise für die bekannten und unbekannten Tokens müssen noch gemacht werden
+=== Beispiel: Roundtrip mit bekanntem Text im BPE-Tokenizer
+
+Beim `R50kBpeTokenizer` ist der erste Nachweis wieder ein Roundtrip.
+Der Unterschied zum `SimpleTokenizerV1`: Das Vokabular wird nicht aus einem `rawText` aufgebaut, sondern kommt bereits aus dem gewählten Encoding `r50k_base`.
+
+[source,kotlin]
+----
+val tokenizer = R50kBpeTokenizer()
+val text = "Hello, do you like tea?"
+val ids = tokenizer.encode(text)
+val decoded = tokenizer.decode(ids)
+
+println("text: $text")
+println("ids: $ids")
+println("decoded: $decoded")
+println("roundtrip.equal: ${decoded == text}")
+
+check(ids.isNotEmpty())
+check(decoded == text)
+----
+
+Interpretation:
+
+* Das Encoding liefert eine nicht-leere Liste von Token-IDs.
+* `decode(ids)` rekonstruiert wieder exakt den ursprünglichen Text.
+* Der Roundtrip-Beweis funktioniert also auch mit dem BPE-Tokenizer.
+
+=== Beispiel: Special Token als normaler Text
+
+Mit `encodeOrdinary` können Special-Token-Sequenzen als normaler Text behandelt werden.
+Das ist didaktisch nützlich, weil man so sichtbar machen kann, dass `<|endoftext|>` nicht zwingend als Steuer-Token interpretiert werden muss.
+
+[source,kotlin]
+----
+val tokenizer = R50kBpeTokenizer()
+val text = "Hello, do you like tea? <|endoftext|>"
+val ids = tokenizer.encodeOrdinary(text)
+val decoded = tokenizer.decode(ids)
+
+println("text: $text")
+println("ids: $ids")
+println("decoded: $decoded")
+println("roundtrip.equal: ${decoded == text}")
+
+check(decoded == text)
+----
+
+Interpretation:
+
+* `encodeOrdinary` behandelt `<|endoftext|>` als normalen Text.
+* Dadurch bleibt die Zeichenfolge beim Roundtrip unverändert erhalten.
+* Das Verhalten unterscheidet sich bewusst von Tokenizern, die Special Tokens direkt als Steuerinformation interpretieren.
+
+=== Beispiel: Unbekannte Wörter werden in Subwords zerlegt
+
+Der wichtigste Unterschied zum `SimpleTokenizerV1`: Der BPE-Tokenizer verwendet kein `UNKNOWN`-Token für unbekannte Wörter.
+Stattdessen zerlegt er unbekannte Wörter in bekannte Subwords beziehungsweise Byte-Sequenzen.
+
+[source,kotlin]
+----
+val tokenizer = R50kBpeTokenizer()
+val text = "Akwirw ier someunknownPlace"
+val ids = tokenizer.encodeOrdinary(text)
+val decoded = tokenizer.decode(ids)
+
+println("text: $text")
+println("ids: $ids")
+println("decoded: $decoded")
+println("roundtrip.equal: ${decoded == text}")
+println("tokenCount: ${ids.size}")
+
+check(ids.isNotEmpty())
+check(decoded == text)
+----
+
+Interpretation:
+
+* Auch Kunstwörter wie `Akwirw` oder `someunknownPlace` können encodiert werden.
+* Es gibt kein Fallback auf ein einzelnes `UNKNOWN`-Token.
+* Stattdessen erzeugt das BPE-Encoding mehrere bekannte Teil-Tokens, die sich beim Decodieren wieder korrekt zusammensetzen lassen.
+
+Damit ist der qualitative Unterschied zwischen beiden Tokenizer-Arten sichtbar:
+
+* `SimpleTokenizerV1` mappt unbekannte Wörter auf `UNKNOWN`.
+* `R50kBpeTokenizer` zerlegt unbekannte Wörter in bekannte Subwords.
 
 ==== References
 * Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].

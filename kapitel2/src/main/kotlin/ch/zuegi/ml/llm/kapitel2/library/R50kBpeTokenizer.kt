@@ -21,7 +21,7 @@ class R50kBpeTokenizer {
      * Encodiert Text ohne Special-Token-Parsing.
      * Spezialsequenzen wie `<|endoftext|>` werden als normaler Text behandelt.
      */
-    fun encodeOrdinary(text: String): List<Int> = encoding.encodeOrdinary(text).boxed().toMutableList()
+    fun encodeOrdinary(text: String): List<Int> = encoding.encodeOrdinary(text).boxed().toList()
 }
 
 private fun List<Int>.toIntArray(): IntArrayList = IntArrayList(this.size).also { out -> this.forEach(out::add) }

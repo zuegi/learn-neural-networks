@@ -399,6 +399,18 @@ Damit ist der qualitative Unterschied zwischen beiden Tokenizer-Arten klar sicht
 * `SimpleTokenizerV1` mappt unbekannte Wörter auf `UNKNOWN`.
 * `R50kBpeTokenizer` zerlegt unbekannte Wörter in bekannte Subwords.
 
+
+[IMPORTANT]
+====
+Für den weiteren Verlauf des Buchs nutzen wir zwei klar getrennte Rollen:
+
+* `SimpleTokenizerV1` dient als didaktischer Einstieg, um Tokenisierung, Vokabularaufbau und `UNKNOWN`-Mapping transparent zu verstehen.
+* `R50kBpeTokenizer` ist der kanonische Ausführungspfad für die folgenden Kapitel, weil er das reale BPE-Encoding (`r50k_base`) über JTokkit bereitstellt.
+
+Ab den nachfolgenden Kapiteln referenzieren wir deshalb primär den `R50kBpeTokenizer`.
+Die Scratch-Variante bleibt als konzeptionelle Referenz erhalten, wird aber nicht parallel als zweiter Hauptpfad fortgeführt.
+====
+
 === References
 * Raschka, Sebastian (2025-01-17). link:https://sebastianraschka.com/blog/2025/bpe-from-scratch.html["Implementing A Byte Pair Encoding (BPE) Tokenizer From Scratch"].
 * Knuddels, link:https://jtokkit.knuddels.de/[JTokkit Documentation]

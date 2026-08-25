@@ -1,0 +1,83 @@
+[[ExkursMath]]
+== Exkurs: Mathematische Grundlagen
+
+Dieser Exkurs fasst die mathematischen Kernideen zusammen, die in den Kapiteln zu Embeddings und Training verwendet werden.
+
+=== Vektoren und Matrizen
+
+* Ein **Vektor** ist eine Liste reeller Zahlen, z. B. `x in R^d`.
+* Eine **Matrix** ist eine Tabelle aus Zahlen, z. B. `W in R^(n x d)`.
+
+Im Embedding-Kontext:
+
+* `d` = `embeddingDim`
+* `n` = `vocabSize`
+* jede Zeile von `W` ist ein Token-Vektor
+
+=== Shapes als Denkwerkzeug
+
+Shapes helfen, Rechenfehler früh zu vermeiden.
+
+Beispiele:
+
+* Embedding-Matrix: `[vocabSize, embeddingDim]`
+* Sequenz-Embeddings: `[seqLen, embeddingDim]`
+* Gradienten im Backward: gleiche Form wie Forward-Ausgabe
+
+=== Elementweise Operationen
+
+Viele Schritte in Embeddings sind elementweise:
+
+* Addition: `z = a + b`
+* Subtraktion: `z = a - b`
+* Skalierung: `z = eta * g`
+
+Wichtig für Updates:
+
+`weights = weights - learningRate * grad`
+
+=== Dot Product (Skalarprodukt)
+
+Für zwei Vektoren `a, b in R^d`:
+
+`a · b = sum_(i=1..d) (a_i * b_i)`
+
+Intuition:
+
+* großer positiver Wert -> ähnliche Richtung
+* nahe 0 -> wenig ausgerichtet
+* negativer Wert -> entgegengesetzte Richtung
+
+Das Skalarprodukt ist später zentral für Attention-Scores.
+
+=== Gradient und Backpropagation
+
+Ein Gradient zeigt, wie stark sich der Loss ändert, wenn ein Parameter minimal verändert wird.
+
+Bei trainierbaren Embeddings:
+
+* `forward` liest bestimmte Zeilen aus `weights`
+* `backward` verteilt Gradienten zurück auf genau diese Zeilen
+* bei mehrfach vorkommenden Token-IDs werden Beiträge addiert
+
+Das ist ein **sparse update**:
+nur verwendete Token-Zeilen bekommen in einem Schritt ein Signal.
+
+=== SGD-Update
+
+Ein einfacher Optimizer ist Stochastic Gradient Descent (SGD):
+
+`w_new = w_old - eta * grad`
+
+mit:
+
+* `eta` = Lernrate (`learningRate`)
+* `grad` = aktueller Gradient
+
+Zu große Lernrate -> instabil.
+Zu kleine Lernrate -> sehr langsames Lernen.
+
+=== Warum das für das Buch wichtig ist
+
+Die Kapitel bauen darauf auf, dass du Shapes, elementweise Updates und Gradientenfluss sicher lesen kannst.
+Damit werden Implementierungen wie `TrainableTokenEmbedding` direkt nachvollziehbar.

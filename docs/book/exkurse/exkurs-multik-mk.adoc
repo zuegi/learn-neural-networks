@@ -1,0 +1,91 @@
+[[ExkursMk]]
+== Exkurs: Multik `mk`-Funktionen
+
+Dieser Exkurs bündelt die `mk`-Funktionen aus Multik, die in den Kapiteln zu Embeddings, Attention und Training immer wieder vorkommen.
+So bleibt der Haupttext lesbar und technische Details sind zentral nachschlagbar.
+
+=== Warum `mk`?
+
+`mk` ist der Einstiegspunkt der Multik-API.
+Über `mk` erzeugen wir Arrays (`NDArray`) und führen grundlegende numerische Operationen aus.
+
+Typische Vorteile:
+
+* einheitliche API für Vektoren und Matrizen
+* klare Shape-Definitionen
+* gute Lesbarkeit in mathematischem Code
+
+=== Häufig verwendete Funktionen
+
+==== `mk.ndarray(...)`
+
+Erzeugt ein `NDArray` aus Listen oder aus einem flachen Array plus Dimensionen.
+
+[source,kotlin]
+----
+// 2x3 Matrix aus verschachtelten Listen
+val a = mk.ndarray(listOf(
+	listOf(1.0, 2.0, 3.0),
+	listOf(4.0, 5.0, 6.0)
+))
+
+// 2x3 Matrix aus flachem Array
+val b = mk.ndarray(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), 2, 3)
+----
+
+==== `mk.zeros(...)`
+
+Erzeugt ein Array mit Nullen in gegebener Form.
+Nützlich für Gradientenspeicher oder Initialzustände.
+
+[source,kotlin]
+----
+val grad = mk.zeros<Double>(vocabSize, embeddingDim)
+----
+
+==== `mk.ones(...)`
+
+Erzeugt ein Array mit Einsen.
+In Demos praktisch, um den Backward-/Update-Mechanismus ohne komplexen Loss sichtbar zu machen.
+
+[source,kotlin]
+----
+val gradOutput = mk.ones<Double>(seqLen, embeddingDim)
+----
+
+[#mk.stack(...)]
+==== `mk.stack(...)`
+
+Stapelt mehrere Vektoren zu einer Matrix.
+Im Embedding-Kontext: mehrere Token-Zeilen (`D1`) werden zu einer Sequenzmatrix (`D2`).
+
+[source,kotlin]
+----
+val rows = tokenIds.map { weights[it] }
+val out = mk.stack(rows)
+----
+
+=== Shape-Denken (wichtig)
+
+Multik-Operationen funktionieren nur bei kompatiblen Dimensionen.
+Darum lohnt sich die Gewohnheit, Shapes explizit zu prüfen:
+
+[source,kotlin]
+----
+println(out.shape.contentToString()) // z. B. [seqLen, embeddingDim]
+----
+
+=== Typische Stolpersteine
+
+* `ndarray` aus Listen mit ungleicher Länge -> ungültige Matrix
+* Shape-Mismatch in `backward` (z. B. falsches `seqLen`)
+* unklare Numerik durch implizite Typen -> bei Bedarf `<Double>` explizit setzen
+* unnötige Konvertierungen (`toList()`, `toDoubleArray()`) können Performance kosten
+
+=== Bezug zu den Kapiteln
+
+* Kapitel 03 (Embeddings): `mk.ndarray`, `mk.ones`, `mk.zeros`, `mk.stack`
+* Kapitel 04/05 (Attention/Training): dieselben Bausteine plus Matrixoperationen
+
+Merksatz:
+`mk` ist das handwerkliche Fundament für alle numerischen Datenstrukturen im Trainingspfad.

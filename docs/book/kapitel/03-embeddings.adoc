@@ -1,4 +1,5 @@
 :sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
+:sourceDirExkurse: ../exkurse
 
 [[Embeddings]]
 == Embeddings
@@ -90,9 +91,155 @@ Das Grundprinzip:
 * `backward(gradOutput)`: akkumuliert Gradienten für die im Forward genutzten Token-Zeilen
 * `step(learningRate)`: aktualisiert die Gewichte (`weights -= lr * grad`)
 
-Der wichtige Unterschied zu einer nicht-trainierbaren Lookup-Tabelle ist hier der Rückkanal:
+Der wichtige Unterschied zu einer nicht-trainierbaren Lookup-Tabelle (link:{sourceDirKapitel2}/scratch/TokenEmbedding.kt[`TokenEmbedding`]) ist hier der Rückkanal:
 Die Embedding-Zeilen werden nicht nur gelesen, sondern über Gradienten aktiv angepasst.
 Damit lernen häufig gemeinsam auftretende Token über viele Schritte hinweg eine nützliche Geometrie im Vektorraum.
+
+=== Aufbau der Klasse
+
+Die Klasse `TrainableTokenEmbedding` besteht aus drei logischen Blöcken:
+
+* **Parameter und Gewichte:** `vocabSize`, `embeddingDim`, initialisierte Matrix `weights`
+* **Trainingszustand:** Gradientenspeicher `grad` und gemerkte `lastTokenIds`
+* **Trainingsschritte:** `forward`, `backward`, `step`, `zeroGrad`
+
+Damit ist der gesamte Lebenszyklus eines trainierbaren Embeddings in einer Klasse abgebildet: lesen, Gradienten sammeln, Gewichte aktualisieren.
+
+=== Gewichte und Initialisierung
+
+`weights` ist eine Matrix der Form `vocabSize x embeddingDim`.
+Jede Zeile repräsentiert ein Token-Embedding.
+
+Die Initialisierung erfolgt zufällig mit einer Skalierung `1/sqrt(embeddingDim)`.
+So starten die Werte klein genug, damit das Training stabiler anlaufen kann.
+
+
+Für Details zu `mk.ndarray`, `mk.zeros` und `mk.ones` siehe xref:ExkursMk[Exkurs: Multik `mk`-Funktionen].
+Für mathematische Grundlagen siehe xref:ExkursMath[Exkurs: Mathematische Grundlagen].
+
+
+=== Die Methode `forward()`
+
+`forward(tokenIds)` übernimmt eine Sequenz von Token-IDs und liefert die zugehörigen Embedding-Zeilen als Matrix zurück.
+Zusätzlich speichert die Methode die `tokenIds` in `lastTokenIds`, damit der folgende Backward-Schritt weiß,
+welche Zeilen im aktuellen Schritt überhaupt aktiv waren.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingForward]
+----
+
+Erklärung zu mk.stack(tokenIds.map { weights[it] }) siehe xref:{sourceDirExkurse}/exkurs-multik-mk.adoc}[mk.stack(...)]
+
+=== Die Methode `backward()`
+
+`backward(gradOutput)` erwartet einen Gradienten mit derselben Form wie die Forward-Ausgabe (`seqLen x embeddingDim`).
+Für jede Position in der Sequenz wird der Gradient auf die korrespondierende Token-Zeile in `grad` akkumuliert.
+
+Im Detail passiert in `backward()` Folgendes:
+
+1. **Formprüfung**
+   Es wird geprüft, ob `gradOutput.shape[0] == lastTokenIds.size` und
+   `gradOutput.shape[1] == embeddingDim` gilt.
+   Nur dann passt der Gradient zur Forward-Ausgabe.
+
+2. **Positionsweises Zurückschreiben**
+   Für jede Sequenzposition `i` wird die zugehörige Token-ID aus `lastTokenIds[i]` gelesen.
+   Der Vektor `gradOutput[i, :]` wird dann auf genau diese Token-Zeile in `grad` addiert.
+
+3. **Akkumulation statt Überschreiben**
+   Es gilt pro Dimension explizit:
+   `grad[tokenId, d] = grad[tokenId, d] + gradOutput[i, d]`
+   Dadurch sammeln sich Beiträge über mehrere Positionen im selben Schritt.
+
+Kleines Beispiel mit mehrfach vorkommender Token-ID:
+
+* `lastTokenIds = [3, 7, 3, 12]`
+* Token `3` kommt an Position `0` und `2` vor
+* Ergebnis nach `backward`: Zeile `grad[3, :]` enthält die Summe aus
+  `gradOutput[0, :] + gradOutput[2, :]`
+
+Genau diese Summe wird im nachfolgenden `step()`-Aufruf in ein größeres Update für Token `3` umgesetzt.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingBackward]
+----
+
+Wichtig dabei:
+
+* Kommt eine Token-ID mehrfach vor, addieren sich deren Beiträge in derselben Zeile.
+* Nicht verwendete Token-Zeilen bleiben in diesem Schritt unverändert.
+
+=== Die Methode `step()`
+
+`step(learningRate)` führt ein SGD-Update durch:
+
+* `weights[v, d] = weights[v, d] - learningRate * grad[v, d]`
+
+Danach wird `zeroGrad()` aufgerufen, damit der nächste Trainingsschritt mit frischen Gradienten startet.
+
+Im Detail passiert in `step()` Folgendes:
+
+1. **Alle Parameterzellen werden durchlaufen**
+   Die Methode iteriert über alle Zeilen `v` und Dimensionen `d` der Embedding-Matrix.
+
+2. **Gradientenabstieg je Zelle**
+   Pro Zelle wird der aktuell akkumulierte Gradient angewendet:
+   `weights[v, d] <- weights[v, d] - learningRate * grad[v, d]`.
+
+3. **Reset für den nächsten Schritt**
+   Nach dem Update wird der Gradientenspeicher zurückgesetzt, damit keine Altwerte in die nächste Iteration hineinlaufen.
+
+Kleines Rechenbeispiel:
+
+* `weights[3,0] = 0.50`
+* `grad[3,0] = 2.00`
+* `learningRate = 0.01`
+
+Dann gilt:
+
+* `weights[3,0] = 0.50 - 0.01 * 2.00 = 0.48`
+
+Interpretation:
+
+* positives `grad` verkleinert den Parameterwert
+* negatives `grad` vergrößert den Parameterwert
+* die Lernrate skaliert die Schrittweite
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingStep]
+----
+
+=== Die Methode `zeroGrad()`
+
+`zeroGrad()` setzt den Gradientenspeicher auf Null zurück.
+Das verhindert, dass alte Gradienten ungewollt in den nächsten Schritt hineinlaufen.
+
+Warum ist das wichtig?
+
+* `backward()` akkumuliert Beiträge in `grad`.
+* Ohne Reset würden Beiträge aus älteren Iterationen zusätzlich in spätere Updates einfließen.
+* Das würde den beabsichtigten Lernschritt pro Iteration verfälschen.
+
+Der typische Zyklus ist daher:
+
+1. `forward(...)`
+2. `backward(...)`
+3. `step(learningRate)`
+4. `zeroGrad()` (hier im `step()` bereits integriert)
+
+Hinweis:
+In dieser Implementierung ruft `step()` intern bereits `zeroGrad()` auf.
+Deshalb ist ein zusätzlicher externer `zeroGrad()`-Aufruf unmittelbar danach nicht notwendig.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbedingZeroGrad]
+----
+
+=== Die komplette Klasse
 
 [source,kotlin]
 ----

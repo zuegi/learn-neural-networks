@@ -33,3 +33,7 @@ include::kapitel/04-attention.adoc[leveloffset=+1]
 //include::kapitel/06-inferenz.adoc[leveloffset=+1]
 
 //include::kapitel/07-lessons-learned.adoc[leveloffset=+1]
+
+== Anhang
+include::exkurse/exkurs-multik-mk.adoc[leveloffset=+1]
+include::exkurse/exkurs-mathematik.adoc[leveloffset=+1]

@@ -47,6 +47,8 @@ class TrainableTokenEmbedding(
      * Forward-Pass: gibt die Embedding-Matrix für die übergebenen Token-IDs zurück
      * und merkt sich die IDs für den nachfolgenden Backward-Pass.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
+    // tag::tokenEmbeddingForward[]
     fun forward(tokenIds: List<Int>): D2Array<Double> {
         tokenIds.forEach {
             require(it in 0 until vocabSize) { "tokenId $it ausserhalb 0 until $vocabSize" }
@@ -54,12 +56,15 @@ class TrainableTokenEmbedding(
         lastTokenIds = tokenIds
         return mk.stack(tokenIds.map { weights[it] })
     }
+    // end::tokenEmbeddingForward[]
 
     /**
      * Backward-Pass: nimmt den Gradienten bezüglich der Forward-Ausgabe entgegen
      * (gleiche Form wie forward()-Ergebnis: [seqLen, embeddingDim])
      * und akkumuliert ihn zeilenweise in die passenden Embedding-Zeilen.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
+    // tag::tokenEmbeddingBackward[]
     fun backward(gradOutput: D2Array<Double>) {
         require(gradOutput.shape[0] == lastTokenIds.size) {
             "gradOutput hat ${gradOutput.shape[0]} Zeilen, erwartet wurden ${lastTokenIds.size}"
@@ -74,10 +79,13 @@ class TrainableTokenEmbedding(
             }
         }
     }
+    // end::tokenEmbeddingBackward[]
 
     /**
      * SGD-Update: weights -= lr * grad, danach Gradienten zurücksetzen.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
+    // tag::tokenEmbeddingStep[]
     fun step(learningRate: Double) {
         for (v in 0 until vocabSize) {
             for (d in 0 until embeddingDim) {
@@ -86,8 +94,11 @@ class TrainableTokenEmbedding(
         }
         zeroGrad()
     }
+    // end::tokenEmbeddingStep[]
 
+    // tag::tokenEmbedingZeroGrad[]
     fun zeroGrad() {
         grad = mk.zeros(vocabSize, embeddingDim)
     }
+    // end::tokenEmbedingZeroGrad[]
 }

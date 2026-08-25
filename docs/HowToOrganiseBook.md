@@ -33,4 +33,33 @@ Jedes Kapitel verbindet das Konzept mit dem Code anstatt nur die reine Theorie z
 1. Ordnerstruktur anlegen und SUMMARY (= Index) erstellen
 2. Ein Kapitel pro Baustein der LLM Pipeline schreiben, in der Reihenfolge, in der die Daten durchlaufen (Tokenizer -> Embedding -> Attention....-> Output)
 3. Code Referenzen als relative Links einbauen, damit sie auch nach Code und Buch Refactorings über git grep leicht auffindbar sind
-4. 
+
+## Fahrplan
+1. **Kapitel 1: Tokenizer**
+   - `SimpleTokenizerV1` als didaktischen Einstieg vollständig beibehalten
+   - `R50kBpeTokenizer` als produktionsnäheren Pfad einführen
+   - klar markieren, dass ab den folgenden Kapiteln primär der BPE-Tokenizer verwendet wird
+
+2. **Kapitel 2: DataLoader**
+   - Beispiele standardmäßig mit `R50kBpeTokenizer` aufbauen
+   - `SimpleTokenizerV1` nur noch als konzeptionelle Referenz erwähnen, falls nötig
+   - Fokus auf Trainingsfenster, `TrainingSample`, `batchSize`, `stride`, `contextLength`
+
+3. **Kapitel 3: Embeddings**
+   - ein gemeinsames Kapitel für:
+     - Token Embeddings
+     - Positional Embeddings
+     - Input Embeddings
+   - kein Aufsplitten in zwei Hauptkapitel
+   - Hauptpfad im Text: Bibliotheks-/Ausführungspfad
+   - Scratch nur dort erwähnen, wo es wirklich zum Verständnis beiträgt
+
+4. **Kapitel 4 und 5: Attention und Training**
+   - nur noch einen Hauptpfad führen
+   - bevorzugt die Variante, die in `kapitel5` tatsächlich verwendet wird
+   - keine parallele doppelte Dokumentation von Scratch und Library
+
+5. **Grundregel für das ganze Buch**
+   - Scratch = Lern- und Verständnisweg
+   - Library = Ausführungs- und Trainingsweg
+   - beide Rollen klar trennen und nicht als gleichwertige Hauptpfade parallel führen

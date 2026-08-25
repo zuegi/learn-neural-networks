@@ -1,38 +1,204 @@
+:sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
+
 [[Embeddings]]
 == Embeddings
 
-TODO: Abklären für den Einsatz des Vector API von Java
+Ein Tokenizer liefert diskrete Token-IDs.
+Damit ein neuronales Netz mit diesen Tokens rechnen kann, müssen die IDs in kontinuierliche Vektoren überführt werden.
+Diese Vektoren heißen Embeddings.
 
+[IMPORTANT]
+====
+Für den weiteren Verlauf des Buchs trennen wir zwei Rollen klar:
 
-=== Konzept
+* Die einfachen, nicht trainierbaren Embedding-Varianten dienen dem didaktischen Verständnis der Mechanik.
+* Für den Trainingspfad verwenden wir trainierbare Embeddings, bei denen Gewichte über `backward` und `step` aktualisiert werden.
 
-// TODO: Kurze konzeptionelle Erklärung von Query/Key/Value und Scaled
-// Dot-Product Attention ergänzen.
+Ab den nachfolgenden Kapiteln orientieren sich die Beispiele daher primär am trainierbaren Ausführungspfad.
+====
 
-=== Implementierung
+=== Warum Embeddings?
 
-blabla
+Eine reine Token-ID wie `342` ist für ein Modell zunächst nur ein diskreter Index.
+Die Zahl selbst trägt keine Bedeutung darüber, ob das Token ein Verb, ein Name oder ein Satzzeichen ist.
 
-// WICHTIG: Pfad unten an dein echtes Maven-Modul anpassen, z.B.
-// ../../../src/main/kotlin/llm/attention/Attention.kt
+Embeddings lösen dieses Problem, indem jede Token-ID auf einen Vektor fester Länge abgebildet wird.
+Damit wird aus einem diskreten Symbol ein kontinuierlicher Punkt im Vektorraum.
+Auf diesem Raum kann das Modell mit linearen Algebra-Operationen arbeiten.
+
+Dadurch werden Beziehungen zwischen Tokens numerisch nutzbar:
+
+* ähnliche Tokens können im Vektorraum nah beieinander liegen
+* unterschiedliche Tokens liegen weiter auseinander
+* das Modell lernt diese Struktur während des Trainings automatisch
+
+Wichtig: Diese Nähe ist nicht „von Hand“ vorgegeben.
+Sie entsteht durch den Trainingsprozess, weil das Modell in vielen Kontexten lernt,
+welche Token ähnliche Rollen übernehmen und welche nicht.
+
+=== Token Embedding
+
+Ein Token Embedding ist eine Matrix der Form `vocabSize x embeddingDim`.
+Jede Zeile gehört zu einer Token-ID.
+Beim Forward-Pass wird per Lookup die passende Zeile gelesen.
+
+In der Praxis bedeutet das:
+
+* `vocabSize` bestimmt, wie viele unterschiedliche Token-Zeilen es gibt
+* `embeddingDim` bestimmt, wie viele numerische Freiheitsgrade pro Token verfügbar sind
+
+Ist `embeddingDim` zu klein, kann das Modell nur grobe Beziehungen abbilden.
+Ist `embeddingDim` sehr groß, steigen Speicher- und Rechenkosten deutlich.
+Die Wahl ist daher immer ein Trade-off zwischen Ausdrucksstärke und Effizienz.
+
+=== Positional Embedding
+
+Self-Attention ist ohne Zusatzinformation positions-invariant.
+Positional Embeddings liefern daher einen zweiten Vektor, der die Position eines Tokens (`0, 1, 2, ...`) kodiert.
+
+Ohne Positionsinformation sähe das Modell nur eine Menge von Tokens,
+nicht aber deren Reihenfolge im Satz.
+Für Sprache ist Reihenfolge jedoch zentral, weil Grammatik und Bedeutung davon abhängen.
+
+Positional Embeddings sind daher keine optionale Verfeinerung,
+sondern eine notwendige Information, damit ein Transformer Sequenzen statt bloßer Token-Mengen verarbeitet.
+
+=== Input Embedding
+
+Der finale Eingabevektor für das Modell entsteht aus:
+
+`InputEmbedding = TokenEmbedding(tokenId) + PositionalEmbedding(position)`
+
+Beide Vektoren müssen dieselbe Dimension besitzen.
+Erst dieser kombinierte Vektor geht in die erste Attention-Schicht.
+
+Semantisch kann man die Summe so lesen:
+
+* Token Embedding beantwortet: „Was ist das für ein Token?“
+* Positional Embedding beantwortet: „Wo steht es in der Sequenz?“
+
+Das Input Embedding trägt damit beide Informationen gleichzeitig.
+Diese kombinierte Darstellung ist die eigentliche Eingabe,
+auf der dann Query/Key/Value-Projektionen und Attention aufsetzen.
+
+=== Implementierung: Trainable Token Embedding
+
+Für den trainierbaren Pfad verwenden wir `TrainableTokenEmbedding`.
+Das Grundprinzip:
+
+* `forward(tokenIds)`: liefert die aktuellen Embedding-Vektoren
+* `backward(gradOutput)`: akkumuliert Gradienten für die im Forward genutzten Token-Zeilen
+* `step(learningRate)`: aktualisiert die Gewichte (`weights -= lr * grad`)
+
+Der wichtige Unterschied zu einer nicht-trainierbaren Lookup-Tabelle ist hier der Rückkanal:
+Die Embedding-Zeilen werden nicht nur gelesen, sondern über Gradienten aktiv angepasst.
+Damit lernen häufig gemeinsam auftretende Token über viele Schritte hinweg eine nützliche Geometrie im Vektorraum.
+
 [source,kotlin]
 ----
-//include::../../../src-example/Attention.kt[tags=attention-score]
+include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[]
 ----
 
-Der vollständige Forward-Pass nutzt diese Funktion und wendet anschließend
-Softmax sowie die Multiplikation mit den Values an:
+=== Beweise / Beispiele
+
+==== Mini-Beweis: Forward, Backward, Step
+
+Ziel: den Trainingskern in kleinster Form sichtbar machen.
 
 [source,kotlin]
 ----
-//include::../../../src-example/Attention.kt[tags=attention-forward]
+include::{sourceDirKapitel2}/demo/TrainableTokenEmbeddingDemo.kt[]
 ----
+
+Erwartete Ausgabe (gekürzt):
+[source,terminaloutput]
+----
+Token 3 vor: [-0.09787479647797766, -0.029676910449794834, 0.4440040172155712, -0.11500129913927538, -0.061267384810783795, -0.6571090795748302, 0.5033917731787447, -0.48214995965200885]
+Mit echten Gradienten (ones):
+Änderung pro Dimension: [-0.020000000000000004, -0.019999999999999997, -0.020000000000000018]
+Durchschnitt: -0.020000000000000004
+----
+Interpretation:
+
+* `forward` liest die aktuell trainierbaren Embedding-Zeilen.
+* `backward` akkumuliert den Gradienten für die verwendeten Token-IDs.
+* `step` aktualisiert die Gewichte per SGD-Schritt.
+
+Dieser Mini-Beweis zeigt den reinen Trainingskern ohne zusätzliche Pipeline.
+
+==== End-to-End-Beweis: Tokenizer -> DataLoader -> Training
+
+Ziel: denselben Trainingskern im realen Pipeline-Kontext prüfen.
+
+Im realistischeren Ablauf hängen wir den gesamten Pfad an:
+
+* `readVerdictText()`
+* `R50kBpeTokenizer`
+* `TextDataLoader`
+* `TrainableTokenEmbedding`
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/demo/TrainableTokenEmbeddingWithLoaderDemo.kt[]
+----
+
+[NOTE]
+====
+In dieser Demo wird der Gradient bewusst als konstanter Wert (`1.0`) gesetzt.
+Damit zeigen wir den technischen Update-Mechanismus von `forward`/`backward`/`step`, aber noch keinen echten task-spezifischen Loss.
+`targetIds` werden deshalb aktuell als Pipeline-Kontext aus dem `TextDataLoader` angezeigt, nicht als direkte Quelle des Gradienten.
+====
+
+Erwartete Ausgabe (gekürzt):
+[source,terminaloutput]
+----
+=== TrainableTokenEmbedding Training mit TextDataLoader ===
+
+Textlänge: 20479
+Token-Anzahl: 5145
+Erste 12 Token-IDs: [40, 367, 2885, 1464, 1807, 3619, 402, 271, 10899, 2138, 257, 7026]
+Vokabulargröße: 50257, Embedding-Dimension: 8
+contextLength: 4
+Learning-Rate: 0.01
+....
+--- Statistik ---
+Tokens mit Änderungen: 11 / 50257
+Durchschnittliche Änderung pro Token: 0.232727
+Gesamte Summe |Änderungen|: 2.560000
+----
+
+Interpretation:
+
+* verarbeitete `inputIds` und `targetIds`
+* betroffene Token-Zeilen
+* mittlere Gewichtsänderung pro Iteration und kumuliert
+
+Am Ende folgt eine Gesamtübersicht der Gewichtsänderungen über alle Iterationen.
+
+==== Interpretation der 3 Messpunkte
+
+1. **`inputIds` und `targetIds`**
+   zeigen das vom `TextDataLoader` erzeugte Trainingsfenster (`input`) und das um eins verschobene Ziel (`target`).
+   In dieser konkreten Demo werden die `targetIds` jedoch noch nicht in eine echte Loss-Funktion eingespeist.
+
+2. **Betroffene Token-Zeilen**
+   zeigen, welche Zeilen der Embedding-Matrix in dieser Iteration tatsächlich Gradienten erhalten.
+   Das macht den sparse-Update-Charakter sichtbar.
+
+3. **Mittlere Gewichtsänderung (Iteration und kumuliert)**
+   trennt den lokalen Lernschritt (nur diese Iteration) vom gesamten Drift seit Trainingsbeginn.
+   So wird nachvollziehbar, welche Token-Zeilen durch die Iterationen wie stark verschoben werden.
 
 === Design-Entscheidungen
 
-// TODO: z.B. "Multi-Head Attention wurde bewusst weggelassen, um den
-// Kernmechanismus isoliert nachvollziehbar zu halten" o.ä.
+* **Trainierbarer Hauptpfad:** Für den restlichen Buchverlauf setzen wir auf trainierbare Embeddings.
+* **Klarer API-Dreiklang:** `forward`, `backward`, `step` bildet den Trainingsablauf explizit ab.
+* **Didaktischer Parallelpfad:** Nicht-trainierbare Varianten bleiben als Lernhilfe erhalten, aber nicht als Hauptpfad.
+* **Einfache SGD-Logik:** Das Update bleibt transparent und nachvollziehbar.
 
 === Stolpersteine
 
-// TODO: Was war beim Nachbau schwierig oder überraschend?
+* **Sparse-Update-Charakter:** Nur im Forward verwendete Token-Zeilen erhalten Gradienten.
+* **Mehrfach vorkommende Tokens:** Gradienten derselben Token-ID summieren sich auf.
+* **Formprüfungen im Backward:** `gradOutput` muss zur Forward-Ausgabe passen (`seqLen x embeddingDim`).
+* **Skalierung:** Bei großem Vokabular können vollständige Matrix-Updates ineffizient werden.

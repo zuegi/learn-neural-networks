@@ -1,15 +1,19 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
+import ch.zuegi.ml.llm.kapitel2.library.R50kBpeTokenizer
 import ch.zuegi.ml.llm.kapitel2.scratch.TokenEmbedding
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = SimpleTokenizerV1(rawText)
+    val tokenizer = R50kBpeTokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
+    // tokenIds: die vollständige Token-ID-Sequenz
+    // contextLength: Fensterlänge für inputIds
+    // stride: Schrittweite des Sliding Windows
+    // batchSize: Anzahl Samples pro Batch
     val loader = TextDataLoader(tokenIds, contextLength = 4, stride = 4, batchSize = 8)
 
     val embedding =

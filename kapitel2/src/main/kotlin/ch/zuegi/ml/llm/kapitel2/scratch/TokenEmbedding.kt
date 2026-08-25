@@ -20,6 +20,10 @@ class TokenEmbedding(
     private val embeddingDim: Int,
     seed: Long? = null,
 ) {
+    companion object {
+        private const val INIT_SCALE = 0.01
+    }
+
     init {
         require(vocabSize > 0) { "vocabSize muss > 0 sein" }
         require(embeddingDim > 0) { "embeddingDim muss > 0 sein" }
@@ -51,8 +55,4 @@ class TokenEmbedding(
      * @return Matrix der Form `[tokenIds.size, embeddingDim]`.
      */
     fun lookup(tokenIds: List<Int>): Array<DoubleArray> = Array(tokenIds.size) { lookup(tokenIds[it]) }
-
-    companion object {
-        private const val INIT_SCALE = 0.01
-    }
 }

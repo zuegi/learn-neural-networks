@@ -129,7 +129,7 @@ welche Zeilen im aktuellen Schritt überhaupt aktiv waren.
 include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingForward]
 ----
 
-Erklärung zu mk.stack(tokenIds.map { weights[it] }) siehe xref:{sourceDirExkurse}/exkurs-multik-mk.adoc}[mk.stack(...)]
+Erklärung zu `mk.stack(...)` siehe xref:ExkursMk[Exkurs: Multik `mk`-Funktionen].
 
 === Die Methode `backward()`
 
@@ -336,12 +336,162 @@ Am Ende folgt eine Gesamtübersicht der Gewichtsänderungen über alle Iteration
    trennt den lokalen Lernschritt (nur diese Iteration) vom gesamten Drift seit Trainingsbeginn.
    So wird nachvollziehbar, welche Token-Zeilen durch die Iterationen wie stark verschoben werden.
 
+
+=== Implementierung: Trainable Position Embedding
+
+Ja, in GPT-2-artigen Architekturen sind Positionsvektoren trainierbar.
+Auch hier gibt es also eine Gewichtsmatrix, diesmal jedoch der Form `contextLength x embeddingDim`.
+
+Der Unterschied zum Token Embedding liegt nur in der Bedeutung der Zeilen:
+
+* beim Token Embedding steht jede Zeile für eine Token-ID
+* beim Positional Embedding steht jede Zeile für eine Position in der Sequenz
+
+Für den trainierbaren Pfad verwenden wir deshalb `TrainablePositionalEmbedding`.
+Das Grundprinzip ist analog zu `TrainableTokenEmbedding`:
+
+* `forward(sequenceLength)`: liefert Positionsvektoren für `0 until sequenceLength`
+* `backward(gradOutput)`: akkumuliert Gradienten auf den verwendeten Positionszeilen
+* `step(learningRate)`: aktualisiert die Positionsgewichte
+
+=== Aufbau der Klasse `TrainablePositionalEmbedding`
+
+Die Klasse `TrainablePositionalEmbedding` besteht ebenfalls aus drei logischen Blöcken:
+
+* **Parameter und Gewichte:** `contextLength`, `embeddingDim`, initialisierte Matrix `weights`
+* **Trainingszustand:** Gradientenspeicher `grad` und gemerkte `lastPositions`
+* **Trainingsschritte:** `forward`, `backward`, `step`, `zeroGrad`
+
+Der Unterschied zur Token-Variante besteht also nicht im Trainingsmechanismus,
+sondern nur darin, dass Positionen statt Token-IDs adressiert werden.
+
+=== Gewichte und Initialisierung für Positionen
+
+`weights` ist eine Matrix der Form `contextLength x embeddingDim`.
+Jede Zeile repräsentiert das Embedding einer Position.
+
+Die Initialisierung erfolgt ebenfalls zufällig mit der Skalierung `1/sqrt(embeddingDim)`.
+Dadurch starten die Positionsvektoren klein und können im Training schrittweise lernen,
+welche Positionsmuster für das Modell nützlich sind.
+
+=== Die Methode `forward()` für Positionen
+
+`forward(sequenceLength)` erzeugt intern die Positionen `0 until sequenceLength`.
+Danach werden die passenden Positionszeilen aus `weights` gelesen und als Matrix zurückgegeben.
+
+Im Unterschied zum Token Embedding muss der Aufrufer keine Positionsliste bauen.
+Die Reihenfolge der Positionen ergibt sich direkt aus der Sequenzlänge.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalForward]
+----
+
+=== Die Methode `backward()` für Positionen
+
+`backward(gradOutput)` funktioniert analog zur Token-Variante.
+Der Gradient muss dieselbe Form haben wie die Forward-Ausgabe (`seqLen x embeddingDim`).
+Dann wird jede Gradientenzeile auf die passende Positionszeile in `grad` addiert.
+
+Ein wichtiger Unterschied in der Intuition:
+
+* Token-Zeilen können mehrfach im selben Sample auftreten
+* Positionen `0, 1, 2, ...` treten innerhalb eines einzelnen Samples normalerweise genau einmal auf
+
+Dadurch ist die Akkumulation bei Positionsvektoren oft einfacher zu lesen.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalBackward]
+----
+
+=== Die Methode `step()` für Positionen
+
+`step(learningRate)` aktualisiert alle Positionszeilen nach derselben SGD-Regel:
+
+* `weights[pos, d] = weights[pos, d] - learningRate * grad[pos, d]`
+
+Danach ruft die Klasse wieder `zeroGrad()` auf,
+damit der nächste Trainingsschritt mit einem leeren Gradientenspeicher startet.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalStep]
+----
+
+=== Die Methode `zeroGrad()` für Positionen
+
+`zeroGrad()` setzt den vollständigen Positions-Gradientenspeicher auf Null zurück.
+Auch hier gilt: ohne Reset würden Gradienten aus älteren Iterationen weiter akkumulieren
+und den nächsten Lernschritt verfälschen.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalZeroGrad]
+----
+
+=== Die komplette Klasse `TrainablePositionalEmbedding`
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[]
+----
+
+==== Mini-Beweis: Trainierbares Positional Embedding
+
+Ziel: zeigen, dass auch Positionsvektoren per `forward` -> `backward` -> `step` aktualisiert werden.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/demo/TrainablePositionalEmbeddingDemo.kt[]
+----
+
+Erwartete Ausgabe (gekürzt):
+[source,terminaloutput]
+----
+Position 0 vor: [0.5709526577365274, 0.45970397449139394, -0.47493331844544795, -0.5534951431996689]
+Mit echten Gradienten (ones):
+Änderung pro Dimension: [-0.010000000000000009, -0.010000000000000009, -0.010000000000000009, -0.010000000000000009]
+Durchschnitt: -0.010000000000000009
+----
+
+Interpretation:
+
+* Position `0` erhält im Forward-Pass einen eigenen Positionsvektor.
+* `backward` legt den Gradienten auf genau diese Positionszeile zurück.
+* `step` verschiebt den Positionsvektor anschließend um `learningRate * grad`.
+
+=== Implementierung: Trainable Input Embedding
+
+Das Input Embedding selbst ist in diesem Aufbau **kein eigener trainierbarer Parameterblock**.
+Es ist das Ergebnis der Addition aus zwei bereits trainierbaren Komponenten:
+
+* `TrainableTokenEmbedding`
+* `TrainablePositionalEmbedding`
+
+Formal gilt weiterhin:
+
+`InputEmbedding = TokenEmbedding + PositionalEmbedding`
+
+Trainiert werden also die beiden Quellmatrizen.
+Das Input Embedding ist die abgeleitete Zwischendarstellung, die daraus pro Sequenz berechnet wird.
+
+Konzeptionell bedeutet das:
+
+* Tokenvektoren lernen semantische Information
+* Positionsvektoren lernen Reihenfolgeninformation
+* das Input Embedding kombiniert beides zur Eingabe für die Attention-Schicht
+
+Ein separates `TrainableInputEmbedding` wäre nur dann nötig,
+wenn du zusätzlich eigene Parameter auf dieser Summendarstellung modellieren möchtest.
+
 === Design-Entscheidungen
 
 * **Trainierbarer Hauptpfad:** Für den restlichen Buchverlauf setzen wir auf trainierbare Embeddings.
 * **Klarer API-Dreiklang:** `forward`, `backward`, `step` bildet den Trainingsablauf explizit ab.
 * **Didaktischer Parallelpfad:** Nicht-trainierbare Varianten bleiben als Lernhilfe erhalten, aber nicht als Hauptpfad.
 * **Einfache SGD-Logik:** Das Update bleibt transparent und nachvollziehbar.
+* **Trainierbare Positionsvektoren:** Für den gewählten GPT-2-artigen Pfad behandeln wir Positionsvektoren als lernbare Parameter.
 
 === Stolpersteine
 
@@ -349,3 +499,4 @@ Am Ende folgt eine Gesamtübersicht der Gewichtsänderungen über alle Iteration
 * **Mehrfach vorkommende Tokens:** Gradienten derselben Token-ID summieren sich auf.
 * **Formprüfungen im Backward:** `gradOutput` muss zur Forward-Ausgabe passen (`seqLen x embeddingDim`).
 * **Skalierung:** Bei großem Vokabular können vollständige Matrix-Updates ineffizient werden.
+* **Positionsgrenze:** `sequenceLength` darf `contextLength` nicht überschreiten.

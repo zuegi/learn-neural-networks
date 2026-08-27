@@ -33,8 +33,8 @@ class TrainableInputEmbedding(
      * @param tokenIds Token-IDs der aktuellen Sequenz.
      * @return Matrix der Form `[tokenIds.size, embeddingDim]`.
      */
-    @Suppress("ktlint:standard:no-consecutive-comments")
     // tag::trainableInputForward[]
+    @Suppress("ktlint:standard:no-consecutive-comments")
     fun forward(tokenIds: List<Int>): D2Array<Double> {
         val tokenVectors = tokenEmbedding.forward(tokenIds)
         val positionVectors = positionalEmbedding.forward(tokenIds.size)
@@ -64,10 +64,12 @@ class TrainableInputEmbedding(
      *
      * @param gradOutput Gradient bezüglich der Input-Embedding-Ausgabe.
      */
-    @Suppress("ktlint:standard:no-consecutive-comments")
     // tag::trainableInputBackward[]
+    @Suppress("ktlint:standard:no-consecutive-comments")
     fun backward(gradOutput: D2Array<Double>) {
-        require(lastSequenceLength > 0) { "forward() muss vor backward() aufgerufen werden" }
+        require(lastSequenceLength > 0) {
+            "forward() muss vor backward() aufgerufen werden"
+        }
         require(gradOutput.shape[0] == lastSequenceLength) {
             "gradOutput hat ${gradOutput.shape[0]} Zeilen, erwartet wurden $lastSequenceLength"
         }
@@ -85,8 +87,8 @@ class TrainableInputEmbedding(
      *
      * @param learningRate Lernrate für den SGD-Schritt.
      */
-    @Suppress("ktlint:standard:no-consecutive-comments")
     // tag::trainableInputStep[]
+    @Suppress("ktlint:standard:no-consecutive-comments")
     fun step(learningRate: Double) {
         tokenEmbedding.step(learningRate)
         positionalEmbedding.step(learningRate)
@@ -96,12 +98,11 @@ class TrainableInputEmbedding(
     /**
      * Setzt die Gradienten beider Teilkomponenten auf Null zurück.
      */
-    @Suppress("ktlint:standard:no-consecutive-comments")
     // tag::trainableInputZeroGrad[]
+    @Suppress("ktlint:standard:no-consecutive-comments")
     fun zeroGrad() {
         tokenEmbedding.zeroGrad()
         positionalEmbedding.zeroGrad()
     }
     // end::trainableInputZeroGrad[]
 }
-

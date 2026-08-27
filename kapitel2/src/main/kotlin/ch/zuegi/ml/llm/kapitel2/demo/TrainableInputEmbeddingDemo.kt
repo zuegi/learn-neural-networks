@@ -37,9 +37,10 @@ fun main() {
     println("Token 3 Änderung: ${token3Diff.take(4)}")
     println("Position 0 Änderung: ${position0Diff.take(4)}")
 
-    check(token3Diff.all { it < 0.0 }) { "Erwartet negatives Update für Token 3, war aber: $token3Diff" }
+    check(token3Diff.all { it < 0.0 }) {
+        "Erwartet negatives Update für Token 3, war aber: $token3Diff"
+    }
     check(position0Diff.all { it < 0.0 }) {
         "Erwartet negatives Update für Position 0, war aber: $position0Diff"
     }
 }
-

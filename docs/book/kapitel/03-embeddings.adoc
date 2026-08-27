@@ -485,6 +485,105 @@ Konzeptionell bedeutet das:
 Ein separates `TrainableInputEmbedding` wäre nur dann nötig,
 wenn du zusätzlich eigene Parameter auf dieser Summendarstellung modellieren möchtest.
 
+=== Aufbau der Klasse `TrainableInputEmbedding`
+
+Die Klasse `TrainableInputEmbedding` kapselt die beiden trainierbaren Teilkomponenten
+und stellt sie als eine gemeinsame Schnittstelle für den restlichen Modellpfad bereit.
+
+Die drei Kernaufgaben sind:
+
+* **Forward:** Token- und Positionsvektoren berechnen und addieren
+* **Backward:** denselben Gradienten an beide Teilkomponenten weiterreichen
+* **Step/Reset:** Optimizer-Update und Gradienten-Reset für beide Komponenten ausführen
+
+=== Die Methode `forward()` für Input Embeddings
+
+`forward(tokenIds)` ruft intern
+`TrainableTokenEmbedding.forward(tokenIds)` und
+`TrainablePositionalEmbedding.forward(tokenIds.size)` auf.
+
+Danach werden beide Matrizen elementweise addiert.
+Das Ergebnis hat die Form `[seqLen, embeddingDim]` und ist die direkte Eingabe
+für den nächsten Modellblock.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputForward]
+----
+
+=== Die Methode `backward()` für Input Embeddings
+
+Hier liegt der wichtigste mathematische Punkt:
+Da `input = token + position` gilt, verteilt sich der Gradient identisch auf beide Summanden.
+
+Damit gilt:
+
+* `dL/dtoken = dL/dinput`
+* `dL/dposition = dL/dinput`
+
+In der Klasse bedeutet das konkret:
+
+* Form von `gradOutput` wird geprüft
+* derselbe `gradOutput` wird an Token- und Positional-Embedding weitergegeben
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputBackward]
+----
+
+=== Die Methode `step()` für Input Embeddings
+
+`step(learningRate)` führt den Optimizer-Schritt für beide Teilkomponenten aus.
+Dadurch werden Token- und Positionsgewichte synchron pro Trainingsschritt aktualisiert.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputStep]
+----
+
+=== Die Methode `zeroGrad()` für Input Embeddings
+
+`zeroGrad()` setzt die Gradientenspeicher beider Teilkomponenten zurück.
+Das ist nützlich, wenn der Aufrufer den Reset explizit steuern möchte.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputZeroGrad]
+----
+
+=== Die komplette Klasse `TrainableInputEmbedding`
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[]
+----
+
+==== Mini-Beweis: Trainierbares Input Embedding
+
+Ziel: zeigen, dass bei einem Input-Update sowohl Token- als auch Positionsgewichte angepasst werden.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel2}/demo/TrainableInputEmbeddingDemo.kt[]
+----
+
+Erwartete Ausgabe (gekürzt):
+[source,terminaloutput]
+----
+Token 3 vor: [0.20976342059859693, -0.008151581787722436, -0.3518874096994445, -0.2928502989449914]
+Position 0 vor: [0.5709526577365274, 0.45970397449139394, -0.47493331844544795, -0.5534951431996689]
+input shape: [4, 4]
+Mit echten Gradienten (ones):
+Token 3 Änderung: [-0.020000000000000018, -0.020000000000000004, -0.020000000000000018, -0.020000000000000018]
+Position 0 Änderung: [-0.010000000000000009, -0.010000000000000009, -0.010000000000000009, -0.010000000000000009]
+----
+
+Interpretation:
+
+* Token- und Positionsseite werden im selben Schritt aktualisiert.
+* Token `3` erhält hier ein stärkeres Update, weil er in der Sequenz mehrfach vorkommt.
+* Position `0` wird genau einmal getroffen und entsprechend einmal verschoben.
+
 === Design-Entscheidungen
 
 * **Trainierbarer Hauptpfad:** Für den restlichen Buchverlauf setzen wir auf trainierbare Embeddings.
@@ -492,6 +591,7 @@ wenn du zusätzlich eigene Parameter auf dieser Summendarstellung modellieren m�
 * **Didaktischer Parallelpfad:** Nicht-trainierbare Varianten bleiben als Lernhilfe erhalten, aber nicht als Hauptpfad.
 * **Einfache SGD-Logik:** Das Update bleibt transparent und nachvollziehbar.
 * **Trainierbare Positionsvektoren:** Für den gewählten GPT-2-artigen Pfad behandeln wir Positionsvektoren als lernbare Parameter.
+* **Komposition statt Monolith:** `TrainableInputEmbedding` delegiert an Token- und Positional-Komponente statt deren Logik zu duplizieren.
 
 === Stolpersteine
 
@@ -500,3 +600,4 @@ wenn du zusätzlich eigene Parameter auf dieser Summendarstellung modellieren m�
 * **Formprüfungen im Backward:** `gradOutput` muss zur Forward-Ausgabe passen (`seqLen x embeddingDim`).
 * **Skalierung:** Bei großem Vokabular können vollständige Matrix-Updates ineffizient werden.
 * **Positionsgrenze:** `sequenceLength` darf `contextLength` nicht überschreiten.
+* **Gradientenweitergabe verstehen:** Bei `input = token + position` wird derselbe `gradOutput` bewusst an beide Teilkomponenten weitergereicht.

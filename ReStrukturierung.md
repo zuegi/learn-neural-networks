@@ -16,6 +16,10 @@
 - klarer Übergang von Lernen -> Anwenden
 
 ---
+Was als nächstes
+
+---
+Erledigt 
 
 ## 2) Pragmatischer Migrationsplan (in Reihenfolge)
 

@@ -1,5 +1,4 @@
 import ch.zuegi.ml.llm.kapitel5.library.autograd.AdamOptimizer
-import ch.zuegi.ml.llm.kapitel5.library.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.kapitel5.model.GPTConfig
 import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
 import ch.zuegi.ml.llm.kapitel5.model.GenerationConfig
@@ -7,6 +6,7 @@ import ch.zuegi.ml.llm.kapitel5.training.EarlyStoppingConfig
 import ch.zuegi.ml.llm.kapitel5.training.EarlyStoppingResult
 import ch.zuegi.ml.llm.kapitel5.training.EarlyStoppingTrainer
 import ch.zuegi.ml.llm.kapitel5.training.GPTTrainer
+import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.TrainingSample
 import ch.zuegi.ml.llm.shared.readTheVerdictText

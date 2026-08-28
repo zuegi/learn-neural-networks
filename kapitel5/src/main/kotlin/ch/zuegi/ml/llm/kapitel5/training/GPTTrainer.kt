@@ -1,7 +1,7 @@
 package ch.zuegi.ml.llm.kapitel5.training
 
 import ch.zuegi.ml.llm.kapitel5.library.autograd.AdamOptimizer
-import ch.zuegi.ml.llm.kapitel5.library.autograd.TensorMultik
+import ch.zuegi.ml.llm.kapitel4.library.autograd.TensorMultik
 import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
 import ch.zuegi.ml.llm.shared.TrainingSample
 import org.jetbrains.kotlinx.multik.ndarray.data.get

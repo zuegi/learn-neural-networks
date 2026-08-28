@@ -1,8 +1,8 @@
 package ch.zuegi.ml.llm.kapitel5.model
 
-import ch.zuegi.ml.llm.kapitel5.library.autograd.LayerNormMultikTensor
-import ch.zuegi.ml.llm.kapitel5.library.autograd.TensorMultik
-import ch.zuegi.ml.llm.kapitel5.library.autograd.TransformerBlockMultikTensor
+import ch.zuegi.ml.llm.kapitel4.library.autograd.LayerNormMultikTensor
+import ch.zuegi.ml.llm.kapitel4.library.autograd.TensorMultik
+import ch.zuegi.ml.llm.kapitel4.library.autograd.TransformerBlockMultikTensor
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.ndarray.data.get

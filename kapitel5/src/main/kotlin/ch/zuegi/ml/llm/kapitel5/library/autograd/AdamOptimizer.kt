@@ -1,5 +1,6 @@
 package ch.zuegi.ml.llm.kapitel5.library.autograd
 
+import ch.zuegi.ml.llm.kapitel4.library.autograd.TensorMultik
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
 import org.jetbrains.kotlinx.multik.ndarray.data.get

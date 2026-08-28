@@ -2,7 +2,7 @@ package ch.zuegi.ml.llm.kapitel4.demo
 
 import ch.zuegi.ml.llm.kapitel4.GPTConfig
 import ch.zuegi.ml.llm.kapitel4.GPTModel
-import ch.zuegi.ml.llm.kapitel4.scratch.tokenize.SimpleTokenizerV1
+import ch.zuegi.ml.llm.shared.tokenize.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.readVerdictText
 
 fun main() {

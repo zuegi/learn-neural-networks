@@ -1,10 +1,10 @@
 package ch.zuegi.ml.llm.kapitel3.demo
 
 import ch.zuegi.ml.llm.kapitel3.library.CausalAttentionMultik
-import ch.zuegi.ml.llm.kapitel3.library.embedding.InputEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel3.library.embedding.PositionalEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel3.library.embedding.TokenEmbeddingMultik
-import ch.zuegi.ml.llm.kapitel3.library.tokenize.GPT2Tokenizer
+import ch.zuegi.ml.llm.shared.embedding.InputEmbeddingMultik
+import ch.zuegi.ml.llm.shared.embedding.PositionalEmbeddingMultik
+import ch.zuegi.ml.llm.shared.embedding.TokenEmbeddingMultik
+import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.ndarray.data.get

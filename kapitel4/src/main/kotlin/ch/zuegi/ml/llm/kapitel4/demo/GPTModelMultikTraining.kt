@@ -4,7 +4,7 @@ import ch.zuegi.ml.llm.kapitel4.GPTConfig
 import ch.zuegi.ml.llm.kapitel4.GPTModelMultikTensor
 import ch.zuegi.ml.llm.kapitel4.GenerationConfig
 import ch.zuegi.ml.llm.kapitel4.library.autograd.SGDTensorMultik
-import ch.zuegi.ml.llm.kapitel4.library.tokenize.GPT2Tokenizer
+import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.ndarray.data.get

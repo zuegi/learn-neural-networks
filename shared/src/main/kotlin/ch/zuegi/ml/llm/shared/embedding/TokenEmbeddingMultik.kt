@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel4.library.embedding
+package ch.zuegi.ml.llm.shared.embedding
 
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ndarray
@@ -43,3 +43,4 @@ class TokenEmbeddingMultik(
         private const val INIT_SCALE = 0.01
     }
 }
+

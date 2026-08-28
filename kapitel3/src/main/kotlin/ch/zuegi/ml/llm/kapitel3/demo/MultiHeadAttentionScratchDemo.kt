@@ -1,10 +1,10 @@
 package ch.zuegi.ml.llm.kapitel3.demo
 
 import ch.zuegi.ml.llm.kapitel3.scratch.MultiHeadAttention
-import ch.zuegi.ml.llm.kapitel3.scratch.embedding.InputEmbedding
-import ch.zuegi.ml.llm.kapitel3.scratch.embedding.PositionalEmbedding
-import ch.zuegi.ml.llm.kapitel3.scratch.embedding.TokenEmbedding
-import ch.zuegi.ml.llm.kapitel3.scratch.tokenize.SimpleTokenizerV1
+import ch.zuegi.ml.llm.shared.embedding.InputEmbedding
+import ch.zuegi.ml.llm.shared.embedding.PositionalEmbedding
+import ch.zuegi.ml.llm.shared.embedding.TokenEmbedding
+import ch.zuegi.ml.llm.shared.tokenize.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 

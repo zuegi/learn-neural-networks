@@ -24,11 +24,13 @@ include::kapitel/02-dataloader.adoc[leveloffset=+1]
 
 include::kapitel/03-embeddings.adoc[leveloffset=+1]
 
-include::kapitel/04-attention.adoc[leveloffset=+1]
+include::kapitel/04-autograd.adoc[leveloffset=+1]
 
-//include::kapitel/04-transformer-block.adoc[leveloffset=+1]
+include::kapitel/05-attention.adoc[leveloffset=+1]
 
-//include::kapitel/05-training-loop.adoc[leveloffset=+1]
+//include::kapitel/06-transformer-block.adoc[leveloffset=+1]
+
+//include::kapitel/07-training-loop.adoc[leveloffset=+1]
 
 //include::kapitel/06-inferenz.adoc[leveloffset=+1]
 

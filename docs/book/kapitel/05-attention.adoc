@@ -1,0 +1,231 @@
+[[Attention]]
+== Attention & Multi-Head Attention
+
+Der Attention-Mechanismus ist das Herzstück eines Transformers: Er erlaubt
+es jedem Token, sich auf alle anderen Token der Sequenz zu "beziehen" und
+so Kontext herzustellen.
+
+=== Konzept: Scaled Dot-Product Attention
+
+==== Query, Key, Value
+
+Der Attention-Mechanismus arbeitet mit drei Projektionen jedes Token:
+
+- **Query (Q)**: "Was suche ich?"
+- **Key (K)**: "Wofür stehe ich?"
+- **Value (V)**: "Welche Information trage ich?"
+
+Für einen Eingabe-Token mit Embedding `x_i` erzeugen lineare Schichten:
+[source,text]
+----
+Q_i = W_Q @ x_i
+K_i = W_K @ x_i
+V_i = W_V @ x_i
+----
+
+==== Scaled Dot-Product
+
+Der Attention-Score zwischen Token `i` und Token `j` ist:
+[source,text]
+----
+score_{i,j} = (Q_i · K_j) / √d_k
+
+wobei d_k = Dimension von Key/Query (z.B. 64 bei 8 Heads à 512/8)
+----
+
+Das Skalieren mit `1/√d_k` stabilisiert das Gradientenfluss (verhindert zu große/kleine Gradienten).
+
+==== Softmax & Context
+
+Die Scores werden zeilenweise normalisiert (für jeden Query-Token):
+[source,text]
+----
+attention_{i,j} = softmax(score_{i,j})
+                 = exp(score_{i,j}) / Σ_k exp(score_{i,k})
+----
+
+Das Ergebnis ist jede Zeile eine Wahrscheinlichkeitsverteilung über alle Keys.
+
+Dann nimmt jeder Token einen gewichteten Mittelwert der Values:
+[source,text]
+----
+output_i = Σ_j attention_{i,j} * V_j
+----
+
+==== Causal Masking (für Autoregressive Modelle)
+
+Beim Generieren von Text darf Token `i` nicht in die Zukunft (j > i) schauen.
+Deshalb werden zukünftige Positionen vor Softmax auf `-∞` maskiert:
+
+[source,text]
+----
+score_{i,j} = (Q_i · K_j) / √d_k
+score_{i,j} += MASK (wobei MASK = -∞ für j > i, else 0)
+attention_{i,j} = softmax(score_{i,j})  // Zukünftige j → ~ 0
+----
+
+=== Implementierung mit Tensor (kanonischer Pfad)
+
+Die `MultiHeadAttentionMultikTensor`-Klasse implementiert dies mit `TensorMultik`:
+
+[source,kotlin]
+----
+class MultiHeadAttentionMultikTensor(
+    val embedDim: Int,
+    val numHeads: Int,
+) {
+    private val headDim = embedDim / numHeads
+
+    // Linear-Projektionen für Q, K, V
+    private val wq = TensorMultik(...)  // embedDim × embedDim
+    private val wk = TensorMultik(...)
+    private val wv = TensorMultik(...)
+    private val wo = TensorMultik(...)  // Output-Projektion
+
+    fun forward(query: TensorMultik, key: TensorMultik, value: TensorMultik): TensorMultik {
+        // 1. Linear Projections
+        var Q = query.matmul(wq, ...)  // [seq_len, embed_dim]
+        var K = key.matmul(wk, ...)
+        var V = value.matmul(wv, ...)
+
+        // 2. Split in Heads
+        val Q_heads = splitHeads(Q)  // List<TensorMultik>
+        val K_heads = splitHeads(K)
+        val V_heads = splitHeads(V)
+
+        // 3. Attention pro Head
+        val attentionHeads = Q_heads.zip(K_heads).zip(V_heads).map { (qk, v) ->
+            val (q, k) = qk
+            scaledDotProductAttention(q, k, v)
+        }
+
+        // 4. Concat Heads
+        val concat = concatHeads(attentionHeads)
+
+        // 5. Output Projektion
+        return concat.matmul(wo, ...)
+    }
+}
+----
+
+==== Scaled Dot-Product Attention (eine Head)
+
+[source,kotlin]
+----
+fun scaledDotProductAttention(
+    q: TensorMultik,  // [seq_len, head_dim]
+    k: TensorMultik,  // [seq_len, head_dim]
+    v: TensorMultik,  // [seq_len, head_dim]
+    mask: BooleanArray? = null,
+): TensorMultik {
+    // 1. Q @ K^T
+    val scores = q.matmul(k.transpose(), seq_len, head_dim, seq_len)  // [seq_len, seq_len]
+
+    // 2. Scale
+    val scale = 1.0 / sqrt(head_dim.toDouble())
+    val scaledScores = scores.mul(scale)
+
+    // 3. Causal Mask (falls autoregressive)
+    if (mask != null) {
+        for (i in 0 until seq_len) {
+            for (j in i+1 until seq_len) {
+                scaledScores.data[i * seq_len + j] = Double.NEGATIVE_INFINITY
+            }
+        }
+    }
+
+    // 4. Softmax
+    val attention = softmax(scaledScores)  // [seq_len, seq_len]
+
+    // 5. Attention @ V
+    return attention.matmul(v, seq_len, seq_len, head_dim)  // [seq_len, head_dim]
+}
+----
+
+==== Forward vs. Backward
+
+- **Forward**: Alle Tensor-Operationen (matmul, softmax, mul) merken sich ihre Kinder.
+- **Backward**: `loss.backward()` propagiert Gradienten automatisch durch alle Operationen.
+  - `∂loss / ∂scores` fließt rückwärts durch Softmax
+  - Dann durch Matmul von attention @ V
+  - Und weiter zu Q @ K^T und den W_Q, W_K, W_V Matrizen
+
+=== Didaktischer Vergleich: Single-Head vs. Multi-Head
+
+==== Single-Head Attention (scratch)
+
+Die `MultiHeadAttention.kt` im didaktischen Pfad zeigt die **einfachste Form**:
+- Alle Token-Paare werden einmal beurteilt
+- Eine Q/K/V-Projektion pro Sequence
+- Intuition: "Wie stark bezieht sich Token i auf Token j?"
+
+**Vorteil:** Leicht zu verstehen.
+**Nachteil:** Ein einzelner "Blick" kann nicht mehrere Muster gleichzeitig erfassen.
+
+==== Multi-Head Attention (library)
+
+`MultiHeadAttentionMultikTensor` splittet die Embeddings:
+
+[source,text]
+----
+embed_dim = 512, num_heads = 8
+→ head_dim = 512 / 8 = 64 pro Head
+
+Query/Key/Value: (seq_len, 512)
+→ Split: 8 × (seq_len, 64)
+→ Attention pro Head
+→ Concat: (seq_len, 512)
+→ Output-Projektion
+----
+
+**Vorteil:** Mehrere parallele Aufmerksamkeitsmuster (z.B. Head 1 schaut auf Substantive, Head 2 schaut auf Adjektive).
+**Nachteil:** Etwas mehr Komplexität.
+
+=== Design-Entscheidungen
+
+1. **Warum Causal Masking nur bei Generation?**
+   - Beim Training auf vollständigen Samples ist Masking bereits eingebaut (`CausalAttentionMultik`).
+   - Bei Inferenz (token-by-token) wird Masking pro Iteration angewendet.
+
+2. **Warum Linear-Projektionen für Q/K/V?**
+   - Ohne Projektionen müssten Q/K/V = Input-Embedding sein (weniger flexibel).
+   - Mit Projektionen kann das Modell lernen, welche Aspekte wichtig sind.
+
+3. **Warum nicht GQA oder MQA?**
+   - Grouped Query Attention / Multi-Query Attention sparen Parameter, aber die
+     Standard-Multi-Head-Form ist hier klarer didaktisch.
+
+=== Stolpersteine & Tipps
+
+1. **Dimension-Mismatch bei Matmul**
+   - Q: (seq_len, head_dim), K^T: (head_dim, seq_len) → Scores: (seq_len, seq_len) ✅
+   - Häufiger Fehler: K nicht transponiert → Dimension passt nicht ❌
+
+2. **Softmax über falsche Achse**
+   - Pro Query (Zeile) normalisieren, nicht über die ganze Matrix!
+   - [source,kotlin]
+     ----
+     // ✅ Richtig: softmax zeilenweise
+     for (i in 0 until rows) {
+         for (j in 0 until cols) {
+             result[i, j] = exp(...) / Σ_k exp(...)  // Σ über j
+         }
+     }
+     ----
+
+3. **Causal Mask Koordinaten**
+   - Indizierung: Für 1D-Array als `[i * seq_len + j]`
+   - Mask-Bedingung: `j > i` (Zukunft) blockieren, nicht `j >= i`!
+
+4. **Gradient Flow durch Softmax**
+   - Softmax ist nicht linear, aber seine Ableitung ist:
+     `∂softmax(x_i) / ∂x_j = softmax_i * (delta_ij - softmax_j)`
+   - Dies wird automatisch in `TensorMultik.backward()` berechnet.
+
+=== Zusammenfassung
+
+- **Scaled Dot-Product**: (Q · K^T) / √d_k, dann Softmax, dann @ V
+- **Multi-Head**: Mehrere parallele Attention-Köpfe für reichere Repräsentation
+- **Causal Masking**: Für autoregressive (token-by-token) Generierung
+- **Backprop**: Gradienten fließen automatisch durch alle Tensor-Operationen
+

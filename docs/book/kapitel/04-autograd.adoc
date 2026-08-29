@@ -1,0 +1,529 @@
+[[Autograd]]
+== Autograd & Micrograd
+
+Das Herzstück eines trainierbaren neuronalen Netzes ist die automatische
+Differentiation – kurz _Autograd_: das System, das Gradienten (Ableitungen) berechnet
+und damit Lernschritte ermöglicht.
+
+Dieses Kapitel folgt Andrej Karpathys **Micrograd**-Ansatz, eines der
+elegantesten Didaktik-Werkzeuge zum Verstehen von Backpropagation.
+Dann zeigen wir, wie man dieses Konzept zu produktiven Tensor-Systemen skaliert.
+
+=== Motivation: Warum Gradienten?
+
+Ohne Gradienten gibt es kein Lernen im klassischen Sinne. Ein Gradient zeigt an, in welche Richtung ein Fehlermaß mathematisch am stärksten ansteigt – sein Gegenpart (der negative Gradient) weist folglich den Weg zur Minimierung des Fehlers. Diese Richtungshinweise ermöglichen dem System den Korrekturmechanismus. Ohne sie bliebe nur ein ineffizientes, zufälliges Ausprobieren von Parametern. Deshalb ist der Gradient der unverzichtbare Motor für zielgerichtetes Lernen.
+
+Ein neuronales Netz besitzt Millionen von Parametern (Gewichte), die wie Stellschrauben den Fehler (Loss) des Netzes beeinflussen. Um diesen Fehler zu verringern, berechnet das Netz für jeden einzelnen Parameter den sogenannten Gradienten. Dieser Gradient funktioniert wie ein präziser Wegweiser: Er verrät dem Netz für jede Schraube die richtige Richtung und die nötige Stärke der Anpassung. Durch diesen mathematischen Bezug weiß das Netz blitzschnell, wie es alle Parameter gleichzeitig verändern muss, um besser zu werden.
+
+==== Das ist die Rolle des Gradienten
+
+Der Gradient ist der mathematische Schlüssel für diese Anpassung.
+Man schreibt ihn als
+
+Ableitung (\(\frac{\partial \text{Loss}}{\partial \text{Parameter}}\))
+
+und er beantwortet die Frage: „Wie sehr verändert sich der Fehler, wenn ich an genau diesem Parameter drehe?“
+
+Mit dieser Information berechnet das Netz seine neuen Werte nach einer einfachen Logik:
+
+`Neuer Parameter = Alter Parameter - Lernrate x Gradient`
+
+Das Minuszeichen sorgt dafür, dass wir gegen den Fehler steuern – wir gehen den Berg hinab in Richtung Erfolg. Die Lernrate bestimmt als kleiner Faktor (zum Beispiel \(0{,}01\)), wie vorsichtig oder mutig das Netz diesen Schritt macht. Diese Regel nennt sich Gradient Descent (Gradientenabstieg) und ist das Fundament aller modernen KI.
+
+Aber: Für komplexe Netzwerke mit Millionen Schichten ist es unmöglich, all diese Ableitungen „von Hand“ aufzuschreiben. Hier kommt Autograd ins Spiel. Dieses System löst das Problem, indem es die mathematische Kettenregel vollautomatisch im Hintergrund anwendet und die Arbeit für uns erledigt.
+
+=== Konzept: Computational Graph & Chain Rule
+
+==== Ein konkretes Beispiel: Forward Pass
+
+Stell dir vor, du hast zwei Input-Werte und eine einfache Rechnung:
+
+[source,text]
+----
+x = 2.0
+y = 3.0
+z = x * y + x    // = 2 * 3 + 2 = 8
+----
+
+Diese Rechnung erzeugt einen **Computational Graph**:
+
+[source]
+----
+      x (2.0)     y (3.0)
+         |          |
+         +----[*]---+
+              |
+              z1 (6.0)
+              |
+         +----[+]----+
+         |    (x)    |
+         |           |
+         z (8.0)
+----
+
+Jede Operation speichert sich: „Wer sind meine Eingaben? Wie hänge ich von ihnen ab?"
+
+==== Backward Pass: Gradienten rückwärts
+
+Angenommen, `z` ist unser Loss (Fehler). Wir wollen wissen:
+
+- Wie sehr beeinflusst `x` den Loss?
+- Wie sehr beeinflusst `y` den Loss?
+
+Die **Kettenregel** (Chain Rule) sagt:
+
+[source,text]
+----
+∂Loss/∂x = ∂Loss/∂z * ∂z/∂x
+∂Loss/∂y = ∂Loss/∂z * ∂z/∂y
+----
+
+
+Das geschwungene „*∂*": Dieses Symbol nutzt man immer dann, wenn das Ergebnis von vielen verschiedenen Dingen gleichzeitig abhängt – so wie der Fehler (Loss) in einem neuronalen Netz von Millionen Parametern abhängt.
+
+Wenn du \(\frac{\partial \text{Loss}}{\partial x}\) liest, bedeutet das übersetzt:
+
+`„Ich tue jetzt so, als wären alle anderen Millionen Parameter im Netz eingefroren. Ich drehe nur an der einzigen Stellschraube x und schaue, wie sich der Loss dadurch verändert."`
+
+Jetzt sehen wir, was das für unser Beispiel `z = x*y + x` bedeutet.
+`x` hat dabei *zwei* Wege, über die es `z` beeinflusst
+
+* einmal *indirekt* über die Multiplikation `x*y`.
+* einmal *direkt* über das `+x`,
+
+Die Kettenregel addiert beide Wege.
+
+Wir ersetzen jeden ∂-Term direkt durch seine Ableitung und die bekannten Werte (x=2, y=3):
+
+[source,text]
+----
+// Weg 1: x beeinflusst z indirekt über z₁ = x*y
+//   ∂z/∂z₁ = 1   (z = z₁ + x, Ableitung nach z₁ = 1)
+//   ∂z₁/∂x = y   (z₁ = x*y, Ableitung nach x = y = 3.0)
+∂Loss/∂x (Weg 1) = 1.0  *  1  *  3.0  =  3.0
+
+// Weg 2: x beeinflusst z direkt über +x
+//   ∂z/∂x = 1    (z = z₁ + x, Ableitung nach x = 1)
+∂Loss/∂x (Weg 2) = 1.0  *  1            =  1.0
+
+// Summe beider Wege:
+∂Loss/∂x = 3.0 + 1.0 = 4.0
+
+// y hat nur einen Weg: über z₁ = x*y
+//   ∂z₁/∂y = x   (z₁ = x*y, Ableitung nach y = x = 2.0)
+∂Loss/∂y = 1.0  *  1  *  2.0  =  2.0
+----
+
+Was diese Schritte im Code bedeuten, zeigt die folgende Schritt-für-Schritt-Berechnung:
+
+===== Konkret mit Zahlenwerten (für z = x*y + x):
+
+Wir starten ganz hinten beim Endergebnis und fragen uns bei jedem Schritt zurück: *„Wenn ich diesen Wert um minimal 1 erhöhe, um wie viel erhöht sich dann das Endergebnis?“*
+
+Als Startwerte nutzen wir:
+
+* *x* = 2.0
+* *y* = 3.0
+
+Daraus ergeben sich die Werte für die Zwischenschritte:
+
+* *z₁* = x * y = 2 * 3 = 6
+* *z* = z₁ + x = 6 + 2 = 8
+* Der *Loss* ist einfach genau gleich *z* (also Loss = 8).
+
+=====  Schritt-für-Schritt-Berechnung
+
+====== 1. Der Startpunkt (Am Ziel)
+Wir stehen beim Loss. Da der Loss genau gleich *z* ist, gilt: Wenn sich *z* um 1 erhöht, erhöht sich auch der Loss um 1.
+
+* *Erkenntnis:* ∂Loss / ∂z = *1.0*
+
+======  2. Der Schritt zurück über die Plus-Insel (z = z₁ + x)
+Die Regel bei einer Plus-Aufgabe ist super einfach: Ein Plus gibt den Einfluss einfach *1 zu 1 weiter*. Wenn wir *z₁* um 1 erhöhen, steigt *z* um 1. Wenn wir *x* um 1 erhöhen, steigt *z* ebenfalls um 1.
+
+* *Einfluss auf z₁:* 1.0 (Einfluss von z) * 1.0 = *1.0*
+* *Erster Einfluss auf x:* 1.0 (Einfluss von z) * 1.0 = *1.0*
+
+======  3. Der Schritt zurück über die Mal-Insel (z₁ = x * y)
+Bei einer Mal-Aufgabe ist die Regel ein interessanter Überkreuz-Tausch: Der Einfluss des einen Partners hängt vom *Wert des anderen Partners* ab.
+
+* *Einfluss auf y:* Hier schauen wir auf den Wert von *x* (der ist 2.0). +
+Rechnung: 1.0 (Einfluss auf z₁) * 2.0 = *2.0*
+* *Zweiter Einfluss auf x:* Hier schauen wir auf den Wert von *y* (der ist 3.0). +
+Rechnung: 1.0 (Einfluss auf z₁) * 3.0 = *3.0*
+
+======  4. Die Abrechnung (Das Finale)
+Jetzt zählen wir für jeden Buchstaben alle Einflüsse zusammen, die wir auf dem Rückweg gesammelt haben:
+
+[cols="1,3,1", options="header"]
+|===
+
+| Parameter | Berechnung | Finaler Gradient
+| *x*       | 1.0 (von der Plus-Insel) + 3.0 (von der Mal-Insel) | *4.0*
+| *y*       | 2.0 (nur von der Mal-Insel) | *2.0*
+|===
+
+[NOTE]
+====
+*Was bedeutet das Endergebnis im Klartext?*
+
+* Wenn du den Wert von *y* um 1 erhöhst, wird der Loss am Ende um *2* größer.
+* Wenn du den Wert von *x* um 1 erhöhst, wird der Loss am Ende gleich um *4* größer!
+
+*x* hat also im Moment den doppelt so starken Einfluss auf den Fehler. Das Netz weiss jetzt dank dieser Zahlen sofort: Wenn ich den Loss verkleinern will, muss ich *x* viel stärker nach unten schrauben als *y*.
+====
+
+
+Das ist bereits das ganze Autograd-Prinzip!
+
+=== Implementierung: Die Value-Klasse (Micrograd)
+
+==== Struktur
+
+Der didaktische Weg beginnt mit skalaren Werten – Micrograd:
+
+[source,kotlin]
+----
+class Value(
+    var data: Double,
+    private val children: List<Value> = emptyList(),
+) {
+    var grad: Double = 0.0
+    private var backwardStep: () -> Unit = {}
+}
+----
+
+Jeder `Value` speichert:
+- `data`: den aktuellen Zahlenwert
+- `grad`: den akkumulierten Gradienten (anfangs 0.0)
+- `children`: von welchen Werten dieser Wert berechnet wurde
+- `backwardStep`: die lokale Regel, wie Gradienten weiterfließen
+
+==== Addition: Die erste Operation
+
+[source,kotlin]
+----
+operator fun plus(other: Value): Value {
+    val out = Value(data + other.data, listOf(this, other))
+    out.backwardStep = {
+        // ∂(a+b)/∂a = 1, ∂(a+b)/∂b = 1
+        grad += out.grad
+        other.grad += out.grad
+    }
+    return out
+}
+----
+
+**Forward:** `out.data = this.data + other.data` (einfache Addition)
+
+**Backward:** Wenn `out` einen Gradienten erhält, teilt sich dieser 1:1 an beide Operanden.
+
+Beispiel:
+[source,kotlin]
+----
+val x = Value(2.0)
+val y = Value(3.0)
+val z = x + y   // z.data = 5.0, z.grad = 0.0 (noch)
+
+z.grad = 1.0    // angenommen z ist der Loss
+z.backwardStep()  // → x.grad += 1.0, y.grad += 1.0
+----
+
+==== Multiplikation: Die Produktregel
+
+[source,kotlin]
+----
+operator fun times(other: Value): Value {
+    val out = Value(data * other.data, listOf(this, other))
+    out.backwardStep = {
+        // Produktregel: ∂(a*b)/∂a = b, ∂(a*b)/∂b = a
+        grad += other.data * out.grad
+        other.grad += data * out.grad
+    }
+    return out
+}
+----
+
+**Backward:** Die lokale Ableitung ist nicht mehr 1, sondern abhängig vom anderen Operanden.
+- `∂(x*y)/∂x = y`
+- `∂(x*y)/∂y = x`
+
+Beispiel:
+[source,kotlin]
+----
+val x = Value(2.0)
+val y = Value(3.0)
+val z = x * y   // z.data = 6.0
+
+z.grad = 1.0
+z.backwardStep()  // → x.grad += 3.0 * 1.0 = 3.0
+                  // → y.grad += 2.0 * 1.0 = 2.0
+----
+
+==== Mini-Beispiel: Vollständiger Forward & Backward
+
+Jetzt das komplette Beispiel von oben:
+
+[source,kotlin]
+----
+val x = Value(2.0)
+val y = Value(3.0)
+
+// Forward
+val z1 = x * y        // z1.data = 6.0
+val z = z1 + x        // z.data = 8.0
+
+// Initialisiere Loss-Gradient
+z.grad = 1.0
+
+// Backward (manuell, in umgekehrter Reihenfolge)
+z.backwardStep()      // z1.grad += 1.0, x.grad += 1.0
+z1.backwardStep()     // x.grad += 3.0, y.grad += 2.0
+
+// Finale Gradienten
+println(x.grad)  // 4.0  (1.0 von z1+x, 3.0 von x*y)
+println(y.grad)  // 2.0  (2.0 von x*y)
+----
+
+Beachte: `x` erhält Gradienten **aus zwei Quellen** (von +x und von *y).
+Deshalb die Akkumulation (`+=` statt `=`).
+
+=== Skalierung: Von Value zu Tensor
+
+==== Das Problem mit Value
+
+Value ist elegant didaktisch, aber: Ein neuronales Netz hat Tausende Parameter.
+Für jeden einzelnen einen `Value`-Knoten zu erstellen und mit der Hand zu verwalten
+ist nicht praktisch.
+
+**Tensor** löst das, indem es Vektoren behandelt, nicht Skalare.
+
+==== Struktur von Tensor
+
+[source,kotlin]
+----
+class Tensor(
+    val data: DoubleArray,
+    val children: List<Tensor> = emptyList(),
+) {
+    val grad: DoubleArray = DoubleArray(data.size)
+    var backwardStep: () -> Unit = {}
+    val size: Int get() = data.size
+}
+----
+
+Das ist **identisch zur Value-Struktur**, nur:
+- `data: Double` → `data: DoubleArray`
+- `grad: Double` → `grad: DoubleArray`
+
+Die Backprop-Logik bleibt gleich – sie läuft nur **elementweise** über das Array.
+
+==== Vektorielle Addition
+
+[source,kotlin]
+----
+operator fun plus(other: Tensor): Tensor {
+    require(size == other.size)
+    val out = Tensor(DoubleArray(size) { data[it] + other.data[it] }, listOf(this, other))
+    out.backwardStep = {
+        for (i in 0 until size) {
+            grad[i] += out.grad[i]
+            other.grad[i] += out.grad[i]
+        }
+    }
+    return out
+}
+----
+
+Die Backward-Regel ist die gleiche, nur iteriert über alle Elemente.
+
+==== Mini-Beispiel: Zwei Vektoren
+
+[source,kotlin]
+----
+val x = Tensor(doubleArrayOf(1.0, 2.0, 3.0))
+val y = Tensor(doubleArrayOf(2.0, 3.0, 4.0))
+
+// Forward
+val z = x + y  // z.data = [3.0, 5.0, 7.0]
+
+// Backward
+z.grad = doubleArrayOf(1.0, 1.0, 1.0)
+z.backwardStep()
+
+println(x.grad.toList())  // [1.0, 1.0, 1.0]
+println(y.grad.toList())  // [1.0, 1.0, 1.0]
+----
+
+**Kern-Erkenntniss:** Das Backprop-Prinzip ist für Tensoren dasselbe wie für Skalare.
+
+==== Matrix-Multiplikation: Der komplexe Fall
+
+Die wichtigste Operation für neuronale Netze ist Matmul. Hier wird es interessant:
+
+[source,kotlin]
+----
+fun matMul(
+    other: Tensor,
+    p: Int,  // Zeilen dieser Matrix
+    q: Int,  // Spalten dieser / Zeilen andere
+    r: Int,  // Spalten andere
+): Tensor {
+    val result = DoubleArray(p * r)
+    for (i in 0 until p) {
+        for (j in 0 until r) {
+            var sum = 0.0
+            for (k in 0 until q) {
+                sum += data[i * q + k] * other.data[k * r + j]
+            }
+            result[i * r + j] = sum
+        }
+    }
+
+    val out = Tensor(result, listOf(this, other))
+    out.backwardStep = {
+        // dA = dC · Bᵀ
+        for (i in 0 until p) {
+            for (k in 0 until q) {
+                var sum = 0.0
+                for (j in 0 until r) {
+                    sum += out.grad[i * r + j] * other.data[k * r + j]
+                }
+                grad[i * q + k] += sum
+            }
+        }
+        // dB = Aᵀ · dC
+        for (k in 0 until q) {
+            for (j in 0 until r) {
+                var sum = 0.0
+                for (i in 0 until p) {
+                    sum += data[i * q + k] * out.grad[i * r + j]
+                }
+                other.grad[k * r + j] += sum
+            }
+        }
+    }
+    return out
+}
+----
+
+**Wichtig:** Die Backward-Regeln kommen aus der Matrix-Kalkülregel:
+- `dA = dC · Bᵀ`
+- `dB = Aᵀ · dC`
+
+Aber das Prinzip ist das gleiche: lokale Ableitung × eingehender Gradient.
+
+=== Production Ready: TensorMultik
+
+Der kanonische Pfad nutzt `TensorMultik`, nicht `Tensor`:
+
+[source,kotlin]
+----
+class TensorMultik(
+    val data: NDArray<Double, D1>,
+    private val children: List<TensorMultik> = emptyList(),
+) {
+    val grad: NDArray<Double, D1> = mk.ndarray(DoubleArray(data.size) { 0.0 })
+    private var backwardStep: () -> Unit = {}
+    val size: Int get() = data.size
+}
+----
+
+Der einzige Unterschied: `TensorMultik` nutzt **Multik's `NDArray`** statt `DoubleArray`.
+
+**Warum?**
+- Multik ist eine Kotlin-ML-Bibliothek mit spezialisierter Hardware-Unterstützung
+- NDArray ist schneller, kann GPU nutzen, optimiert für große Matrizen
+- Aber die Backprop-Logik ist **identisch**
+
+Das Design ist elegant: Von Value (Lern-Zweck) über Tensor (Verständnis)
+zu TensorMultik (Produktion) – nur das Backend ändert sich, nicht die Mathematik.
+
+=== Automatisches Backward: Topologische Sortierung
+
+Bisher haben wir `backwardStep` manuell aufgerufen. In der Praxis passiert das automatisch.
+
+Die Methode `backward()` der Tensor-Klasse:
+1. Sortiert den Graphen **topologisch** (von Eingaben zu Ausgaben)
+2. Reverst die Reihenfolge
+3. Ruft `backwardStep` für jeden Knoten auf
+
+[source,kotlin]
+----
+fun backward() {
+    val ordered = mutableListOf<Tensor>()
+    val visited = mutableSetOf<Tensor>()
+
+    fun buildTopo(node: Tensor) {
+        if (node !in visited) {
+            visited.add(node)
+            node.children.forEach { buildTopo(it) }
+            ordered.add(node)
+        }
+    }
+    buildTopo(this)
+
+    grad[0] = 1.0  // Loss-Gradient = 1.0
+    ordered.asReversed().forEach { it.backwardStep() }
+}
+----
+
+**Warum topologische Sortierung?**
+Wir müssen sicherstellen, dass ein Knoten seine Gradienten erst **erhält**, bevor wir ihn weiterleiten.
+Die topologische Sortierung garantiert diese Reihenfolge.
+
+=== Was NICHT in Autograd gehört
+
+Um nicht zu verzetteln, konzentrieren wir uns auf die **drei Kern-Operationen**:
+- Addition
+- Multiplikation
+- Matrix-Multiplikation
+
+Andere Operationen im Code (softmax, gelu, layerNorm, etc.) folgen dem gleichen Muster.
+Sie sind Implementierungsdetails, nicht konzeptionell neu.
+
+Sie werden in den folgenden Kapiteln benutzt (z.B. softmax in Attention),
+aber ihre Backward-Regeln sind „nur" Anwendung der Kettenregel.
+
+=== Tipps & Stolpersteine
+
+1. **Akkumulation, nicht Überschreiben**
+   [source,kotlin]
+   ----
+   // ✅ Richtig
+   grad[i] += out.grad[i]
+
+   // ❌ Falsch (überschreibt alte Gradienten von anderen Quellen!)
+   grad[i] = out.grad[i]
+   ----
+
+2. **Nur auf Skalaren/Vektoren mit Größe 1 backward() aufrufen**
+   [source,kotlin]
+   ----
+   val loss = ... // Größe 1
+   loss.backward()  // ✅ Sinnvoll
+
+   val embedding = ... // Größe 512
+   embedding.backward()  // ❌ Gradienten sind 1 für alle, wenig aussagekräftig
+   ----
+
+3. **Gradient Reset zwischen Trainings-Schritten**
+   [source,kotlin]
+   ----
+   // Neuer Trainings-Schritt
+   x.grad = DoubleArray(x.size)  // oder .fill(0.0)
+   // Neuer Forward-Pass
+   loss = forward()
+   loss.backward()
+   ----
+
+=== Zusammenfassung
+
+- **Micrograd (Value)**: Skalare Gradienten, didaktisches Fundament
+- **Autograd (Tensor)**: Vektorielle Gradienten, gleiche Logik, schneller
+- **TensorMultik**: Gleiche Logik, optimiertes Backend (Multik)
+- **Kern-Prinzip**: Computational Graph + Kettenregel + topologische Sortierung
+- **Anwendung**: Gradienten fließen rückwärts, Parameter werden optimiert → Lernen
+
+Im nächsten Kapitel bauen wir auf Tensoren auf und implementieren Attention und Transformer-Komponenten.
+

@@ -1,6 +1,8 @@
-:sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
-
 [[Tokenize]]
+:sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
+:lang: de
+:toc: left
+:icons: font
 == Tokenize
 
 Ein Tokenizer zerlegt Rohtext (Sätze, Wörter, Satzzeichen) in kleinere Einheiten, sogenannte Tokens, und ordnet diesen stabile numerische IDs zu. Dieser Schritt ist notwendig, weil Modelle mit Zahlen arbeiten, nicht mit Zeichenketten.

@@ -1,8 +1,14 @@
 [[Autograd]]
+:sourceDirKapitel2: ../../../kapitel3/src/main/kotlin/ch/zuegi/ml/llm/kapitel3
+:sourceDirExkurse: ../exkurse
+:sourceDirImages: ../images
+:lang: de
+:toc: left
+:icons: font
 == Autograd & Micrograd
 
 Das Herzstück eines trainierbaren neuronalen Netzes ist die automatische
-Differentiation – kurz _Autograd_: das System, das Gradienten (Ableitungen) berechnet
+Differentiation – ich nenne sie hier kurz _Autograd_: das System, das Gradienten (Ableitungen) berechnet
 und damit Lernschritte ermöglicht.
 
 Dieses Kapitel folgt Andrej Karpathys **Micrograd**-Ansatz, eines der
@@ -12,6 +18,10 @@ Dann zeigen wir, wie man dieses Konzept zu produktiven Tensor-Systemen skaliert.
 === Motivation: Warum Gradienten?
 
 Ohne Gradienten gibt es kein Lernen im klassischen Sinne. Ein Gradient zeigt an, in welche Richtung ein Fehlermaß mathematisch am stärksten ansteigt – sein Gegenpart (der negative Gradient) weist folglich den Weg zur Minimierung des Fehlers. Diese Richtungshinweise ermöglichen dem System den Korrekturmechanismus. Ohne sie bliebe nur ein ineffizientes, zufälliges Ausprobieren von Parametern. Deshalb ist der Gradient der unverzichtbare Motor für zielgerichtetes Lernen.
+
+.Gradient Descent - Gradientenabstieg
+image::{sourceDirImages}/gradient_descent_intuition.svg[Gradient descent]
+
 
 Ein neuronales Netz besitzt Millionen von Parametern (Gewichte), die wie Stellschrauben den Fehler (Loss) des Netzes beeinflussen. Um diesen Fehler zu verringern, berechnet das Netz für jeden einzelnen Parameter den sogenannten Gradienten. Dieser Gradient funktioniert wie ein präziser Wegweiser: Er verrät dem Netz für jede Schraube die richtige Richtung und die nötige Stärke der Anpassung. Durch diesen mathematischen Bezug weiß das Netz blitzschnell, wie es alle Parameter gleichzeitig verändern muss, um besser zu werden.
 
@@ -30,13 +40,13 @@ Mit dieser Information berechnet das Netz seine neuen Werte nach einer einfachen
 
 Das Minuszeichen sorgt dafür, dass wir gegen den Fehler steuern – wir gehen den Berg hinab in Richtung Erfolg. Die Lernrate bestimmt als kleiner Faktor (zum Beispiel \(0{,}01\)), wie vorsichtig oder mutig das Netz diesen Schritt macht. Diese Regel nennt sich Gradient Descent (Gradientenabstieg) und ist das Fundament aller modernen KI.
 
-Aber: Für komplexe Netzwerke mit Millionen Schichten ist es unmöglich, all diese Ableitungen „von Hand“ aufzuschreiben. Hier kommt Autograd ins Spiel. Dieses System löst das Problem, indem es die mathematische Kettenregel vollautomatisch im Hintergrund anwendet und die Arbeit für uns erledigt.
+Aber: Für komplexe Netzwerke mit Millionen Layers ist es unmöglich, all diese Ableitungen „von Hand“ aufzuschreiben. Hier kommt Autograd ins Spiel. Dieses System löst das Problem, indem es die mathematische Kettenregel vollautomatisch im Hintergrund anwendet und die Arbeit für uns erledigt.
 
 === Konzept: Computational Graph & Chain Rule
 
 ==== Ein konkretes Beispiel: Forward Pass
 
-Stell dir vor, du hast zwei Input-Werte und eine einfache Rechnung:
+Stellen wir vor, wir haben zwei Input-Werte und eine einfache Rechnung:
 
 [source,text]
 ----

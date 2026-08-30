@@ -1,3 +1,7 @@
+[[Einleitung]]
+:lang: de
+:toc: left
+:icons: font
 == Einleitung
 
 Dieses Buch dokumentiert die Implementierung eines Large Language Models (LLM)

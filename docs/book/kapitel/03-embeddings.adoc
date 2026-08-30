@@ -1,7 +1,10 @@
+[[Embeddings]]
 :sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
 :sourceDirExkurse: ../exkurse
+:lang: de
+:toc: left
+:icons: font
 
-[[Embeddings]]
 == Embeddings
 
 Ein Tokenizer liefert diskrete Token-IDs.

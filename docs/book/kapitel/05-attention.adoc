@@ -1,4 +1,10 @@
 [[Attention]]
+:sourceDirKapitel2: ../../../kapitel3/src/main/kotlin/ch/zuegi/ml/llm/kapitel3
+:sourceDirExkurse: ../exkurse
+:sourceDirImages: ../images
+:lang: de
+:toc: left
+:icons: font
 == Attention & Multi-Head Attention
 
 Der Attention-Mechanismus ist das Herzstück eines Transformers: Er erlaubt

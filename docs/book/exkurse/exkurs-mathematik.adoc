@@ -1,3 +1,6 @@
+:lang: de
+:toc: left
+:icons: font
 [[ExkursMath]]
 == Exkurs: Mathematische Grundlagen
 
@@ -81,3 +84,62 @@ Zu kleine Lernrate -> sehr langsames Lernen.
 
 Die Kapitel bauen darauf auf, dass du Shapes, elementweise Updates und Gradientenfluss sicher lesen kannst.
 Damit werden Implementierungen wie `TrainableTokenEmbedding` direkt nachvollziehbar.
+
+== Mathematische Ableitung
+Die mathematische Ableitung beschreibt, wie stark sich eine Funktion an einem bestimmten Punkt verändert. Man kann sie sich wie die Momentangeschwindigkeit auf einem Tacho vorstellen.Hier ist die einfache Erklärung in drei Schritten:
+
+* Die Steigung messen: Wenn man zwei Punkte auf einer Kurve verbindet, kann man die durchschnittliche Steigung zwischen ihnen berechnen (wie ein Höhenunterschied auf einer Wanderung).
+* Die Punkte zusammenschieben: Um die Steigung an einem exakten Punkt zu erfahren, schiebt man den zweiten Punkt in Gedanken unendlich nah an den ersten heran.
+* Das Ergebnis (Der Grenzwert): Aus der Linie zwischen zwei Punkten wird eine Berührungslinie (Tangente), die die Kurve nur noch an diesem einen Punkt berührt. Die Steigung dieser Tangente ist die Ableitung.
+
+Beim Gradientenabstieg nutzt man diese Ableitung für mehrere Richtungen gleichzeitig, um zu wissen, wie steil der Berg nach unten führt.
+
+=== Beispiel: Gradientenabstieg (Gradient Descent)
+
+Dieses Dokument zeigt ein konkretes mathematisches Beispiel für den Gradientenabstieg anhand einer einfachen Funktion. Das Ziel ist es, den tiefsten Punkt einer parabelmöglichen Schüssel zu finden.
+
+==== 1. Die Ausgangslage
+
+* *Fehlerfunktion (Loss-Funktion):* f(x) = x^2
+* *Startpunkt:* x = 3
+* *Lernrate (Step Size):* eta = 0.1
+
+Das absolute Minimum dieser Funktion liegt bei x = 0. Der Algorithmus startet bei x = 3 und versucht, sich diesem Minimum schrittweise zu nähern.
+
+==== 2. Die Berechnung des ersten Schritts
+
+Der Algorithmus führt nacheinander drei Kernschritte aus, um die Position zu aktualisieren.
+
+===== Schritt A: Die Ableitung bilden
+Die Ableitung gibt die Steigung der Funktion an jedem beliebigen Punkt x an.
+[stem]
+----
+f'(x) = 2x
+----
+
+===== Schritt B: Die aktuelle Steigung berechnen
+Wir setzen unseren aktuellen Startpunkt (x = 3) in die abgeleitete Funktion ein:
+[stem]
+++++
+f'(3) = 2 * 3 = 6
+++++
+Die Steigung beträgt +6. Das bedeutet, die Funktion steigt an dieser Stelle nach rechts hin an.
+
+===== Schritt C: Den neuen Punkt berechnen
+Um das Minimum zu finden, müssen wir uns entgegen der Steigung (nach unten) bewegen. Die Aktualisierungsformel lautet:
+[stem]
+++++
+x_{neu} = x_{alt} - (\eta * f'(x_{alt}))
+++++
+
+Wir setzen unsere Werte in die Formel ein:
+[stem]
+++++
+x_{neu} = 3 - (0.1 * 6) = 3 - 0.6 = 2.4
+++++
+
+==== 3. Fazit und Ausblick
+
+Nach dem ersten Durchlauf ist der Wert von x = 3 auf x = 2.4 gesunken. Der Algorithmus hat sich damit erfolgreich in Richtung des Minimums (x = 0) bewegt. Im nächsten Schritt würde das Verfahren mit dem neuen Ausgangswert x = 2.4 exakt gleich wiederholt werden.
+
+

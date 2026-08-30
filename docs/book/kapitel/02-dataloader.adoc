@@ -1,7 +1,10 @@
+[[Dataloader]]
 :sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
 :sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
+:lang: de
+:toc: left
+:icons: font
 
-[[Dataloader]]
 == DataLoader
 
 Ein Tokenizer zerlegt Text in Token-IDs.

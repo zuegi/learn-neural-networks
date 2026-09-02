@@ -1,5 +1,6 @@
 [[Autograd]]
 :sourceDirKapitel4: ../../../kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4
+:sourceDirKapitel4Test: ../../../kapitel4/src/test/kotlin/ch/zuegi/ml/llm/kapitel4
 :sourceDirExkurse: ../exkurse
 :sourceDirImages: ../images
 :lang: de
@@ -199,20 +200,17 @@ Wir lesen die Klasse in vier Schritten:
 
 ==== Struktur (Schritt 1)
 
-Der didaktische Einstieg nutzt skalare Knoten. Das heisst jeder Knoten im Computational Graph ist ein Skalar (eine einfache Zahl, hier im Beispiel vom Typ Double):
+Der didaktische Einstieg nutzt skalare Knoten. Das heisst jeder Knoten im Computational Graph ist ein Skalar (eine einfache Zahl).
+
+Hier im Beispiel im Value Objekt mit dem Typ Double:
 
 [source,kotlin]
 ----
-class Value(
-    var data: Double,
-    private val children: List<Value> = emptyList(),
-) {
-    var grad: Double = 0.0
-    private var backwardStep: () -> Unit = {}
-}
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-structure]
 ----
 
 Jedes `Value`-Objekt speichert genau das, was wir mathematisch brauchen:
+
 - `data`: den aktuellen Zahlenwert
 - `grad`: den akkumulierten Gradienten (anfangs 0.0)
 - `children`: von welchen Werten dieser Wert berechnet wurde
@@ -222,15 +220,7 @@ Jedes `Value`-Objekt speichert genau das, was wir mathematisch brauchen:
 
 [source,kotlin]
 ----
-operator fun plus(other: Value): Value {
-    val out = Value(data + other.data, listOf(this, other))
-    out.backwardStep = {
-        // ∂(a+b)/∂a = 1, ∂(a+b)/∂b = 1
-        grad += out.grad
-        other.grad += out.grad
-    }
-    return out
-}
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-plus]
 ----
 
 **Forward:** `out.data = this.data + other.data` (einfache Addition)
@@ -240,60 +230,41 @@ operator fun plus(other: Value): Value {
 Beispiel:
 [source,kotlin]
 ----
-val x = Value(2.0)
-val y = Value(3.0)
-val z = x + y   // z.data = 5.0, z.grad = 0.0 (noch)
-
-z.grad = 1.0    // angenommen z ist der Loss
-z.backwardStep()  // → x.grad += 1.0, y.grad += 1.0
+include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-plus]
 ----
 
 ==== Multiplikation: Die Produktregel
 
 [source,kotlin]
 ----
-operator fun times(other: Value): Value {
-    val out = Value(data * other.data, listOf(this, other))
-    out.backwardStep = {
-        // Produktregel: ∂(a*b)/∂a = b, ∂(a*b)/∂b = a
-        grad += other.data * out.grad
-        other.grad += data * out.grad
-    }
-    return out
-}
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-times]
 ----
 
 **Backward:** Die lokale Ableitung ist nicht mehr 1, sondern abhängig vom anderen Operanden.
+
 - `∂(x*y)/∂x = y`
 - `∂(x*y)/∂y = x`
 
 Beispiel:
 [source,kotlin]
 ----
-val x = Value(2.0)
-val y = Value(3.0)
-val z = x * y   // z.data = 6.0
-
-z.grad = 1.0
-z.backwardStep()  // → x.grad += 3.0 * 1.0 = 3.0
-                  // → y.grad += 2.0 * 1.0 = 2.0
+include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-times]
 ----
 
 ==== tanh: Eine nichtlineare Aktivierung
 
 Addition und Multiplikation reichen für lineare Rechnungen. Ein neuronales Netz braucht aber auch **Nichtlinearitäten** – hier `tanh` als Beispiel:
 
+`tanh` macht aus einer beliebigen Eingabe einen Wert im Bereich `[-1, 1]`.
+Dadurch bleiben Aktivierungen begrenzt und explodieren nicht unkontrolliert.
+Ohne solche Nichtlinearitäten würde ein tieferes Netz am Ende nur wie eine einzige lineare Funktion wirken.
+Die Kurvenform von `tanh` ist um `0` herum steil (starkes Lernsignal) und an den Rändern flach (kleinere Gradienten, Sättigungseffekt).
+
+// TODO Bild einer tanh kurvenform
+
 [source,kotlin]
 ----
-fun tanh(): Value {
-    val t = tanh(data)
-    val out = Value(t, listOf(this))
-    out.backwardStep = {
-        // d(tanh(x))/dx = 1 - tanh(x)²
-        grad += (1.0 - t * t) * out.grad
-    }
-    return out
-}
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-tanh]
 ----
 
 **Forward:** `out.data = tanh(this.data)`
@@ -304,24 +275,16 @@ fun tanh(): Value {
 
 [source,kotlin]
 ----
-fun pow(exponent: Double): Value {
-    val out = Value(data.pow(exponent), listOf(this))
-    out.backwardStep = {
-        // d(x^n)/dx = n * x^(n-1)
-        grad += exponent * data.pow(exponent - 1) * out.grad
-    }
-    return out
-}
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-pow]
 ----
-
+!!!! 3-4 Sätze zur Beschreibung von pow
 `pow` hat nur **einen** Elternknoten (`this`) – der Exponent ist eine feste Zahl, keine eigene `Value`, und braucht deshalb keinen Gradienten.
 
 Auf `pow` bauen zwei weitere Operationen direkt auf:
 
 [source,kotlin]
 ----
-operator fun div(other: Value): Value = this * other.pow(-1.0)
-operator fun div(scalar: Double): Value = this * Value(scalar).pow(-1.0)
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-div]
 ----
 
 Eine eigene Backward-Regel für die Division ist damit gar nicht nötig: `a / b` wird als `a * b⁻¹` ausgedrückt, und der Gradient fließt automatisch korrekt über die schon vorhandenen `times`- und `pow`-Regeln – inklusive der Quotientenregel für `other` (`-a/b²`), ganz ohne sie explizit hinzuschreiben.
@@ -332,14 +295,10 @@ In der Praxis will man nicht ständig `Value(2.0)` schreiben, sondern einfach `x
 
 [source,kotlin]
 ----
-// Value auf der linken Seite
-operator fun Value.times(scalar: Double): Value = this * Value(scalar)
-operator fun Value.plus(scalar: Double): Value = this + Value(scalar)
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-member]
 
 // Skalar auf der linken Seite (Kotlin-Pendant zu Pythons __rmul__/__radd__)
-operator fun Double.times(value: Value): Value = Value(this) * value
-operator fun Double.plus(value: Value): Value = Value(this) + value
-operator fun Double.div(value: Value): Value = Value(this) * value.pow(-1.0)
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-top-level]
 ----
 
 Alle diese Funktionen erzeugen **keine neue mathematische Regel** - sie verpacken den Skalar lediglich in ein Blattknoten-`Value` und delegieren an `plus`, `times` bzw. `pow`. Der Gradientenfluss ist dadurch garantiert korrekt, ohne dass er ein zweites Mal implementiert werden müsste.
@@ -350,23 +309,7 @@ Jetzt das komplette Beispiel von oben:
 
 [source,kotlin]
 ----
-val x = Value(2.0)
-val y = Value(3.0)
-
-// Forward
-val z1 = x * y        // z1.data = 6.0
-val z = z1 + x        // z.data = 8.0
-
-// Initialisiere Loss-Gradient
-z.grad = 1.0
-
-// Backward (manuell, in umgekehrter Reihenfolge)
-z.backwardStep()      // z1.grad += 1.0, x.grad += 1.0
-z1.backwardStep()     // x.grad += 3.0, y.grad += 2.0
-
-// Finale Gradienten
-println(x.grad)  // 4.0  (1.0 von z1+x, 3.0 von x*y)
-println(y.grad)  // 2.0  (2.0 von x*y)
+include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-full]
 ----
 
 Beachte: `x` erhält Gradienten **aus zwei Quellen** (von +x und von *y).
@@ -378,22 +321,7 @@ Im Mini-Beispiel haben wir `backwardStep()` von Hand in der richtigen Reihenfolg
 
 [source,kotlin]
 ----
-fun backward() {
-    val ordered = mutableListOf<Value>()
-    val visited = mutableSetOf<Value>()
-
-    fun buildTopo(node: Value) {
-        if (node !in visited) {
-            visited.add(node)
-            node.children.forEach { buildTopo(it) }
-            ordered.add(node)
-        }
-    }
-    buildTopo(this)
-
-    grad = 1.0
-    ordered.asReversed().forEach { it.backwardStep() }
-}
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-backward]
 ----
 
 Damit reduziert sich unser Mini-Beispiel auf einen einzigen Aufruf:
@@ -619,9 +547,9 @@ aber ihre Backward-Regeln sind „nur" Anwendung der Kettenregel.
 // ✅ Richtig
 grad[i] += out.grad[i]
 
-   // ❌ Falsch (überschreibt alte Gradienten von anderen Quellen!)
-   grad[i] = out.grad[i]
-   ----
+// ❌ Falsch (überschreibt alte Gradienten von anderen Quellen!)
+grad[i] = out.grad[i]
+----
 
 2. **Nur auf Skalaren/Vektoren mit Größe 1 backward() aufrufen**
 [source,kotlin]
@@ -629,9 +557,9 @@ grad[i] += out.grad[i]
 val loss = ... // Größe 1
 loss.backward()  // ✅ Sinnvoll
 
-   val embedding = ... // Größe 512
-   embedding.backward()  // ❌ Gradienten sind 1 für alle, wenig aussagekräftig
-   ----
+val embedding = ... // Größe 512
+embedding.backward()  // ❌ Gradienten sind 1 für alle, wenig aussagekräftig
+----
 
 3. **Gradient Reset zwischen Trainings-Schritten**
 [source,kotlin]
@@ -652,3 +580,8 @@ loss.backward()
 - **Anwendung**: Gradienten fließen rückwärts, Parameter werden optimiert → Lernen
 
 Im nächsten Kapitel bauen wir auf Tensoren auf und implementieren Attention und Transformer-Komponenten.
+
+
+
+
+

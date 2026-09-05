@@ -279,7 +279,9 @@ include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-tanh]
 ----
 include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-pow]
 ----
-!!!! 3-4 Sätze zur Beschreibung von pow
+
+Potenzen werden unter anderem in Loss-Funktionen benötigt, etwa um Abweichungen als quadratische Fehler zu gewichten. Im Forward-Pass berechnet `pow(n)` den Wert `x^n`; die lokale Ableitung nach `x` lautet `n * x^(n-1)`. Im Backward-Pass wird der eingehende Gradient mit dieser lokalen Ableitung multipliziert und an `x` weitergegeben.
+
 `pow` hat nur **einen** Elternknoten (`this`) – der Exponent ist eine feste Zahl, keine eigene `Value`, und braucht deshalb keinen Gradienten.
 
 Auf `pow` bauen zwei weitere Operationen direkt auf:
@@ -295,6 +297,7 @@ Eine eigene Backward-Regel für die Division ist damit gar nicht nötig: `a / b`
 
 In der Praxis will man nicht ständig `Value(2.0)` schreiben, sondern einfach `x + 2.0` oder `3.0 * x`. Dafür gibt es zwei Arten von Overloads:
 
+!!!! der Source sieht schlecht aus über den include !!!!!
 [source,kotlin]
 ----
 include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-member]

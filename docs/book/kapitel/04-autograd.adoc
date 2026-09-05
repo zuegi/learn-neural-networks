@@ -218,6 +218,8 @@ Jedes `Value`-Objekt speichert genau das, was wir mathematisch brauchen:
 
 ==== Addition: Die erste Operation
 
+Die Addition ist der einfachste Baustein, mit dem ein Rechengraph Werte aus verschiedenen Knoten und damit auch aus verschiedenen Teilpfaden zusammenführen kann. Sie eignet sich deshalb als erste Operation: Ihre lokale Ableitung ist für beide Operanden `1`, sodass sich die Gradientenweitergabe ohne zusätzliche Rechenregel nachvollziehen lässt.
+
 [source,kotlin]
 ----
 include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-plus]
@@ -225,7 +227,7 @@ include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-plus]
 
 **Forward:** `out.data = this.data + other.data` (einfache Addition)
 
-**Backward:** Wenn `out` einen Gradienten erhält, teilt sich dieser 1:1 an beide Operanden.
+**Backward:** Wenn `out` einen Gradienten erhält, wird dieser unverändert an beide Operanden weitergegeben.
 
 Beispiel:
 [source,kotlin]
@@ -580,8 +582,6 @@ loss.backward()
 - **Anwendung**: Gradienten fließen rückwärts, Parameter werden optimiert → Lernen
 
 Im nächsten Kapitel bauen wir auf Tensoren auf und implementieren Attention und Transformer-Komponenten.
-
-
 
 
 

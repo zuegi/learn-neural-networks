@@ -1,0 +1,143 @@
+version: 1
+repository: learn-neural-networks
+specification: docs/specifications/chapter-05-attention.md
+tasks:
+  - id: attention-foundations
+    title: Establish the concept and chapter framing for attention
+    status: ready
+    order: 1
+    specification: docs/specifications/chapter-05-attention.md
+    depends_on: []
+    scope:
+      chapter: docs/book/kapitel/05-attention.adoc
+      implementation: []
+      canonical_dependencies: []
+      non_goals:
+        - "Do not modify the approved specification file."
+        - "Do not change 05-attention.adoc in this step."
+    agent_role: chapter-author
+    acceptance_criteria:
+      - "The chapter framing explains why attention is needed after embeddings and why Q/K/V are introduced before the math."
+      - "The reader-facing structure matches the spec's motivation, prerequisites, and learning goals."
+      - "The task notes that the didactic scratch path and the canonical library path must stay clearly separated."
+
+  - id: attention-math-numeric-example
+    title: Add the scaled dot-product derivation and numeric example
+    status: ready
+    order: 2
+    specification: docs/specifications/chapter-05-attention.md
+    depends_on:
+      - attention-foundations
+    scope:
+      chapter: docs/book/kapitel/05-attention.adoc
+      implementation:
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/MultiHeadAttentionMultikTensor.kt
+      canonical_dependencies:
+        - shared
+        - kapitel4/library/autograd
+      non_goals:
+        - "No alternative attention API is introduced as a canonical implementation."
+        - "No optimizer or full transformer block is added here."
+    agent_role: math-reviewer
+    acceptance_criteria:
+      - "The derivation explicitly states scores = Q K^T / sqrt(dK), row-wise softmax, and weighted value aggregation."
+      - "At least one numerical example demonstrates how the scaling factor prevents overly large dot products."
+      - "The chapter distinguishes Q/K/V roles and explains why softmax is done per row across key positions."
+
+  - id: attention-causal-masking
+    title: Document causal masking and numerical edge cases before softmax
+    status: ready
+    order: 3
+    specification: docs/specifications/chapter-05-attention.md
+    depends_on:
+      - attention-math-numeric-example
+    scope:
+      chapter: docs/book/kapitel/05-attention.adoc
+      implementation:
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/scratch/autograd/MultiHeadAttention.kt
+        - kapitel4/src/test/kotlin/ch/zuegi/ml/llm/kapitel4/scratch/autograd/MultiHeadAttentionTest.kt
+      canonical_dependencies:
+        - kapitel4/library/autograd
+      non_goals:
+        - "Do not change the approved specification or the AsciiDoc source as part of this task."
+        - "The task is explanatory and test-focused; it does not add new model classes."
+    agent_role: math-reviewer
+    acceptance_criteria:
+      - "Causal masking is explicitly described as applying before softmax and masking future positions to -Inf or equivalent."
+      - "The explanation states that masked positions produce zero probability after softmax for the row."
+      - "The examples cover ctx = 1 and ctx = 2 without off-by-one mistakes."
+      - "The numerical stability statement covers large scores such as 1000 and masked -Inf values."
+
+  - id: attention-multihead-architecture
+    title: Explain multi-head splitting, concatenation, and output projection
+    status: ready
+    order: 4
+    specification: docs/specifications/chapter-05-attention.md
+    depends_on:
+      - attention-causal-masking
+    scope:
+      chapter: docs/book/kapitel/05-attention.adoc
+      implementation:
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/MultiHeadAttentionMultikTensor.kt
+      canonical_dependencies:
+        - kapitel4/library/autograd
+      non_goals:
+        - "No feed-forward block, residual connection, or layer norm is introduced as part of the task."
+        - "No parallel alternative API is treated as canonical."
+    agent_role: chapter-author
+    acceptance_criteria:
+      - "The chapter explains the relationship between embeddingDim, numHeads, dK, and headDim without conflating dK and headDim."
+      - "The shape rules match the spec: Q/K/V as [ctx, dK] per head and the concatenated output as [ctx, headDim]."
+      - "The task clarifies the output projection from [ctx, headDim] back to [ctx, embeddingDim]."
+      - "The behavior for input shapes where embeddingDim != numHeads * dK is documented as covered by the output projection and validation rules."
+
+  - id: attention-code-integration
+    title: Align the implementation and test references with the canonical attention code path
+    status: ready
+    order: 5
+    specification: docs/specifications/chapter-05-attention.md
+    depends_on:
+      - attention-multihead-architecture
+    scope:
+      chapter: docs/book/kapitel/05-attention.adoc
+      implementation:
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/MultiHeadAttentionMultikTensor.kt
+        - kapitel4/src/test/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/MultiHeadAttentionMultikTensorTest.kt
+      canonical_dependencies:
+        - kapitel4/library/autograd
+        - kapitel4/src/test
+      non_goals:
+        - "No new attention class implementation is introduced."
+        - "No chapter text is rewritten outside the approved spec's scope in this task."
+    agent_role: kotlin-implementer
+    acceptance_criteria:
+      - "The task references the canonical forward signature forward(input: TensorMultik, ctx: Int, training: Boolean = false)."
+      - "The doc path and test path align with the actual canonical library implementation and its corresponding tests."
+      - "The task confirms that training-time dropout is only active when training == true and that evaluation keeps dropout disabled."
+      - "A finite-difference validation or equivalent autograd check is called out for selected gradients."
+
+  - id: attention-review-and-closure
+    title: Final review for consistency, path accuracy, and acceptance gates
+    status: ready
+    order: 6
+    specification: docs/specifications/chapter-05-attention.md
+    depends_on:
+      - attention-code-integration
+    scope:
+      chapter: docs/book/kapitel/05-attention.adoc
+      implementation:
+        - docs/HowToOrganiseBook.md
+        - kapitel3
+        - kapitel4
+      canonical_dependencies:
+        - shared
+        - kapitel4/library/autograd
+      non_goals:
+        - "No new chapter content is added beyond the approved spec's described acceptance criteria."
+        - "No change to the approved specification file or the AsciiDoc chapter file is performed in this backlog task."
+    agent_role: documentation-reviewer
+    acceptance_criteria:
+      - "The final review confirms that the chapter references are consistent with kapitel3, kapitel4, and docs/HowToOrganiseBook.md."
+      - "The canonical library path and the didactic scratch path are separated by role and use-case, with a single highlighted main training path."
+      - "All acceptance checks from the specification are mapped to explicit review items before closure."
+      - "The backlog confirms that no contradictory path or role description remains across the surrounding chapter material."

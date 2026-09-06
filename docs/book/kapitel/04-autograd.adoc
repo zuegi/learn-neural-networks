@@ -41,7 +41,7 @@ Mit dieser Information berechnet das Netz seine neuen Werte nach einer einfachen
 
 Das Minuszeichen sorgt dafür, dass wir gegen den Fehler steuern – wir gehen den Berg hinab in Richtung Erfolg. Die Lernrate bestimmt als kleiner Faktor (zum Beispiel \(0{,}01\)), wie vorsichtig oder mutig das Netz diesen Schritt macht. Diese Regel nennt sich Gradient Descent (Gradientenabstieg) und ist das Fundament aller modernen KI.
 
-Aber: Für komplexe Netzwerke mit Millionen Layers ist es unmöglich, all diese Ableitungen „von Hand“ aufzuschreiben. Hier kommt Autograd ins Spiel. Dieses System löst das Problem, indem es die mathematische Kettenregel vollautomatisch im Hintergrund anwendet und die Arbeit für uns erledigt.
+Aber: Für komplexe Netzwerke mit Millionen Parametern und vielen Schichten ist es unmöglich, all diese Ableitungen „von Hand“ aufzuschreiben. Hier kommt Autograd ins Spiel. Dieses System löst das Problem, indem es die mathematische Kettenregel vollautomatisch im Hintergrund anwendet und die Arbeit für uns erledigt.
 
 === Konzept: Computational Graph & Chain Rule
 
@@ -60,7 +60,7 @@ Diese Rechnung erzeugt einen **Computational Graph** mit vier Knoten:
 
 [source]
 ----
-      x (2.0)     y (3.0)     <-- Leave/Blatt mit children = []
+      x (2.0)     y (3.0)     <-- Leaf/Blatt mit children = []
          |          |
          +----[*]---+
               |
@@ -72,7 +72,7 @@ Diese Rechnung erzeugt einen **Computational Graph** mit vier Knoten:
          z (8.0)              <-- Node/Knoten mit children = [z1, x]
 ----
 
-Ein Leave/Blatt ist ein normaler Knoten ohne Vorgänger (`children = []`), der also keine children besitzt.
+Ein Leaf/Blatt ist ein normaler Knoten ohne Vorgänger (`children = []`), der also keine children besitzt.
 Ein Node/Knoten ist ein Knoten mit Vorgänger (z.B. `children[x, y]`), also x und y als children.
 
 Wichtig: `x` wird zweimal verwendet (einmal in `x*y`, einmal in `z1+x`).
@@ -96,13 +96,15 @@ Wir starten mit der **algorithmischen Sicht** – also genau der Reise, die der 
 
 ===== Die Reise des Computers: Schritt-für-Schritt mit Zahlen
 
-Wir starten ganz hinten beim Endergebnis und fragen uns bei jedem Schritt zurück: *„Wenn ich diesen Wert um minimal 1 erhöhe, um wie viel erhöht sich dann das Endergebnis?“*
+Wir starten ganz hinten beim Endergebnis und fragen uns bei jedem Schritt zurück: *„Wenn ich diesen Wert ein kleines Stück erhöhe, wie stark verändert sich dann das Endergebnis?“*
 
 Als Startwerte nutzen wir:
+
 * *x* = 2.0
 * *y* = 3.0
 
 Daraus ergeben sich die Werte für die Zwischenschritte beim Vorwärtsrechnen:
+
 * *z₁* = x * y = 2 * 3 = 6
 * *z* = z₁ + x = 6 + 2 = 8
 * Der *Loss* ist einfach genau gleich *z* (also Loss = 8).
@@ -111,15 +113,18 @@ Jetzt drehen wir um und rechnen rückwärts:
 
 ====== 1. Der Startpunkt (Am Ziel)
 Wir stehen beim Loss. Da der Loss genau gleich *z* ist, gilt: Wenn sich *z* um 1 erhöht, erhöht sich auch der Loss um 1.
+
 * *Erkenntnis:* ∂Loss / ∂z = *1.0*
 
 ====== 2. Der Schritt zurück über die Plus-Insel (z = z₁ + x)
 Die Regel bei einer Plus-Aufgabe ist super einfach: Ein Plus gibt den Einfluss einfach *1 zu 1 weiter*. Wenn wir *z₁* um 1 erhöhen, steigt *z* um 1. Wenn wir *x* um 1 erhöhen, steigt *z* ebenfalls um 1.
+
 * *Einfluss auf z₁:* 1.0 (Einfluss von z) * 1.0 = *1.0*
 * *Erster Einfluss auf x:* 1.0 (Einfluss von z) * 1.0 = *1.0*
 
 ====== 3. Der Schritt zurück über die Mal-Insel (z₁ = x * y)
 Bei einer Mal-Aufgabe ist die Regel ein interessanter Überkreuz-Tausch: Der Einfluss des einen Partners hängt vom *Wert des anderen Partners* ab.
+
 * *Einfluss auf y:* Hier schauen wir auf den Wert von *x* (der ist 2.0). +
 Rechnung: 1.0 (Einfluss auf z₁) * 2.0 = *2.0*
 * *Zweiter Einfluss auf x:* Hier schauen wir auf den Wert von *y* (der ist 3.0). +
@@ -157,6 +162,7 @@ Die **Kettenregel** (Chain Rule) ist das mathematische Gesetz hinter dieser Comp
 ----
 
 In unserem Beispiel hat `x` zwei verschiedene Wege, über die es das Endergebnis `z` beeinflusst:
+
 1. Einmal *indirekt* über die Multiplikation `x*y` (die Mal-Insel).
 2. Einmal *direkt* über das `+x` (die Plus-Insel).
 
@@ -194,9 +200,9 @@ Bevor wir zu Tensoren skalieren, mappen wir die Theorie 1:1 auf die link:{source
 Wir lesen die Klasse in vier Schritten:
 
 1. Zustand pro Knoten (`data`, `grad`, `children`, `backwardStep`)
-2. lokale Regeln pro Operation (`plus`, `times`, `tanh`, `pow`, `div`)
-3. komfortable Skalar-Overloads (`3.0 * x`, `x + 2.0`, `x / 2.0`)
-4. globaler, automatischer Rückwärtslauf über `backward()`
+2. globaler, automatischer Rückwärtslauf über `backward()`
+3. lokale Regeln pro Operation (`plus`, `times`, `tanh`, `pow`, `div`)
+4. komfortable Skalar-Overloads (`3.0 * x`, `x + 2.0`, `x / 2.0`)
 
 ==== Struktur (Schritt 1)
 
@@ -216,7 +222,20 @@ Jedes `Value`-Objekt speichert genau das, was wir mathematisch brauchen:
 - `children`: von welchen Werten dieser Wert berechnet wurde
 - `backwardStep`: die lokale Regel, wie Gradienten weiterfließen (Default: nichts tun - ein Blattknoten hat keine Vorgänger)
 
-==== Addition: Die erste Operation
+==== backward(): Den Rückwärtslauf starten (Schritt 2)
+
+Bevor wir die erste Operation ausführen, brauchen wir den globalen Rückwärtslauf. Jede Operation hinterlegt in ihrem Ergebnis einen `backwardStep` mit ihrer lokalen Ableitungsregel. `backward()` führt diese Regeln für den gesamten Rechengraphen in der richtigen Reihenfolge aus:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-backward]
+----
+
+Die Methode setzt den Gradienten des aufrufenden Outputs auf `1.0`, denn die Ableitung eines Werts nach sich selbst ist `1`. Danach durchläuft sie den Graphen in umgekehrter topologischer Reihenfolge: Erst erhält ein Knoten alle Beiträge aus späteren Rechenschritten, dann gibt sein `backwardStep` den Gradienten über die lokale Ableitung an seine Vorgänger weiter. Die Regeln verwenden `+=`, damit sich Beiträge aus mehreren Pfaden akkumulieren.
+
+Jetzt ergänzen wir die lokalen Regeln und können jede Operation direkt mit einem vollständigen Forward- und Backward-Pass ausprobieren.
+
+==== Addition: Die erste Operation (Schritt 3)
 
 Die Addition ist der einfachste Baustein, mit dem ein Rechengraph Werte aus verschiedenen Knoten und damit auch aus verschiedenen Teilpfaden zusammenführen kann. Sie eignet sich deshalb als erste Operation: Ihre lokale Ableitung ist für beide Operanden `1`, sodass sich die Gradientenweitergabe ohne zusätzliche Rechenregel nachvollziehen lässt.
 
@@ -262,8 +281,6 @@ Dadurch bleiben Aktivierungen begrenzt und explodieren nicht unkontrolliert.
 Ohne solche Nichtlinearitäten würde ein tieferes Netz am Ende nur wie eine einzige lineare Funktion wirken.
 Die Kurvenform von `tanh` ist um `0` herum steil (starkes Lernsignal) und an den Rändern flach (kleinere Gradienten, Sättigungseffekt).
 
-// TODO Bild einer tanh kurvenform
-
 [source,kotlin]
 ----
 include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-tanh]
@@ -271,7 +288,18 @@ include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-tanh]
 
 **Forward:** `out.data = tanh(this.data)`
 
-**Backward:** Die lokale Ableitung `1 - tanh(x)²` wird direkt aus dem bereits berechneten Forward-Wert `t` abgeleitet – eine Kennzahl fast aller Aktivierungsfunktionen: Sie speichern sich das Forward-Ergebnis, um beim Backward nicht nochmal rechnen zu müssen.
+**Backward:** Bei `tanh` lässt sich die lokale Ableitung `1 - tanh(x)²` direkt aus dem bereits berechneten Forward-Wert `t` bestimmen. Dadurch muss `tanh(x)` im Backward-Pass nicht erneut berechnet werden.
+
+Beispiel:
+
+Wir berechnen `y = tanh(x)`. Für `x = 1.0` liefert der Forward-Pass den Wert `y ≈ 0.7616`. Die lokale Ableitung lässt sich direkt aus diesem Ergebnis bestimmen: `dy/dx = 1 - y²`.
+
+Der Aufruf `y.backward()` startet am Output mit `dy/dy = 1`. Deshalb wird für `x` der eingehende Gradient `1` mit der lokalen Ableitung multipliziert: `x.grad = 1 * (1 - y²) ≈ 0.4200`.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-tanh]
+----
 
 ==== pow: Ableitungen von Potenzen
 
@@ -284,6 +312,15 @@ Potenzen werden unter anderem in Loss-Funktionen benötigt, etwa um Abweichungen
 
 `pow` hat nur **einen** Elternknoten (`this`) – der Exponent ist eine feste Zahl, keine eigene `Value`, und braucht deshalb keinen Gradienten.
 
+Beispiel:
+
+Das Quadrat von `x = 3.0` liefert im Forward-Pass `9.0`. Die lokale Ableitung `2 * x` ergibt beim anschließenden `backward()` den Gradienten `6.0`:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-pow]
+----
+
 Auf `pow` bauen zwei weitere Operationen direkt auf:
 
 [source,kotlin]
@@ -293,65 +330,59 @@ include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-div]
 
 Eine eigene Backward-Regel für die Division ist damit gar nicht nötig: `a / b` wird als `a * b⁻¹` ausgedrückt, und der Gradient fließt automatisch korrekt über die schon vorhandenen `times`- und `pow`-Regeln – inklusive der Quotientenregel für `other` (`-a/b²`), ganz ohne sie explizit hinzuschreiben.
 
-==== Skalar-Overloads: Komfort ohne neue Regeln (Schritt 3)
+==== Skalar-Overloads: Komfort ohne neue Regeln (Schritt 4)
 
-In der Praxis will man nicht ständig `Value(2.0)` schreiben, sondern einfach `x + 2.0` oder `3.0 * x`. Dafür gibt es zwei Arten von Overloads:
+Die mathematischen Regeln stehen. Jetzt vereinfachen wir nur noch ihre Schreibweise: Statt jedes Mal `Value(2.0)` zu erzeugen, wollen wir direkt `x + 2.0` oder `3.0 * x` schreiben.
 
-!!!! der Source sieht schlecht aus über den include !!!!!
+Steht das `Value` links, übernimmt die Klasse selbst diese Aufgabe. Die Member-Overloads wandeln den rechten Skalar mit `Value(scalar)` in einen Blattknoten um und rufen danach die vorhandene Operation zwischen zwei `Value`-Objekten auf:
+
 [source,kotlin]
 ----
-include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-member]
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-member_times]
 
-// Skalar auf der linken Seite (Kotlin-Pendant zu Pythons __rmul__/__radd__)
-include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-top-level]
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-member_plus]
 ----
 
-Alle diese Funktionen erzeugen **keine neue mathematische Regel** - sie verpacken den Skalar lediglich in ein Blattknoten-`Value` und delegieren an `plus`, `times` bzw. `pow`. Der Gradientenfluss ist dadurch garantiert korrekt, ohne dass er ein zweites Mal implementiert werden müsste.
+Bei `3.0 * x` steht der Skalar links. Dort gibt es kein `Value`, das einen Member-Overload bereitstellen könnte. Deshalb ergänzen Extension Functions für `Double` diese Schreibrichtung. Auch sie erzeugen zuerst mit `Value(this)` einen Blattknoten und verwenden anschließend die bestehenden `Value`-Operationen:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-top-level_times]
+
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-top-level_plus]
+
+include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-scalar-overloads-top-level_div]
+----
+
+Bei Addition und Multiplikation fällt die Reihenfolge nicht auf. Bei einer nicht kommutativen Operation ist sie dagegen entscheidend: `x / 2.0` und `2.0 / x` liefern verschiedene Ergebnisse. Deshalb bleibt der ursprüngliche linke Operand auch nach der Umwandlung links. Eine Subtraktion bietet `Value` derzeit nicht an; dort müsste die Reihenfolge nach demselben Prinzip erhalten bleiben.
+
+Das Beispiel prüft beide Richtungen. Für `4.0 / 2.0` ist der Gradient nach dem Zähler `0.5`; für `2.0 / 4.0` ist der Gradient nach dem Nenner `-0.125`:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-scalar-division]
+----
+
+Wir gewinnen damit nur bequemere Syntax, aber **keine neuen Rechen- oder Ableitungsregeln**. Der umgewandelte Skalar bleibt ein `Value`-Blattknoten im Rechengraphen, und der Gradient fließt weiterhin nach den bereits definierten Regeln.
 
 ==== Mini-Beispiel: Vollständiger Forward & Backward
 
-Jetzt das komplette Beispiel von oben:
+Mit diesen Bausteinen kehren wir zum Beispiel `z = x * y + x` zurück. Der Test zeigt den vollständigen Forward- und Backward-Pass:
 
 [source,kotlin]
 ----
 include::{sourceDirKapitel4Test}/scratch/autograd/ValueExamplesTest.kt[tag=value-example-full]
 ----
 
-Beachte: `x` erhält Gradienten **aus zwei Quellen** (von +x und von *y).
-Deshalb die Akkumulation (`+=` statt `=`).
+Im Forward-Pass entstehen `z1 = 6.0` und `z = 8.0`. Rückwärts erhält `z1` den Gradienten `1.0`. `x` liegt auf zwei Pfaden zum Ergebnis und sammelt deshalb die Beiträge `1.0` aus der Addition und `3.0` aus der Multiplikation zum Gradienten `4.0`; für `y` ergibt sich `2.0`.
 
-==== backward(): Der manuelle Aufruf wird automatisch (Schritt 4)
-
-Im Mini-Beispiel haben wir `backwardStep()` von Hand in der richtigen Reihenfolge aufgerufen. Genau diese Reihenfolge – erst die "hinteren", dann die "vorderen" Knoten – ermittelt die echte Klasse selbst, per topologischer Sortierung:
-
-[source,kotlin]
-----
-include::{sourceDirKapitel4}/scratch/autograd/Value.kt[tag=value-backward]
-----
-
-Damit reduziert sich unser Mini-Beispiel auf einen einzigen Aufruf:
-
-[source,kotlin]
-----
-val x = Value(2.0)
-val y = Value(3.0)
-
-val z1 = x * y
-val z = z1 + x
-
-z.backward()   // setzt z.grad = 1.0 und ruft backwardStep() in korrekter Reihenfolge auf
-
-println(x.grad)  // 4.0
-println(y.grad)  // 2.0
-----
-
-Das Prinzip der topologischen Sortierung (erst Kinder, dann sich selbst einsortieren, danach rückwärts ablaufen) begegnet uns weiter unten bei `Tensor` in identischer Form wieder – nur der Datentyp ändert sich, die Logik nicht.
+Damit ist der skalare Lernpfad vollständig: Operationen bauen den Rechengraphen auf, und `backward()` propagiert die Gradienten automatisch durch ihn. Beim Übergang zu `Tensor` ändert sich als Nächstes der Datentyp, nicht dieses Grundprinzip.
 
 === Skalierung: Von Value zu Tensor
 
 ==== Das Problem mit Value
 
-Value ist elegant didaktisch, aber: Ein neuronales Netz hat Tausende Parameter.
+Value ist didaktisch elegant, aber: Ein neuronales Netz hat Tausende Parameter.
 Für jeden einzelnen einen `Value`-Knoten zu erstellen und mit der Hand zu verwalten
 ist nicht praktisch.
 
@@ -361,230 +392,147 @@ ist nicht praktisch.
 
 [source,kotlin]
 ----
-class Tensor(
-    val data: DoubleArray,
-    val children: List<Tensor> = emptyList(),
-) {
-    val grad: DoubleArray = DoubleArray(data.size)
-    var backwardStep: () -> Unit = {}
-    val size: Int get() = data.size
-}
+include::{sourceDirKapitel4}/scratch/autograd/Tensor.kt[tag=tensor-structure]
+include::{sourceDirKapitel4}/scratch/autograd/Tensor.kt[tag=tensor-structure-end]
 ----
 
-Das ist **identisch zur Value-Struktur**, nur:
+Die zentralen Felder entsprechen der `Value`-Struktur, speichern jetzt aber Arrays:
 - `data: Double` → `data: DoubleArray`
 - `grad: Double` → `grad: DoubleArray`
 
 Die Backprop-Logik bleibt gleich – sie läuft nur **elementweise** über das Array.
+Dieser didaktische `Tensor` speichert dabei keine eigene Shape-Struktur. `data` und `grad` bleiben flache Arrays; `size` kennt nur die Gesamtzahl der Elemente.
 
 ==== Vektorielle Addition
 
 [source,kotlin]
 ----
-operator fun plus(other: Tensor): Tensor {
-    require(size == other.size)
-    val out = Tensor(DoubleArray(size) { data[it] + other.data[it] }, listOf(this, other))
-    out.backwardStep = {
-        for (i in 0 until size) {
-            grad[i] += out.grad[i]
-            other.grad[i] += out.grad[i]
-        }
-    }
-    return out
-}
+include::{sourceDirKapitel4}/scratch/autograd/Tensor.kt[tag=tensor-plus]
 ----
 
 Die Backward-Regel ist die gleiche, nur iteriert über alle Elemente.
+
+==== Tensor.backward(): Topologische Sortierung für Vektoren
+
+Auch beim `Tensor` startet `backward()` den globalen Rückwärtslauf. Die Methode baut zuerst eine topologische Reihenfolge von den Eingaben zum aufrufenden Output auf und durchläuft sie danach rückwärts. So erhält ein Knoten alle Gradient-Beiträge, bevor seine lokale `backwardStep`-Regel sie weitergibt:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/scratch/autograd/Tensor.kt[tag=tensor-backward]
+----
+
+Der Unterschied zum skalaren `Value` liegt im Startgradienten: Bei einem `Tensor` setzt diese API jedes Output-Element auf `1.0`. Mathematisch ist das ein Vektor-Jakobi-Produkt mit einem Einsvektor – also der Gradient der Summe aller Output-Elemente.
+
+Für andere Gewichtungen eines nicht skalaren Outputs wäre ein expliziter Seed-Gradient nötig. Eine solche Übergabe unterstützt diese didaktische API derzeit nicht; dafür müsste zuerst ein skalarer Ausdruck gebildet oder die API erweitert werden.
+
+Damit können wir nun auch einen vektoriellen Forward- und Backward-Pass vollständig ausführen.
 
 ==== Mini-Beispiel: Zwei Vektoren
 
 [source,kotlin]
 ----
-val x = Tensor(doubleArrayOf(1.0, 2.0, 3.0))
-val y = Tensor(doubleArrayOf(2.0, 3.0, 4.0))
-
-// Forward
-val z = x + y  // z.data = [3.0, 5.0, 7.0]
-
-// Backward
-z.grad = doubleArrayOf(1.0, 1.0, 1.0)
-z.backwardStep()
-
-println(x.grad.toList())  // [1.0, 1.0, 1.0]
-println(y.grad.toList())  // [1.0, 1.0, 1.0]
+include::{sourceDirKapitel4Test}/scratch/autograd/TensorExamplesTest.kt[tag=tensor-example-plus]
 ----
 
-**Kern-Erkenntniss:** Das Backprop-Prinzip ist für Tensoren dasselbe wie für Skalare.
+Der Forward-Pass addiert drei Elemente und liefert `[3.0, 5.0, 7.0]`. `z.backward()` startet für jedes Output-Element mit dem Gradienten `1.0`; die Addition gibt ihn unverändert an beide Eingabevektoren weiter.
 
-==== Matrix-Multiplikation: Der komplexe Fall
+**Kern-Erkenntnis:** Das Backprop-Prinzip ist für Tensoren dasselbe wie für Skalare.
 
-Die wichtigste Operation für neuronale Netze ist Matmul. Hier wird es interessant:
+==== Matrix-Multiplikation: Shapes, Forward und Backward
+
+Die Matrixmultiplikation ist eine zentrale Operation neuronaler Netze: Sie kombiniert Eingabemerkmale mit Gewichten und berechnet so lineare Schichten mit mehreren Ausgaben. Anders als bei der elementweisen Addition fließt dabei jedes relevante Eingabeelement in mehrere Ausgabewerte ein. Deshalb klären wir zuerst die Shapes und Dimensionen, bevor wir Forward- und Backward-Pass betrachten:
+
+[cols="1,1,3", options="header"]
+|===
+| Matrix | Shape | Bedeutung
+| `A` | `p x q` | `p` Zeilen mit jeweils `q` Werten
+| `B` | `q x r` | `q` Zeilen mit jeweils `r` Werten
+| `C = A · B` | `p x r` | ein Ergebnis für jede Zeile von `A` und jede Spalte von `B`
+|===
+
+`q` ist die gemeinsame innere Dimension: Eine Zeile von `A` und eine Spalte von `B` enthalten beide `q` Werte. Der didaktische `Tensor` speichert diese Matrizen flach und zeilenweise in `DoubleArray`. Deshalb übergibt der Aufrufer `p`, `q` und `r` an `matMul`; die Methode prüft dazu die Arraygrößen `p * q` und `q * r`.
+
+**Forward:** Jedes Element `C[i,j]` ist das Skalarprodukt aus Zeile `i` von `A` und Spalte `j` von `B`:
+
+`C[i,j] = Σ A[i,k] * B[k,j]`
+
+**Backward:** Der eingehende Gradient `dC` beschreibt, wie stark jedes Element von `C` das Endergebnis beeinflusst.
+
+Für `dA` fragen wir: Wie beeinflusst ein Wert aus `A` die Ergebniszeile in `C`? Er wird mit den passenden Werten aus `B` multipliziert. Deshalb kombinieren wir `dC` mit der transponierten Matrix `Bᵀ`.
+
+Für `dB` fragen wir entsprechend: Wie beeinflusst ein Wert aus `B` die Ergebnisspalte in `C`? Hier liefern die passenden Werte aus `A` die Faktoren, weshalb wir die transponierte Matrix `Aᵀ` mit `dC` kombinieren.
+
+Damit lauten die beiden kompakten Regeln:
+
+- `dA = dC · Bᵀ` mit Shape `(p x r) · (r x q) = p x q`
+- `dB = Aᵀ · dC` mit Shape `(q x p) · (p x r) = q x r`
+
+Die Implementierung setzt diesen Forward- und Backward-Pass mit den flachen Arrays um:
 
 [source,kotlin]
 ----
-fun matMul(
-    other: Tensor,
-    p: Int,  // Zeilen dieser Matrix
-    q: Int,  // Spalten dieser / Zeilen andere
-    r: Int,  // Spalten andere
-): Tensor {
-    val result = DoubleArray(p * r)
-    for (i in 0 until p) {
-        for (j in 0 until r) {
-            var sum = 0.0
-            for (k in 0 until q) {
-                sum += data[i * q + k] * other.data[k * r + j]
-            }
-            result[i * r + j] = sum
-        }
-    }
-
-    val out = Tensor(result, listOf(this, other))
-    out.backwardStep = {
-        // dA = dC · Bᵀ
-        for (i in 0 until p) {
-            for (k in 0 until q) {
-                var sum = 0.0
-                for (j in 0 until r) {
-                    sum += out.grad[i * r + j] * other.data[k * r + j]
-                }
-                grad[i * q + k] += sum
-            }
-        }
-        // dB = Aᵀ · dC
-        for (k in 0 until q) {
-            for (j in 0 until r) {
-                var sum = 0.0
-                for (i in 0 until p) {
-                    sum += data[i * q + k] * out.grad[i * r + j]
-                }
-                other.grad[k * r + j] += sum
-            }
-        }
-    }
-    return out
-}
+include::{sourceDirKapitel4}/scratch/autograd/Tensor.kt[tag=tensor-matmul]
 ----
 
-**Wichtig:** Die Backward-Regeln kommen aus der Matrix-Kalkülregel:
-- `dA = dC · Bᵀ`
-- `dB = Aᵀ · dC`
+Als konkrete Kontrolle multipliziert der Test zwei `2 x 2`-Matrizen:
 
-Aber das Prinzip ist das gleiche: lokale Ableitung × eingehender Gradient.
+- `A = [[1, 2], [3, 4]]`
+- `B = [[5, 6], [7, 8]]`
+- `C = A · B = [[19, 22], [43, 50]]`
 
-=== Production Ready: TensorMultik
-
-Der kanonische Pfad nutzt `TensorMultik`, nicht `Tensor`:
+`c.backward()` startet für `dC` mit einer `2 x 2`-Matrix aus Einsen. Daraus folgen `dA = [[11, 15], [11, 15]]` und `dB = [[4, 4], [6, 6]]`. Der ausführbare Test prüft Shapes, Forward-Werte und beide Gradienten:
 
 [source,kotlin]
 ----
-class TensorMultik(
-    val data: NDArray<Double, D1>,
-    private val children: List<TensorMultik> = emptyList(),
-) {
-    val grad: NDArray<Double, D1> = mk.ndarray(DoubleArray(data.size) { 0.0 })
-    private var backwardStep: () -> Unit = {}
-    val size: Int get() = data.size
-}
+include::{sourceDirKapitel4Test}/scratch/autograd/TensorExamplesTest.kt[tag=tensor-example-matmul]
 ----
 
-Der einzige Unterschied: `TensorMultik` nutzt **Multik's `NDArray`** statt `DoubleArray`.
+=== TensorMultik: Dasselbe Prinzip mit Multik
 
-**Warum?**
-- Multik ist eine Kotlin-ML-Bibliothek mit spezialisierter Hardware-Unterstützung
-- NDArray ist schneller, kann GPU nutzen, optimiert für große Matrizen
-- Aber die Backprop-Logik ist **identisch**
+Der Bibliothekspfad des Projekts nutzt `TensorMultik`. Die Klasse übernimmt das gleiche Rechengraph-Prinzip, speichert Werte und Gradienten aber in Multik-Arrays:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/TensorMultik.kt[tag=tensor-multik-structure]
+include::{sourceDirKapitel4}/library/autograd/TensorMultik.kt[tag=tensor-multik-structure-end]
+----
+
+Im Maven-Modul sind dafür `multik-core-jvm`, `multik-default-jvm` und `multik-openblas-jvm` eingebunden. Damit stehen auf der JVM die Multik-API und das OpenBLAS-Backend für unterstützte Operationen zur Verfügung. Ein GPU-Backend ist in diesem Projekt nicht konfiguriert.
 
 Das Design ist elegant: Von Value (Lern-Zweck) über Tensor (Verständnis)
-zu TensorMultik (Produktion) – nur das Backend ändert sich, nicht die Mathematik.
+zu TensorMultik (Bibliothekspfad) – die konkrete Speicherung ändert sich, das Autograd-Grundprinzip bleibt gleich.
 
-=== Automatisches Backward: Topologische Sortierung
-
-Bisher haben wir `backwardStep` manuell aufgerufen. In der Praxis passiert das automatisch.
-
-Die Methode `backward()` der Tensor-Klasse:
-1. Sortiert den Graphen **topologisch** (von Eingaben zu Ausgaben)
-2. Reverst die Reihenfolge
-3. Ruft `backwardStep` für jeden Knoten auf
-
-[source,kotlin]
-----
-fun backward() {
-    val ordered = mutableListOf<Tensor>()
-    val visited = mutableSetOf<Tensor>()
-
-    fun buildTopo(node: Tensor) {
-        if (node !in visited) {
-            visited.add(node)
-            node.children.forEach { buildTopo(it) }
-            ordered.add(node)
-        }
-    }
-    buildTopo(this)
-
-    grad[0] = 1.0  // Loss-Gradient = 1.0
-    ordered.asReversed().forEach { it.backwardStep() }
-}
-----
-
-**Warum topologische Sortierung?**
-Wir müssen sicherstellen, dass ein Knoten seine Gradienten erst **erhält**, bevor wir ihn weiterleiten.
-Die topologische Sortierung garantiert diese Reihenfolge.
-
-=== Was NICHT in Autograd gehört
+=== Was wir hier nicht vertiefen
 
 Um nicht zu verzetteln, konzentrieren wir uns auf die **drei Kern-Operationen**:
 - Addition
 - Multiplikation
 - Matrix-Multiplikation
 
-Andere Operationen im Code (softmax, gelu, layerNorm, etc.) folgen dem gleichen Muster.
-Sie sind Implementierungsdetails, nicht konzeptionell neu.
-
-Sie werden in den folgenden Kapiteln benutzt (z.B. softmax in Attention),
-aber ihre Backward-Regeln sind „nur" Anwendung der Kettenregel.
+Weitere Operationen im Code, etwa Softmax, GELU und Layer Normalization, gehören ebenfalls zum Rechengraphen. Wir vertiefen sie in den folgenden Kapiteln an ihrem jeweiligen Einsatzort; ihre Gradienten folgen demselben Prinzip aus lokaler Regel, Kettenregel und Akkumulation.
 
 === Tipps & Stolpersteine
 
 1. **Akkumulation, nicht Überschreiben**
-[source,kotlin]
-----
-// ✅ Richtig
-grad[i] += out.grad[i]
+Die lokalen Backward-Regeln verwenden `+=`, weil ein Knoten über mehrere Pfade zum Ergebnis beitragen kann. Eine Zuweisung mit `=` würde bereits eingetroffene Beiträge überschreiben.
 
-// ❌ Falsch (überschreibt alte Gradienten von anderen Quellen!)
-grad[i] = out.grad[i]
-----
-
-2. **Nur auf Skalaren/Vektoren mit Größe 1 backward() aufrufen**
-[source,kotlin]
-----
-val loss = ... // Größe 1
-loss.backward()  // ✅ Sinnvoll
-
-val embedding = ... // Größe 512
-embedding.backward()  // ❌ Gradienten sind 1 für alle, wenig aussagekräftig
-----
+2. **Seed-Gradient des Outputs kennen**
+Für einen skalaren Loss startet `backward()` mit `1.0`. Bei einem Vektor startet die aktuelle API jedes Element mit `1.0` und differenziert damit die Summe der Elemente. Das ist korrekt, muss aber zur gewünschten Zielgröße passen.
 
 3. **Gradient Reset zwischen Trainings-Schritten**
+Gradienten werden absichtlich akkumuliert. Vor einem neuen Trainingsschritt setzt `zeroGrad()` sie deshalb auf null:
+
 [source,kotlin]
 ----
-// Neuer Trainings-Schritt
-x.grad = DoubleArray(x.size)  // oder .fill(0.0)
-// Neuer Forward-Pass
-loss = forward()
-loss.backward()
+include::{sourceDirKapitel4Test}/scratch/autograd/TensorExamplesTest.kt[tag=tensor-example-zero-grad]
 ----
 
 === Zusammenfassung
 
 - **Micrograd (Value)**: Skalare Gradienten, didaktisches Fundament
-- **Autograd (Tensor)**: Vektorielle Gradienten, gleiche Logik, schneller
-- **TensorMultik**: Gleiche Logik, optimiertes Backend (Multik)
+- **Autograd (Tensor)**: Vektorielle Gradienten, gleiche Logik auf flachen Arrays
+- **TensorMultik**: Gleiche Logik, Multik-Arrays und JVM/OpenBLAS-Anbindung
 - **Kern-Prinzip**: Computational Graph + Kettenregel + topologische Sortierung
 - **Anwendung**: Gradienten fließen rückwärts, Parameter werden optimiert → Lernen
 
 Im nächsten Kapitel bauen wir auf Tensoren auf und implementieren Attention und Transformer-Komponenten.
-
-
-

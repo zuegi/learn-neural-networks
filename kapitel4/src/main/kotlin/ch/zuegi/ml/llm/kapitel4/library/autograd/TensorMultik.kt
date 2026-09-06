@@ -7,6 +7,7 @@ import org.jetbrains.kotlinx.multik.ndarray.data.NDArray
 import org.jetbrains.kotlinx.multik.ndarray.data.get
 import org.jetbrains.kotlinx.multik.ndarray.data.set
 
+// tag::tensor-multik-structure[]
 class TensorMultik(
     val data: NDArray<Double, D1>,
     private val children: List<TensorMultik> = emptyList(),
@@ -14,6 +15,7 @@ class TensorMultik(
     val grad: NDArray<Double, D1> = mk.ndarray(DoubleArray(data.size) { 0.0 })
     private var backwardStep: () -> Unit = {}
     val size: Int get() = data.size
+    // end::tensor-multik-structure[]
 
     companion object {
         fun stackRows(
@@ -471,4 +473,6 @@ class TensorMultik(
         }
         return out
     }
+    // tag::tensor-multik-structure-end[]
 }
+// end::tensor-multik-structure-end[]

@@ -18,6 +18,7 @@ import kotlin.math.tanh
  * @param data Werte des Vektors.
  * @param children Eltern-Knoten, aus denen dieser Vektor entstanden ist.
  */
+// tag::tensor-structure[]
 class Tensor(
     val data: DoubleArray,
     val children: List<Tensor> = emptyList(),
@@ -27,6 +28,7 @@ class Tensor(
     internal var backwardStep: () -> Unit = {}
 
     val size: Int get() = data.size
+    // end::tensor-structure[]
 
     companion object {
         fun stackRows(
@@ -103,6 +105,7 @@ class Tensor(
      * Elementweise Addition. Gradient fliesst 1:1 an beide Operanden:
      * d(a+b)/da = 1, d(a+b)/db = 1 (pro Element).
      */
+    // tag::tensor-plus[]
     operator fun plus(other: Tensor): Tensor {
         require(size == other.size) { "Groessen muessen uebereinstimmen: $size vs ${other.size}" }
         val out = Tensor(DoubleArray(size) { data[it] + other.data[it] }, listOf(this, other))
@@ -114,6 +117,7 @@ class Tensor(
         }
         return out
     }
+    // end::tensor-plus[]
 
     /**
      * Elementweise Multiplikation (Hadamard). Produktregel pro Element:
@@ -217,6 +221,7 @@ class Tensor(
      * @param r Spalten von B.
      * @return Ergebnis-Tensor der Groesse p * r (Form [p, r], row-major).
      */
+    // tag::tensor-matmul[]
     fun matMul(
         other: Tensor,
         p: Int,
@@ -262,6 +267,7 @@ class Tensor(
         }
         return out
     }
+    // end::tensor-matmul[]
 
     /**
      * Cross-Entropy-Loss ueber Softmax, kombiniert als eine Operation.
@@ -517,6 +523,8 @@ class Tensor(
      * Rueckwaertsdurchlauf. Setzt grad dieses Knotens auf 1 (pro Element) und
      * propagiert in topologischer Reihenfolge rueckwaerts durch den Graphen.
      */
+    @Suppress("ktlint:standard:no-consecutive-comments")
+    // tag::tensor-backward[]
     fun backward() {
         val ordered = mutableListOf<Tensor>()
         val visited = mutableSetOf<Tensor>()
@@ -535,6 +543,7 @@ class Tensor(
         }
         ordered.asReversed().forEach { it.backwardStep() }
     }
+    // end::tensor-backward[]
 
     /**
      * Elementweises Inverted Dropout.
@@ -733,4 +742,6 @@ class Tensor(
         }
         return out
     }
+    // tag::tensor-structure-end[]
 }
+// end::tensor-structure-end[]

@@ -3,7 +3,6 @@ package ch.zuegi.ml.llm.kapitel4.scratch.autograd
 import kotlin.math.pow
 import kotlin.math.tanh
 
-
 /**
  * Skalar * Value. Kotlin-Aequivalent zu Pythons `__rmul__`.
  * Ermoeglicht `3.0 * x`, indem der Skalar in ein Blatt-[Value] gewickelt wird.
@@ -11,22 +10,28 @@ import kotlin.math.tanh
  * Das sind Kotlin Extension Functions
  */
 @Suppress("ktlint:standard:no-consecutive-comments")
-// tag::value-scalar-overloads-top-level[]
+// tag::value-scalar-overloads-top-level_times[]
 operator fun Double.times(value: Value): Value = Value(this) * value
+// end::value-scalar-overloads-top-level_times[]
 
 /**
  * Skalar + Value. Kotlin-Aequivalent zu Pythons `__radd__`.
  * Ermoeglicht `3.0 + x`.
  */
+@Suppress("ktlint:standard:no-consecutive-comments")
+// tag::value-scalar-overloads-top-level_plus[]
 operator fun Double.plus(value: Value): Value = Value(this) + value
+// end::value-scalar-overloads-top-level_plus[]
 
 /**
  * Skalar / Value. Kotlin-Aequivalent zu Pythons `__rtruediv__`.
  * Umgesetzt als `Value(skalar) * value^(-1)`, damit der Gradient ueber die
  * bestehenden `times`- und `pow`-Regeln automatisch korrekt fliesst.
  */
+@Suppress("ktlint:standard:no-consecutive-comments")
+// tag::value-scalar-overloads-top-level_div[]
 operator fun Double.div(value: Value): Value = Value(this) * value.pow(-1.0)
-// end::value-scalar-overloads-top-level[]
+// end::value-scalar-overloads-top-level_div[]
 
 /**
  * Skalarer Autograd-Knoten (Micrograd-Stil). Siehe auch https://www.youtube.com/watch?v=VMj-3S1tku0
@@ -39,20 +44,17 @@ operator fun Double.div(value: Value): Value = Value(this) * value.pow(-1.0)
  * @param data der Zahlenwert dieses Knotens.
  * @param children Eltern-Knoten, aus denen dieser Wert entstanden ist.
  */
-@Suppress("ktlint:standard:no-consecutive-comments")
 // tag::value-structure[]
+@Suppress("ktlint:standard:no-consecutive-comments")
 class Value(
     var data: Double,
     private val children: List<Value> = emptyList(),
 ) {
-
     var grad: Double = 0.0
 
     // lokale Rueckwaertsregel dieser Operation, Default: nichts tun (Blatt)
     private var backwardStep: () -> Unit = {}
     // end::value-structure[]
-
-
 
     /** Addition zweier Values. Gradient fliesst 1:1 an beide Operanden (d(a+b)=1). */
     // tag::value-plus[]
@@ -105,19 +107,19 @@ class Value(
     }
     // end::value-pow[]
 
-    // tag::value-scalar-overloads-member[]
-
     /**
      * Value * Skalar, z.B. `x * 3.0`. Wickelt den Skalar in ein Blatt-[Value].
      */
+    // tag::value-scalar-overloads-member_times[]
     operator fun times(scalar: Double): Value = this * Value(scalar)
+    // end::value-scalar-overloads-member_times[]
 
     /**
      * Value + Skalar, z.B. `x + 3.0`.
      */
+    // tag::value-scalar-overloads-member_plus[]
     operator fun plus(scalar: Double): Value = this + Value(scalar)
-    // end::value-scalar-overloads-member[]
-
+    // end::value-scalar-overloads-member_plus[]
 
     /**
      * Value / Value, umgesetzt als `this * other^(-1)`.
@@ -129,8 +131,6 @@ class Value(
 
     operator fun div(scalar: Double): Value = this * Value(scalar).pow(-1.0)
     // end::value-div[]
-
-
 
     /**
      * Rueckwaertsdurchlauf: setzt den Gradienten dieses Knotens auf 1 und

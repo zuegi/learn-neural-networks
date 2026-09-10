@@ -1,5 +1,5 @@
 [[Attention]]
-:sourceDirKapitel2: ../../../kapitel3/src/main/kotlin/ch/zuegi/ml/llm/kapitel3
+:sourceDirKapitel4: ../../../kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4
 :sourceDirExkurse: ../exkurse
 :sourceDirImages: ../images
 :lang: de

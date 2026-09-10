@@ -11,7 +11,86 @@ Der Attention-Mechanismus ist das Herzstück eines Transformers: Er erlaubt
 es jedem Token, sich auf alle anderen Token der Sequenz zu "beziehen" und
 so Kontext herzustellen.
 
-=== Konzept: Scaled Dot-Product Attention
+=== Warum Attention?
+
+Im letzten Kapitel haben wir gesehen, wie aus Token-IDs Vektoren werden.
+Jeder Token bekommt dadurch eine numerische Darstellung. Diese Darstellung ist
+aber zuerst lokal: Sie beschreibt den Token und seine Position, noch nicht seine
+Rolle im ganzen Satz.
+
+Sprache funktioniert selten wortweise. Ein Wort bekommt seine Bedeutung oft erst
+durch andere Wörter in der Nähe. In dem Satz "Die Bank am Fluss war nass" meint
+"Bank" etwas anderes als in "Die Bank genehmigt den Kredit". Das Token allein
+reicht nicht; der Kontext entscheidet.
+
+Attention ist der Mechanismus, mit dem ein Modell diesen Kontext bildet. Für
+jede Position fragt das Modell: Welche anderen Positionen sind gerade wichtig?
+Die Antwort ist keine harte Auswahl. Stattdessen verteilt Attention Gewichte
+über die Sequenz. Manche Tokens bekommen viel Gewicht, andere wenig.
+
+Das Ergebnis ist ein neuer Vektor pro Token. Dieser Vektor enthält weiterhin die
+Information des aktuellen Tokens, ist aber mit relevanten Informationen aus dem
+Kontext angereichert.
+
+=== Die Grundidee intuitiv
+
+Stell dir vor, jedes Token schaut auf die ganze Sequenz und sammelt Hinweise.
+Dabei passieren drei Dinge:
+
+* Es formuliert eine Frage: Wonach suche ich gerade?
+* Es vergleicht diese Frage mit den Rollen der anderen Tokens.
+* Es übernimmt die Inhalte der Tokens, die gut zur Frage passen.
+
+Aus diesen drei Rollen entstehen Query, Key und Value.
+
+Eine **Query** ist die Suchfrage eines Tokens. Sie beschreibt, welche Art von
+Information für diese Position nützlich wäre.
+
+Ein **Key** ist das Vergleichssignal eines Tokens. Er beschreibt, wofür dieses
+Token im Kontext angeboten wird.
+
+Ein **Value** ist der Inhalt, der weitergegeben wird, wenn Query und Key gut
+zusammenpassen.
+
+Damit trennt Attention drei Aufgaben, die bei Sprache alle gleichzeitig wichtig
+sind: suchen, vergleichen und Information übernehmen.
+
+=== Gewichtete Kontextbildung
+
+Für jedes Token vergleicht Attention seine Query mit den Keys aller Tokens.
+Daraus entstehen Gewichte. Ein hohes Gewicht bedeutet: Dieser andere Token ist
+für die aktuelle Position wichtig. Ein niedriges Gewicht bedeutet: Dieser Token
+spielt hier kaum eine Rolle.
+
+Anschließend werden die Values mit diesen Gewichten gemischt. Das ist wie eine
+gewichtete Zusammenfassung der Sequenz aus Sicht einer bestimmten Position.
+
+Wichtig ist: Jede Position bekommt ihre eigene Zusammenfassung. Das erste Token
+kann also auf andere Wörter achten als das dritte Token. Genau dadurch entstehen
+kontextabhängige Repräsentationen.
+
+=== Warum Multi-Head Attention?
+
+Ein einzelner Attention-Blick kann nur eine gelernte Art von Beziehung besonders
+gut abbilden. Sprache enthält aber viele Beziehungen gleichzeitig: Subjekt und
+Verb, Adjektiv und Nomen, Pronomen und Bezug, lokale Nachbarschaft und längere
+Abhängigkeiten.
+
+Multi-Head Attention löst das, indem mehrere Attention-Köpfe parallel arbeiten.
+Jeder Kopf bekommt eigene gelernte Projektionen und kann dadurch eine andere
+Perspektive auf dieselbe Sequenz entwickeln.
+
+Man kann sich die Köpfe wie mehrere Leser vorstellen, die denselben Satz mit
+unterschiedlichem Fokus lesen. Einer achtet vielleicht auf grammatische Nähe,
+ein anderer auf semantische Rollen, ein weiterer auf spätere oder frühere
+Positionen. Am Ende werden diese Perspektiven wieder zusammengeführt.
+
+Der Nutzen liegt nicht darin, dass wir jedem Kopf manuell eine feste Aufgabe
+geben. Die Aufgaben entstehen im Training. Multi-Head Attention gibt dem Modell
+nur genügend getrennte Blickwinkel, um verschiedene Muster gleichzeitig zu
+lernen.
+
+=== Technisches Konzept: Scaled Dot-Product Attention
 
 ==== Query, Key, Value
 
@@ -72,81 +151,45 @@ attention_{i,j} = softmax(score_{i,j})  // Zukünftige j → ~ 0
 
 === Implementierung mit Tensor (kanonischer Pfad)
 
-Die `MultiHeadAttentionMultikTensor`-Klasse implementiert dies mit `TensorMultik`:
+Die `MultiHeadAttentionMultikTensor`-Klasse implementiert dies mit
+`TensorMultik`. Der kanonische Code liegt in
+link:{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[`MultiHeadAttentionMultikTensor.kt`].
+Die öffentliche API ist
+`forward(input: TensorMultik, ctx: Int, training: Boolean = false)`.
 
-[source,kotlin]
-----
-class MultiHeadAttentionMultikTensor(
-    val embedDim: Int,
-    val numHeads: Int,
-) {
-    private val headDim = embedDim / numHeads
+`input` enthält die Sequenz als row-major Matrix `[ctx, embeddingDim]`.
+`ctx` ist die Sequenzlänge. Der Forward-Pfad prüft zuerst
+`input.size == ctx * embeddingDim`; falsche Formen werden damit direkt an der
+API-Grenze sichtbar.
 
-    // Linear-Projektionen für Q, K, V
-    private val wq = TensorMultik(...)  // embedDim × embedDim
-    private val wk = TensorMultik(...)
-    private val wv = TensorMultik(...)
-    private val wo = TensorMultik(...)  // Output-Projektion
+Der tatsächliche Ablauf ist:
 
-    fun forward(query: TensorMultik, key: TensorMultik, value: TensorMultik): TensorMultik {
-        // 1. Linear Projections
-        var Q = query.matmul(wq, ...)  // [seq_len, embed_dim]
-        var K = key.matmul(wk, ...)
-        var V = value.matmul(wv, ...)
+1. `input` wird mit `wQuery`, `wKey` und `wValue` auf `headDim = numHeads * dK`
+   projiziert.
+2. Falls aktiviert, addieren `bQuery`, `bKey` und `bValue` je eine Bias-Zeile.
+3. Die projizierten Matrizen werden spaltenweise in `numHeads` Köpfe der Breite
+   `dK` geschnitten.
+4. Jeder Kopf berechnet pro Query-Zeile die Skalarprodukte gegen alle Key-Zeilen.
+5. Die Scores werden durch `sqrt(dK)` skaliert; bei `causal = true` werden
+   Zukunftspositionen vor dem Softmax maskiert.
+6. `softmax()` normalisiert jede Score-Zeile zu Attention-Gewichten.
+7. Attention-Dropout läuft nur bei `training == true` und `dropoutProb > 0.0`.
+8. Die Gewichte bilden pro Position eine gewichtete Summe der Value-Zeilen.
+9. Alle Head-Ausgaben werden konkateniert, mit `wOutput` auf `embeddingDim`
+   zurückprojiziert und optional mit `bOutput` verschoben.
 
-        // 2. Split in Heads
-        val Q_heads = splitHeads(Q)  // List<TensorMultik>
-        val K_heads = splitHeads(K)
-        val V_heads = splitHeads(V)
+Damit ist `embeddingDim` nicht auf `numHeads * dK` festgelegt. `headDim`
+beschreibt nur die interne Q/K/V-Breite aller Köpfe; die Output-Projektion bringt
+das Ergebnis zurück auf `[ctx, embeddingDim]`.
 
-        // 3. Attention pro Head
-        val attentionHeads = Q_heads.zip(K_heads).zip(V_heads).map { (qk, v) ->
-            val (q, k) = qk
-            scaledDotProductAttention(q, k, v)
-        }
+==== Scaled Dot-Product Attention im Forward-Pfad
 
-        // 4. Concat Heads
-        val concat = concatHeads(attentionHeads)
-
-        // 5. Output Projektion
-        return concat.matmul(wo, ...)
-    }
-}
-----
-
-==== Scaled Dot-Product Attention (eine Head)
-
-[source,kotlin]
-----
-fun scaledDotProductAttention(
-    q: TensorMultik,  // [seq_len, head_dim]
-    k: TensorMultik,  // [seq_len, head_dim]
-    v: TensorMultik,  // [seq_len, head_dim]
-    mask: BooleanArray? = null,
-): TensorMultik {
-    // 1. Q @ K^T
-    val scores = q.matmul(k.transpose(), seq_len, head_dim, seq_len)  // [seq_len, seq_len]
-
-    // 2. Scale
-    val scale = 1.0 / sqrt(head_dim.toDouble())
-    val scaledScores = scores.mul(scale)
-
-    // 3. Causal Mask (falls autoregressive)
-    if (mask != null) {
-        for (i in 0 until seq_len) {
-            for (j in i+1 until seq_len) {
-                scaledScores.data[i * seq_len + j] = Double.NEGATIVE_INFINITY
-            }
-        }
-    }
-
-    // 4. Softmax
-    val attention = softmax(scaledScores)  // [seq_len, seq_len]
-
-    // 5. Attention @ V
-    return attention.matmul(v, seq_len, seq_len, head_dim)  // [seq_len, head_dim]
-}
-----
+`forwardHead` zeigt den Kern der Attention-Rechnung ohne zweite öffentliche API:
+Für jede Query-Position entsteht eine Score-Zeile gegen alle Keys. Bei kausaler
+Attention setzt `maskCausalScale` zukünftige Scores vor dem Softmax auf
+`-Infinity`, sodass diese Positionen nach dem Softmax Gewicht `0` erhalten. Die
+Methode `weightedValueSum` berechnet anschließend die gewichtete Value-Summe für
+dieselbe Position.
 
 ==== Forward vs. Backward
 
@@ -189,9 +232,9 @@ Query/Key/Value: (seq_len, 512)
 
 === Design-Entscheidungen
 
-1. **Warum Causal Masking nur bei Generation?**
-   - Beim Training auf vollständigen Samples ist Masking bereits eingebaut (`CausalAttentionMultik`).
-   - Bei Inferenz (token-by-token) wird Masking pro Iteration angewendet.
+1. **Warum ist Causal Masking konfigurierbar?**
+   - `causal = true` erzwingt autoregressive Self-Attention: Position `i` sieht keine Zukunft.
+   - `causal = false` erlaubt bidirektionale Self-Attention über die ganze Sequenz.
 
 2. **Warum Linear-Projektionen für Q/K/V?**
    - Ohne Projektionen müssten Q/K/V = Input-Embedding sein (weniger flexibel).
@@ -209,15 +252,8 @@ Query/Key/Value: (seq_len, 512)
 
 2. **Softmax über falsche Achse**
    - Pro Query (Zeile) normalisieren, nicht über die ganze Matrix!
-   - [source,kotlin]
-     ----
-     // ✅ Richtig: softmax zeilenweise
-     for (i in 0 until rows) {
-         for (j in 0 until cols) {
-             result[i, j] = exp(...) / Σ_k exp(...)  // Σ über j
-         }
-     }
-     ----
+   - Richtig ist: Für jede Query-Zeile läuft die Summe über alle Key-Spalten
+     derselben Zeile.
 
 3. **Causal Mask Koordinaten**
    - Indizierung: Für 1D-Array als `[i * seq_len + j]`
@@ -234,4 +270,3 @@ Query/Key/Value: (seq_len, 512)
 - **Multi-Head**: Mehrere parallele Attention-Köpfe für reichere Repräsentation
 - **Causal Masking**: Für autoregressive (token-by-token) Generierung
 - **Backprop**: Gradienten fließen automatisch durch alle Tensor-Operationen
-

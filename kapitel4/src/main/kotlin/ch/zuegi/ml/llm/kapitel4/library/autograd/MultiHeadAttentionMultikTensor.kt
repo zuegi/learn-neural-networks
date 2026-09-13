@@ -72,6 +72,7 @@ class MultiHeadAttentionMultikTensor(
      * @param training true = Attention-Dropout aktiv.
      * @return Matrix-Tensor [ctx, embeddingDim], row-major.
      */
+    // tag::multi-head-attention-forward[]
     fun forward(
         input: TensorMultik,
         ctx: Int,
@@ -114,6 +115,7 @@ class MultiHeadAttentionMultikTensor(
             .matMul(wOutput, p = ctx, q = headDim, r = embeddingDim)
             .withOptionalBias(ctx, embeddingDim, bOutput)
     }
+    // end::multi-head-attention-forward[]
 
     fun parameters(): List<TensorMultik> =
         buildList {
@@ -127,6 +129,7 @@ class MultiHeadAttentionMultikTensor(
             bOutput?.let { add(it) }
         }
 
+    // tag::multi-head-attention-forward-head[]
     private fun forwardHead(
         query: TensorMultik,
         key: TensorMultik,
@@ -152,6 +155,7 @@ class MultiHeadAttentionMultikTensor(
 
         return TensorMultik.stackRows(rows, dK)
     }
+    // end::multi-head-attention-forward-head[]
 
     private fun weightedValueSum(
         weights: TensorMultik,

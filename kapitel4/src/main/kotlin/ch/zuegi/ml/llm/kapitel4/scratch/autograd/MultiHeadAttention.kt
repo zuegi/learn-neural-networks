@@ -45,6 +45,7 @@ class MultiHeadAttention(
      * @param training true = Attention-Dropout aktiv.
      * @return Matrix-Tensor [ctx, embeddingDim], row-major.
      */
+    // tag::scratch-multi-head-attention-forward[]
     fun forward(
         input: Tensor,
         ctx: Int,
@@ -73,9 +74,11 @@ class MultiHeadAttention(
         val concatenated = Tensor.concatCols(headOutputs, ctx = ctx, colsEach = dK)
         return concatenated.matMul(wOutput, p = ctx, q = headDim, r = embeddingDim)
     }
+    // end::scratch-multi-head-attention-forward[]
 
     fun parameters(): List<Tensor> = listOf(wQuery, wKey, wValue, wOutput)
 
+    // tag::scratch-multi-head-attention-forward-head[]
     private fun forwardHead(
         query: Tensor,
         key: Tensor,
@@ -101,6 +104,7 @@ class MultiHeadAttention(
 
         return Tensor.stackRows(rows, dK)
     }
+    // end::scratch-multi-head-attention-forward-head[]
 
     private fun weightedValueSum(
         weights: Tensor,

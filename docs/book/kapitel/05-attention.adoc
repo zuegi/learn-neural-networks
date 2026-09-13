@@ -1,5 +1,6 @@
 [[Attention]]
 :sourceDirKapitel4: ../../../kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4
+:sourceDirKapitel4Test: ../../../kapitel4/src/test/kotlin/ch/zuegi/ml/llm/kapitel4
 :sourceDirExkurse: ../exkurse
 :sourceDirImages: ../images
 :lang: de
@@ -90,145 +91,309 @@ geben. Die Aufgaben entstehen im Training. Multi-Head Attention gibt dem Modell
 nur genügend getrennte Blickwinkel, um verschiedene Muster gleichzeitig zu
 lernen.
 
-=== Technisches Konzept: Scaled Dot-Product Attention
+=== Technisches Konzept: Scaled Dot-Product Attention Schritt für Schritt
 
-==== Query, Key, Value
+Das technische Konzept übersetzt die Intuition (suchen, vergleichen, übernehmen)
+in sechs aufeinanderfolgende Rechenschritte: Projektion, Ähnlichkeitsvergleich,
+Skalierung, Maskierung, Normalisierung und gewichtete Summe.
 
-Der Attention-Mechanismus arbeitet mit drei Projektionen jedes Token:
+==== 1. Lineare Projektionen (Q, K, V)
 
-- **Query (Q)**: "Was suche ich?"
-- **Key (K)**: "Wofür stehe ich?"
-- **Value (V)**: "Welche Information trage ich?"
-
-Für einen Eingabe-Token mit Embedding `x_i` erzeugen lineare Schichten:
-[source,text]
-----
-Q_i = W_Q @ x_i
-K_i = W_K @ x_i
-V_i = W_V @ x_i
-----
-
-==== Scaled Dot-Product
-
-Der Attention-Score zwischen Token `i` und Token `j` ist:
-[source,text]
-----
-score_{i,j} = (Q_i · K_j) / √d_k
-
-wobei d_k = Dimension von Key/Query (z.B. 64 bei 8 Heads à 512/8)
-----
-
-Das Skalieren mit `1/√d_k` stabilisiert das Gradientenfluss (verhindert zu große/kleine Gradienten).
-
-==== Softmax & Context
-
-Die Scores werden zeilenweise normalisiert (für jeden Query-Token):
-[source,text]
-----
-attention_{i,j} = softmax(score_{i,j})
-                 = exp(score_{i,j}) / Σ_k exp(score_{i,k})
-----
-
-Das Ergebnis ist jede Zeile eine Wahrscheinlichkeitsverteilung über alle Keys.
-
-Dann nimmt jeder Token einen gewichteten Mittelwert der Values:
-[source,text]
-----
-output_i = Σ_j attention_{i,j} * V_j
-----
-
-==== Causal Masking (für Autoregressive Modelle)
-
-Beim Generieren von Text darf Token `i` nicht in die Zukunft (j > i) schauen.
-Deshalb werden zukünftige Positionen vor Softmax auf `-∞` maskiert:
+Die Eingabe ist eine Matrix `X` der Form `[ctx, embeddingDim]`. Jede Zeile
+repräsentiert ein Token `x_i`. Damit das Modell lernen kann, wonach ein Token
+sucht und wofür es steht, wird `X` durch drei trainierbare Gewichtsmatrizen
+`W_Q`, `W_K` und `W_V` projiziert:
 
 [source,text]
 ----
-score_{i,j} = (Q_i · K_j) / √d_k
-score_{i,j} += MASK (wobei MASK = -∞ für j > i, else 0)
-attention_{i,j} = softmax(score_{i,j})  // Zukünftige j → ~ 0
+Q = X @ W_Q    // Query-Matrix  [ctx, headDim]
+K = X @ W_K    // Key-Matrix    [ctx, headDim]
+V = X @ W_V    // Value-Matrix  [ctx, headDim]
 ----
 
-=== Implementierung mit Tensor (kanonischer Pfad)
+Für ein einzelnes Token `i` bedeutet das:
 
-Die `MultiHeadAttentionMultikTensor`-Klasse implementiert dies mit
-`TensorMultik`. Der kanonische Code liegt in
+* `Q_i` beschreibt die aktuelle Suchfrage an die Sequenz.
+* `K_i` beschreibt das Signal, das dieses Token anderen Suchfragen anbietet.
+* `V_i` enthält den eigentlichen Inhalt, der bei hoher Übereinstimmung weitergegeben wird.
+
+==== 2. Ähnlichkeit messen: Das Skalarprodukt (Dot-Product)
+
+Um zu messen, wie gut die Frage von Token `i` zum Angebot von Token `j` passt,
+berechnen wir das Skalarprodukt `Q_i · K_j`. Über alle Tokens hinweg passiert
+das als Matrixmultiplikation `Q @ K^T`:
+
+[source,text]
+----
+scores = Q @ K^T    // Matrix der Form [ctx, ctx]
+----
+
+Der Eintrag `scores[i, j]` misst die Ähnlichkeit zwischen Query `i` und Key `j`.
+Ein höherer (positiverer) Wert bedeutet höhere Relevanz: Ein hoher positiver Score
+führt nach dem Softmax zu einem Gewicht nahe `1.0` (starke Aufmerksamkeit),
+ein Wert um `0` bedeutet neutrale Relevanz, und stark negative Werte (oder `-∞`)
+führen zu einem Gewicht von nahe `0.0` (keine Aufmerksamkeit).
+
+==== 3. Skalierung mit √d_k
+
+Warum dividieren wir das Skalarprodukt durch `√d_k`?
+
+Nehmen wir an, die Komponenten von Query `Q_i` und Key `K_j` sind unabhängig verteilte Zufallsvariablen mit Mittelwert `0` und Varianz `1`. Das Skalarprodukt bildet die Summe über `d_k` Produkte:
+
+[source,text]
+----
+Q_i · K_j = Σ_{h=1}^{d_k} Q_{i,h} * K_{j,h}
+----
+
+Jedes einzelne Produkt `Q_{i,h} * K_{j,h}` hat ebenfalls Mittelwert `0` und Varianz `1`. Da sich bei der Summe unabhängiger Zufallsvariablen die Varianzen addieren, hat das unskalierte Skalarprodukt eine Varianz von `d_k` und eine Standardabweichung von `√d_k`.
+
+Das bedeutet: Je größer die Head-Dimension `d_k` ist, desto weiter streuen die berechneten Scores betragsmäßig nach oben und unten. Bei `d_k = 64` beträgt die Standardabweichung bereits `8`. Ein Score kann dann leicht Werte von `+16` oder `-16` annehmen.
+
+Verhalten im Softmax ohne Skalierung:
+
+* Ein extremer Score wie `+16` erzeugt im Softmax `exp(16) ≈ 8.886.110`.
+* Selbst ein leicht kleinerer Score von `+8` erzeugt nur `exp(8) ≈ 2.980`.
+* Der höchste Score dominiert dadurch die Softmax-Verteilung fast vollständig (Spitzenbildung / One-Hot-Verhalten).
+* Die Ableitung der Softmax-Funktion geht in diesen extremen Bereichen gegen `0` (vanishing gradient). Das Modell kann seine Gewichte kaum noch über Backpropagation anpassen.
+
+Durch die Division durch `√d_k`:
+
+[source,text]
+----
+scaled_scores = (Q @ K^T) / √d_k
+----
+
+wird die Varianz des Ergebnisses wieder auf exakt `1.0` normiert. Die Scores bleiben moderat, die Softmax-Verteilung bleibt differenzierbar, und der Gradientenfluss während des Trainings ist stabilisiert.
+
+==== 4. Maskierung (Causal Masking für Sprache)
+
+In autoregressiven Sprachmodellen erzeugt das Modell Text Token für Token.
+Token `i` darf beim Lernen und Generieren keine Information aus zukünftigen
+Positionen `j > i` nutzen.
+
+Deshalb werden vor dem Softmax alle Eintrags-Positionen `j > i` in den Scores auf
+`-∞` gesetzt:
+
+[source,text]
+----
+if (j > i) scaled_scores[i, j] = -∞
+----
+
+Da `exp(-∞) = 0` ist, erhalten zukünftige Positionen im nächsten Schritt ein
+Gewicht von exakt `0`. Position `i` sieht somit nur sich selbst und alle
+vorherigen Tokens `0 .. i`.
+
+==== 5. Normalisierung mit Softmax
+
+Die skalierten (und eventuell maskierten) Scores sind noch beliebige reelle Zahlen. Um sie als Aufmerksamkeitsgewichte für eine gewichtete Summe zu nutzen, müssen sie in Wahrscheinlichkeiten umgewandelt werden. Dafür wenden wir zeilenweise die Softmax-Funktion an:
+
+[source,text]
+----
+weights = softmax(scaled_scores)    // Zeilenweise über Key-Spalten j
+----
+
+Für jedes Token `i` berechnet der Softmax für jede Key-Position `j`:
+
+[source,text]
+----
+weights[i, j] = exp(scaled_scores[i, j]) / Σ_{k=0}^{ctx-1} exp(scaled_scores[i, k])
+----
+
+Warum ist Softmax hier die richtige Wahl?
+
+1. **Exponentiation `exp(x)`:** Wandelt jeden Score in einen positiven Wert um (`exp(x) > 0`). Damit wird kein Gewicht negativ, selbst wenn der ursprüngliche Score stark negativ war. Zukünftige maskierte Positionen mit `-∞` werden zu exakt `exp(-∞) = 0.0`.
+2. **Normalisierung durch die Summe:** Die Division durch die Summe aller Exponenten garantiert, dass die Summe aller Gewichte in Zeile `i` exakt `1.0` (also `100%`) ergibt: `Σ_j weights[i, j] = 1.0`.
+3. **Differenzierbarkeit:** Softmax ist eine stetig differenzierbare Funktion. Das erlaubt es dem Modell, während des Backpropagation-Schritts Gradienten durch die Aufmerksamkeitsgewichte zurück zu den Query- und Key-Projektionen zu leiten.
+
+Numerische Stabilität in der Praxis:
+
+In der Praxis würde eine direkte Berechnung von `exp(score)` bei großen Scores zu einem numerischen Überlauf (`Double.POSITIVE_INFINITY` / Overflow) führen. Deshalb nutzt die Implementierung (siehe `Tensor.softmax()` / `TensorMultik.softmax()`) den sogenannten **Max-Trick**:
+
+[source,text]
+----
+max_score = max(scaled_scores[i, :])
+weights[i, j] = exp(scaled_scores[i, j] - max_score) / Σ_k exp(scaled_scores[i, k] - max_score)
+----
+
+Indem wir vor der Exponentiation das Zeilenmaximum `max_score` abziehen, ist der größte Exponent exakt `exp(0) = 1.0`. Das mathematische Ergebnis bleibt dabei identisch, aber Überläufe werden zuverlässig verhindert.
+
+Nach dem Softmax ist jede Zeile `i` der Matrix `weights` (Form `[ctx, ctx]`) eine gültige Wahrscheinlichkeitsverteilung. Sie beschreibt exakt, wie viel Prozent der Aufmerksamkeit Position `i` auf jede Position `j` der Sequenz richtet.
+
+==== 6. Kontext bilden (Gewichtete Summe der Values)
+
+Im letzten Schritt werden die Wichtigkeitsgewichte mit den Inhalten `V` multipliziert:
+
+[source,text]
+----
+output = weights @ V    // Matrix der Form [ctx, headDim]
+----
+
+Für jede Position `i` entsteht ein Vektor:
+
+[source,text]
+----
+output_i = Σ_j weights[i, j] * V_j
+----
+
+Dieser Vektor ist das Ergebnis von Scaled Dot-Product Attention für eine Position:
+Eine gewichtete Kombination aller Value-Vektoren in Abhängigkeit davon, wie gut
+deren Keys zur Query gepasst haben.
+
+=== Shape-Herleitung & Tensor-Dimensionen
+
+Um die Transformationen im Forward-Pass mathematisch und im Code ohne Verwirrung zu verfolgen, betrachten wir die Shapes aller Tensoren systematisch.
+
+==== Verbindliche Tensor-Shape-Regeln
+
+Alle Formen beziehen sich auf row-major `TensorMultik`-Daten (bzw. `Tensor` im Scratch-Pfad):
+
+[cols="1,2,3", options="header"]
+|===
+| Bezeichnung | Form / Dimension | Bedeutung
+| `input` | `[ctx, embeddingDim]` | Eingabezeilen pro Token (`ctx` Token-Vektoren)
+| `W_Q`, `W_K`, `W_V` | `[embeddingDim, headDim]` | Gemeinsame Projektionsmatrizen
+| `Q`, `K`, `V` | `[ctx, headDim]` | Projizierte Gesamtsequenz über alle Köpfe
+| `headDim` | `numHeads * dK` | Gesamtbreite aller Köpfe kombiniert
+| `Q_h`, `K_h`, `V_h` | `[ctx, dK]` | Projizierter Teil-Tensor für einen einzelnen Head $h$
+| `scores_h` | `[ctx, ctx]` | Query-Position $i$ gegen Key-Position $j$ pro Head
+| `weights_h` | `[ctx, ctx]` | Zeilenweise normalisierte Aufmerksamkeitsgewichte pro Head
+| `headOutput_h` | `[ctx, dK]` | Gewichtete Value-Summen eines einzelnen Heads
+| Konkatenierte Köpfe | `[ctx, headDim]` | Spaltenweise Zusammenführung aller `numHeads` Köpfe
+| `W_output` | `[headDim, embeddingDim]` | Rückprojektion auf die Modell-Embedding-Dimension
+| `output` (Rückgabe) | `[ctx, embeddingDim]` | Finale kontextualisierte Output-Sequenz
+|===
+
+Für jeden Forward-Aufruf gilt strikt `input.size == ctx * embeddingDim`. `ctx` ist die Sequenzlänge (Anzahl der Tokens) und nicht zu verwechseln mit `embeddingDim`, `dK` oder der Anzahl der Köpfe `numHeads`.
+
+==== Herleitung pro Head und Beziehung zwischen `dK`, `headDim` und `embeddingDim`
+
+Es ist essenziell, `dK` und `headDim` begrifflich und dimensional nicht gleichzusetzen:
+
+* **`dK` (Head-Dimension):** Die innere Vektorbreite *eines einzelnen* Attention-Kopfes (z. B. $d_K = 64$).
+* **`headDim` (Gesamt-Head-Breite):** Die Summe der Breiten aller Köpfe: `headDim = numHeads * dK` (z. B. bei $8$ Köpfen à $64$: $\text{headDim} = 8 \times 64 = 512$).
+* **`embeddingDim` (Modell-Dimension):** Die äußere Vektordimension des Modells (z. B. $512$).
+
+In der kanonischen Implementierung `MultiHeadAttentionMultikTensor` ist `embeddingDim` **nicht** zwingend auf `numHeads * dK` beschränkt. Das Modell projiziert die Eingabe `[ctx, embeddingDim]` mit $W_Q, W_K, W_V$ der Form `[embeddingDim, headDim]` zunächst auf `headDim`. Nach der Head-Verarbeitung und Konkatenation (`[ctx, headDim]`) bringt die Output-Projektion $W_{\text{output}}$ der Form `[headDim, embeddingDim]` das Ergebnis wieder exakt auf die äußere Dimension `[ctx, embeddingDim]` zurück.
+
+Falls `embeddingDim != numHeads * dK` gewählt wird (z. B. `embeddingDim = 768` bei `numHeads = 8` und `dK = 64` $\rightarrow \text{headDim} = 512$), decken die Eingangs- und Ausgangsprojektionen diesen Unterschied vollständig und mathematisch korrekt ab.
+
+=== Vom Konzept zum Code
+
+Wie im vorherigen Kapitel (siehe xref:Autograd[Kapitel 04: Autograd & Micrograd]) eingeführt, unterscheiden wir auch bei Attention zwei Umsetzungen:
+den didaktischen Pfad mit der einfachen Klasse `Tensor` (Scratch) und den trainierbaren Bibliothekspfad mit `TensorMultik` (Library).
+
+Die folgenden beiden Pfade berechnen dieselbe Multi-Head Self-Attention.
+Der Scratch-Pfad macht die einzelnen Schritte mit dem einfachen `Tensor`
+sichtbar. Der kanonische Pfad verwendet anschließend dieselben Schritte mit
+`TensorMultik`, damit die Parameter im trainierbaren Bibliothekscode liegen.
+
+==== Didaktischer Pfad: Die 6 Schritte im Code nachvollziehen
+
+Die Klasse link:{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[`MultiHeadAttention`]
+setzt die eben hergeleiteten 6 Schritte mit der didaktischen Klasse `Tensor` direkt in Kotlin um.
+
+##### 1. Projektion und Aufteilung in `forward()`
+
+Im ersten Teil der `forward()`-Methode finden **Schritt 1 (Lineare Projektionen)**
+sowie die Aufteilung auf die parallelen Köpfe (Multi-Head) statt:
+
+* `input.matMul(wQuery, ...)` erzeugt die Projektionen $Q$, $K$ und $V$.
+* `sliceCols` schneidet für jeden Head $h$ den entsprechenden Spaltenabschnitt der Breite `dK` heraus.
+* `concatCols` führt die Ergebnisse aller Köpfe zusammen.
+* Die finale Matrix-Multiplikation mit `wOutput` projiziert das Ergebnis wieder zurück.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[tag=scratch-multi-head-attention-forward]
+----
+
+##### 2. Ähnlichkeit, Skalierung, Maskierung, Softmax und Summe in `forwardHead()`
+
+In der privaten Methode `forwardHead()` laufen für jeden einzelnen Kopf die **Schritte 2 bis 6** für jede Query-Zeile `rowIndex` ab:
+
+1. **Zeile lesen:** `query.row(rowIndex, dK)` holt $Q_i$ für das aktuelle Token.
+2. **Schritt 2 & 3 (Dot-Product & Skalierung):** `key.dotWithRows(...)` berechnet die Skalarprodukte $Q_i \cdot K_j$ gegen alle Key-Zeilen. `scores.scale(scale)` dividiert durch $\sqrt{d_k}$.
+3. **Schritt 4 (Causal Masking):** `maskCausalScale` setzt bei `causal = true` alle Scores für Zukunfts-Positionen ($j > i$) auf $-\infty$.
+4. **Schritt 5 (Softmax):** `scores.softmax()` normalisiert die Scores zu einer zeilenweisen Wahrscheinlichkeitsverteilung.
+5. **Schritt 6 (Gewichtete Summe):** `weightedValueSum(weights, value, ctx)` multipliziert die Gewichte mit den $V_j$-Vektoren und bildet die Summe.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[tag=scratch-multi-head-attention-forward-head]
+----
+
+Durch diese saubere Trennung entspricht jede Zeile in `forwardHead()` exakt einem Teilsschritt der mathematischen Herleitung.
+
+##### Ausführbares Beispiel (Scratch-Pfad)
+
+Folgender Test demonstriert die Erzeugung, die Ausführung von `forward()` und den automatischen Rückfluss der Gradienten via `backward()` auf allen Gewichtsmatrizen:
+
+* **Konstruktor-Parameter (`MultiHeadAttention`):**
+  - `embeddingDim = 8`: Jeder Token-Vektor in der Eingabe hat die Länge 8.
+  - `numHeads = 2`: Die Gesamtdimension wird auf 2 parallele Köpfe verteilt.
+  - `dK = 4`: Jeder Head arbeitet intern mit Vektoren der Breite 4 (`headDim = numHeads * dK = 8`).
+  - `causal = true`: Aktiviert das autoregressive Causal Masking (Zukunft mit $-\infty$ maskieren).
+  - `seed = 42`: Fixiert den Zufallsgenerator für eine reproduzierbare Initialisierung der Gewichtsmatrizen.
+
+* **`forward()`-Parameter:**
+  - `input`: Row-major `Tensor` mit $3 \times 8 = 24$ Werten ($3$ Token-Zeilen).
+  - `ctx = 3`: Sequenzlänge (Anzahl der Token-Zeilen im Eingabe-Tensor).
+  - `training = false`: Deaktiviert den Attention-Dropout für eine deterministische Auswertung.
+
+* **Was die Assertions konkret überprüfen:**
+  - `assertEquals(3 * 8, output.size)` prüft, dass der Forward Pass die Matrixform $[ctx \times embeddingDim] = 24$ exakt erhält.
+  - `param.grad.all { it == 0.0 } == false` prüft den Gradientenfluss im Backward Pass: Es belegt, dass `backward()` Gradienten durch alle Schichten (MatMul, Softmax, Scaling, Masking, Concat) hindurch bis in alle vier Gewichtsmatrizen (`wQuery`, `wKey`, `wValue`, `wOutput`) zurückpropagiert hat.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4Test}/scratch/autograd/MultiHeadAttentionTest.kt[tag=scratch-mha-example]
+----
+
+==== Kanonischer Pfad: trainierbare `TensorMultik`-Operationen
+
+Der trainierbare Pfad liegt in
 link:{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[`MultiHeadAttentionMultikTensor.kt`].
-Die öffentliche API ist
+Seine öffentliche API ist
 `forward(input: TensorMultik, ctx: Int, training: Boolean = false)`.
 
-`input` enthält die Sequenz als row-major Matrix `[ctx, embeddingDim]`.
-`ctx` ist die Sequenzlänge. Der Forward-Pfad prüft zuerst
-`input.size == ctx * embeddingDim`; falsche Formen werden damit direkt an der
-API-Grenze sichtbar.
+Wie im didaktischen Pfad enthält `input` eine row-major Matrix aus `ctx`
+Token-Vektoren. `forward` prüft zuerst `input.size == ctx * embeddingDim`.
+Dann führt es dieselbe Folge aus: Q/K/V-Projektionen, Aufteilung in Heads,
+Head-Berechnung, Konkatenation und Output-Projektion. Zusätzlich fügt
+`withOptionalBias` bei aktivierten Bias-Parametern `bQuery`, `bKey`, `bValue`
+und `bOutput` ein.
 
-Der tatsächliche Ablauf ist:
-
-1. `input` wird mit `wQuery`, `wKey` und `wValue` auf `headDim = numHeads * dK`
-   projiziert.
-2. Falls aktiviert, addieren `bQuery`, `bKey` und `bValue` je eine Bias-Zeile.
-3. Die projizierten Matrizen werden spaltenweise in `numHeads` Köpfe der Breite
-   `dK` geschnitten.
-4. Jeder Kopf berechnet pro Query-Zeile die Skalarprodukte gegen alle Key-Zeilen.
-5. Die Scores werden durch `sqrt(dK)` skaliert; bei `causal = true` werden
-   Zukunftspositionen vor dem Softmax maskiert.
-6. `softmax()` normalisiert jede Score-Zeile zu Attention-Gewichten.
-7. Attention-Dropout läuft nur bei `training == true` und `dropoutProb > 0.0`.
-8. Die Gewichte bilden pro Position eine gewichtete Summe der Value-Zeilen.
-9. Alle Head-Ausgaben werden konkateniert, mit `wOutput` auf `embeddingDim`
-   zurückprojiziert und optional mit `bOutput` verschoben.
-
-Damit ist `embeddingDim` nicht auf `numHeads * dK` festgelegt. `headDim`
-beschreibt nur die interne Q/K/V-Breite aller Köpfe; die Output-Projektion bringt
-das Ergebnis zurück auf `[ctx, embeddingDim]`.
-
-==== Scaled Dot-Product Attention im Forward-Pfad
-
-`forwardHead` zeigt den Kern der Attention-Rechnung ohne zweite öffentliche API:
-Für jede Query-Position entsteht eine Score-Zeile gegen alle Keys. Bei kausaler
-Attention setzt `maskCausalScale` zukünftige Scores vor dem Softmax auf
-`-Infinity`, sodass diese Positionen nach dem Softmax Gewicht `0` erhalten. Die
-Methode `weightedValueSum` berechnet anschließend die gewichtete Value-Summe für
-dieselbe Position.
-
-==== Forward vs. Backward
-
-- **Forward**: Alle Tensor-Operationen (matmul, softmax, mul) merken sich ihre Kinder.
-- **Backward**: `loss.backward()` propagiert Gradienten automatisch durch alle Operationen.
-  - `∂loss / ∂scores` fließt rückwärts durch Softmax
-  - Dann durch Matmul von attention @ V
-  - Und weiter zu Q @ K^T und den W_Q, W_K, W_V Matrizen
-
-=== Didaktischer Vergleich: Single-Head vs. Multi-Head
-
-==== Single-Head Attention (scratch)
-
-Die `MultiHeadAttention.kt` im didaktischen Pfad zeigt die **einfachste Form**:
-- Alle Token-Paare werden einmal beurteilt
-- Eine Q/K/V-Projektion pro Sequence
-- Intuition: "Wie stark bezieht sich Token i auf Token j?"
-
-**Vorteil:** Leicht zu verstehen.
-**Nachteil:** Ein einzelner "Blick" kann nicht mehrere Muster gleichzeitig erfassen.
-
-==== Multi-Head Attention (library)
-
-`MultiHeadAttentionMultikTensor` splittet die Embeddings:
-
-[source,text]
+[source,kotlin]
 ----
-embed_dim = 512, num_heads = 8
-→ head_dim = 512 / 8 = 64 pro Head
-
-Query/Key/Value: (seq_len, 512)
-→ Split: 8 × (seq_len, 64)
-→ Attention pro Head
-→ Concat: (seq_len, 512)
-→ Output-Projektion
+include::{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[tag=multi-head-attention-forward]
 ----
 
-**Vorteil:** Mehrere parallele Aufmerksamkeitsmuster (z.B. Head 1 schaut auf Substantive, Head 2 schaut auf Adjektive).
-**Nachteil:** Etwas mehr Komplexität.
+==== Eine Head-Berechnung im kanonischen Pfad
+
+`forwardHead` ist privat, also keine zweite öffentliche Attention-API. Für jede
+Query-Zeile erzeugt `key.dotWithRows` alle Scores gegen die Key-Zeilen.
+`scale` skaliert sie, `softmax` macht daraus Gewichte und
+`weightedValueSum` kombiniert damit die Value-Zeilen. Die resultierenden Zeilen
+werden mit `TensorMultik.stackRows` zu einer Head-Ausgabe.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[tag=multi-head-attention-forward-head]
+----
+
+Die verwendeten `TensorMultik`-Operationen merken ihren Rechengraphen. Nach
+dem Forward-Pass startet `out.backward()` den Rückfluss durch Output-Projektion,
+gewichtete Value-Summen, Softmax und Q/K-Projektionen. `parameters()` liefert
+die Gewichte und aktivierten Bias-Tensoren für den Optimierer.
+
+==== Ausführbares Beispiel (Library-Pfad)
+
+Folgender Test zeigt den vollständigen Forward- und Backward-Pass mit `MultiHeadAttentionMultikTensor` inklusive Gradienten-Prüfung auf Gewichten und Bias-Tensoren:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4Test}/library/autograd/MultiHeadAttentionMultikTensorTest.kt[tag=library-mha-example]
+----
 
 === Design-Entscheidungen
 

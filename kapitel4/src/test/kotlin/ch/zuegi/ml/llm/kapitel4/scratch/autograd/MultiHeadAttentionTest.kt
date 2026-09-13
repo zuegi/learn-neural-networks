@@ -56,18 +56,31 @@ class MultiHeadAttentionTest {
         assertFalse(outNonCausal.data.zip(outCausal.data.toList()).all { (a, b) -> abs(a - b) < 1e-12 })
     }
 
+    // tag::scratch-mha-example[]
     @Test
-    fun `backward laeuft ohne exception durch`() {
-        val model = MultiHeadAttention(embeddingDim = 8, numHeads = 2, dK = 4, seed = 42)
+    fun `forward und backward beispiel im scratch pfad`() {
+        val model = MultiHeadAttention(
+            embeddingDim = 8,
+            numHeads = 2,
+            dK = 4,
+            causal = true,
+            seed = 42,
+        )
         val input = identityInput(ctx = 3, dim = 8)
 
+        // Forward Pass: Matrix-Output [ctx * embeddingDim] = 24 Elemente
         val output = model.forward(input, ctx = 3, training = false)
+        assertEquals(3 * 8, output.size)
+
+        // Backward Pass: Gradienten durch den gesamten Graph propagieren
         output.backward()
 
+        // Prüfen, dass alle 4 Parameter (wQuery, wKey, wValue, wOutput) Gradienten erhalten haben
         model.parameters().forEach { param ->
             assertFalse(param.grad.all { it == 0.0 })
         }
     }
+    // end::scratch-mha-example[]
 
     @Test
     fun `parameters liefert alle vier Gewichtsmatrizen`() {

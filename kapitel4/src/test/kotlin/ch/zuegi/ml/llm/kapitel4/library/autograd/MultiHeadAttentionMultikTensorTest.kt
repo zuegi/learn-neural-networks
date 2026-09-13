@@ -91,6 +91,7 @@ class MultiHeadAttentionMultikTensorTest {
         assertFalse(allEqual)
     }
 
+    // tag::library-mha-example[]
     @Test
     fun `backward setzt gradienten auf gewichten und bias parametern`() {
         val attention =
@@ -122,6 +123,7 @@ class MultiHeadAttentionMultikTensorTest {
 
         assertTrue(biasHasGradient)
     }
+    // end::library-mha-example[]
 
     @Test
     fun `parameter liste enthaelt bias tensoren wenn aktiviert`() {

@@ -94,8 +94,15 @@ lernen.
 === Technisches Konzept: Scaled Dot-Product Attention Schritt für Schritt
 
 Das technische Konzept übersetzt die Intuition (suchen, vergleichen, übernehmen)
-in sechs aufeinanderfolgende Rechenschritte: Projektion, Ähnlichkeitsvergleich,
-Skalierung, Maskierung, Normalisierung und gewichtete Summe.
+in sechs aufeinanderfolgende Rechenschritte:
+
+- Projektion,
+- Ähnlichkeitsvergleich,
+- Skalierung,
+- Maskierung,
+- Normalisierung und gewichtete Summe.
+
+Eine optionale Trainingsregularisierung wird später im Ablauf eingeordnet.
 
 ==== 1. Lineare Projektionen (Q, K, V)
 
@@ -219,6 +226,23 @@ Indem wir vor der Exponentiation das Zeilenmaximum `max_score` abziehen, ist der
 
 Nach dem Softmax ist jede Zeile `i` der Matrix `weights` (Form `[ctx, ctx]`) eine gültige Wahrscheinlichkeitsverteilung. Sie beschreibt exakt, wie viel Prozent der Aufmerksamkeit Position `i` auf jede Position `j` der Sequenz richtet.
 
+==== Optional: Attention-Dropout während des Trainings
+
+Wenn `dropoutProb > 0.0` konfiguriert ist, wird Attention-Dropout **erst nach
+dem Softmax** auf die Gewichte angewendet. Die Implementierungen aktivieren
+diesen Schritt ausschließlich bei `training == true`:
+
+[source,text]
+----
+if (training && dropoutProb > 0.0) {
+    weights = weights.dropout(dropoutProb, rnd)
+}
+----
+
+Bei `training == false` bleiben die Softmax-Gewichte unverändert. Dadurch bleibt
+die Auswertung deterministisch; das gilt auch für die Generierung im
+Evaluierungsmodus.
+
 ==== 6. Kontext bilden (Gewichtete Summe der Values)
 
 Im letzten Schritt werden die Wichtigkeitsgewichte mit den Inhalten `V` multipliziert:
@@ -239,9 +263,29 @@ Dieser Vektor ist das Ergebnis von Scaled Dot-Product Attention für eine Positi
 Eine gewichtete Kombination aller Value-Vektoren in Abhängigkeit davon, wie gut
 deren Keys zur Query gepasst haben.
 
+==== Codebeispiel: Ein Head und eine Query-Position
+
+Das folgende echte Kotlin-Codefragment stammt aus der kanonischen
+`MultiHeadAttentionMultikTensor`-Implementierung in Kapitel 04. Die Schleife
+führt den Rechenweg für jede Query-Position `rowIndex` aus. Für eine einzelne
+Position liest sie die Query-Zeile, berechnet die Scores gegen alle Keys,
+skaliert und maskiert sie bei kausaler Attention, wendet Softmax und optionales
+Training-Dropout an und bildet anschließend die gewichtete Value-Summe:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[tag=multi-head-attention-forward-head]
+----
+
 === Shape-Herleitung & Tensor-Dimensionen
 
-Um die Transformationen im Forward-Pass mathematisch und im Code ohne Verwirrung zu verfolgen, betrachten wir die Shapes aller Tensoren systematisch.
+Die sechs Schritte haben zunächst den Rechenweg für einen einzelnen Head und
+eine Query-Position gezeigt. Im Multi-Head-Forward werden diese Berechnungen
+für alle `ctx` Positionen und für jeden Head ausgeführt. Anschließend werden
+die Head-Ausgaben zusammengeführt und auf die Modell-Dimension
+zurückprojiziert. Damit dieser Übergang von der Einzelberechnung zum gesamten
+Tensor im Code nachvollziehbar bleibt, betrachten wir die Shapes nun
+systematisch.
 
 ==== Verbindliche Tensor-Shape-Regeln
 
@@ -279,75 +323,29 @@ Falls `embeddingDim != numHeads * dK` gewählt wird (z. B. `embeddingDim = 768` 
 
 === Vom Konzept zum Code
 
-Wie im vorherigen Kapitel (siehe xref:Autograd[Kapitel 04: Autograd & Micrograd]) eingeführt, unterscheiden wir auch bei Attention zwei Umsetzungen:
-den didaktischen Pfad mit der einfachen Klasse `Tensor` (Scratch) und den trainierbaren Bibliothekspfad mit `TensorMultik` (Library).
+Wie im vorherigen Kapitel (siehe xref:Autograd[Kapitel 04: Autograd & Micrograd])
+eingeführt, unterscheiden wir auch bei Attention zwei Umsetzungen: den
+optionalen didaktischen Pfad mit der einfachen Klasse `Tensor` (Scratch) und den
+kanonischen, trainierbaren Bibliothekspfad mit `TensorMultik` (Library).
 
-Die folgenden beiden Pfade berechnen dieselbe Multi-Head Self-Attention.
-Der Scratch-Pfad macht die einzelnen Schritte mit dem einfachen `Tensor`
-sichtbar. Der kanonische Pfad verwendet anschließend dieselben Schritte mit
-`TensorMultik`, damit die Parameter im trainierbaren Bibliothekscode liegen.
+Für alle Integrations- und Trainingsbeispiele dieses Kapitels ist ausschließlich
+der `TensorMultik`-Pfad maßgeblich. Der Scratch-Pfad dient nur dazu, einzelne
+Rechenschritte und den Gradientenfluss in einer kleineren Tensorabstraktion
+nachvollziehbar zu machen.
 
-==== Didaktischer Pfad: Die 6 Schritte im Code nachvollziehen
+==== Optionaler Lernpfad: Scratch-Implementierung
 
-Die Klasse link:{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[`MultiHeadAttention`]
-setzt die eben hergeleiteten 6 Schritte mit der didaktischen Klasse `Tensor` direkt in Kotlin um.
+Die optionale Scratch-Implementierung
+link:{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[`MultiHeadAttention`]
+ist keine normative API und kein gleichwertiger Trainingspfad. Sie kann genutzt
+werden, um Projektion, Skalierung, kausale Maskierung, Softmax, optionales
+Attention-Dropout und gewichtete Value-Summen schrittweise nachzuvollziehen.
+Neue Kapitel-05-Integrationen und Trainingsbeispiele verwenden sie nicht.
 
-##### 1. Projektion und Aufteilung in `forward()`
-
-Im ersten Teil der `forward()`-Methode finden **Schritt 1 (Lineare Projektionen)**
-sowie die Aufteilung auf die parallelen Köpfe (Multi-Head) statt:
-
-* `input.matMul(wQuery, ...)` erzeugt die Projektionen $Q$, $K$ und $V$.
-* `sliceCols` schneidet für jeden Head $h$ den entsprechenden Spaltenabschnitt der Breite `dK` heraus.
-* `concatCols` führt die Ergebnisse aller Köpfe zusammen.
-* Die finale Matrix-Multiplikation mit `wOutput` projiziert das Ergebnis wieder zurück.
-
-[source,kotlin]
-----
-include::{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[tag=scratch-multi-head-attention-forward]
-----
-
-##### 2. Ähnlichkeit, Skalierung, Maskierung, Softmax und Summe in `forwardHead()`
-
-In der privaten Methode `forwardHead()` laufen für jeden einzelnen Kopf die **Schritte 2 bis 6** für jede Query-Zeile `rowIndex` ab:
-
-1. **Zeile lesen:** `query.row(rowIndex, dK)` holt $Q_i$ für das aktuelle Token.
-2. **Schritt 2 & 3 (Dot-Product & Skalierung):** `key.dotWithRows(...)` berechnet die Skalarprodukte $Q_i \cdot K_j$ gegen alle Key-Zeilen. `scores.scale(scale)` dividiert durch $\sqrt{d_k}$.
-3. **Schritt 4 (Causal Masking):** `maskCausalScale` setzt bei `causal = true` alle Scores für Zukunfts-Positionen ($j > i$) auf $-\infty$.
-4. **Schritt 5 (Softmax):** `scores.softmax()` normalisiert die Scores zu einer zeilenweisen Wahrscheinlichkeitsverteilung.
-5. **Schritt 6 (Gewichtete Summe):** `weightedValueSum(weights, value, ctx)` multipliziert die Gewichte mit den $V_j$-Vektoren und bildet die Summe.
-
-[source,kotlin]
-----
-include::{sourceDirKapitel4}/scratch/autograd/MultiHeadAttention.kt[tag=scratch-multi-head-attention-forward-head]
-----
-
-Durch diese saubere Trennung entspricht jede Zeile in `forwardHead()` exakt einem Teilsschritt der mathematischen Herleitung.
-
-##### Ausführbares Beispiel (Scratch-Pfad)
-
-Folgender Test demonstriert die Erzeugung, die Ausführung von `forward()` und den automatischen Rückfluss der Gradienten via `backward()` auf allen Gewichtsmatrizen:
-
-* **Konstruktor-Parameter (`MultiHeadAttention`):**
-  - `embeddingDim = 8`: Jeder Token-Vektor in der Eingabe hat die Länge 8.
-  - `numHeads = 2`: Die Gesamtdimension wird auf 2 parallele Köpfe verteilt.
-  - `dK = 4`: Jeder Head arbeitet intern mit Vektoren der Breite 4 (`headDim = numHeads * dK = 8`).
-  - `causal = true`: Aktiviert das autoregressive Causal Masking (Zukunft mit $-\infty$ maskieren).
-  - `seed = 42`: Fixiert den Zufallsgenerator für eine reproduzierbare Initialisierung der Gewichtsmatrizen.
-
-* **`forward()`-Parameter:**
-  - `input`: Row-major `Tensor` mit $3 \times 8 = 24$ Werten ($3$ Token-Zeilen).
-  - `ctx = 3`: Sequenzlänge (Anzahl der Token-Zeilen im Eingabe-Tensor).
-  - `training = false`: Deaktiviert den Attention-Dropout für eine deterministische Auswertung.
-
-* **Was die Assertions konkret überprüfen:**
-  - `assertEquals(3 * 8, output.size)` prüft, dass der Forward Pass die Matrixform $[ctx \times embeddingDim] = 24$ exakt erhält.
-  - `param.grad.all { it == 0.0 } == false` prüft den Gradientenfluss im Backward Pass: Es belegt, dass `backward()` Gradienten durch alle Schichten (MatMul, Softmax, Scaling, Masking, Concat) hindurch bis in alle vier Gewichtsmatrizen (`wQuery`, `wKey`, `wValue`, `wOutput`) zurückpropagiert hat.
-
-[source,kotlin]
-----
-include::{sourceDirKapitel4Test}/scratch/autograd/MultiHeadAttentionTest.kt[tag=scratch-mha-example]
-----
+Der zugehörige Scratch-Test
+link:{sourceDirKapitel4Test}/scratch/autograd/MultiHeadAttentionTest.kt[`MultiHeadAttentionTest`]
+ist ebenfalls nur als Lernhilfe gedacht. Die verbindlichen Beispiele und
+Akzeptanzkriterien stehen im folgenden kanonischen Library-Pfad.
 
 ==== Kanonischer Pfad: trainierbare `TensorMultik`-Operationen
 
@@ -359,7 +357,10 @@ Seine öffentliche API ist
 Wie im didaktischen Pfad enthält `input` eine row-major Matrix aus `ctx`
 Token-Vektoren. `forward` prüft zuerst `input.size == ctx * embeddingDim`.
 Dann führt es dieselbe Folge aus: Q/K/V-Projektionen, Aufteilung in Heads,
-Head-Berechnung, Konkatenation und Output-Projektion. Zusätzlich fügt
+Head-Berechnung, Konkatenation und Output-Projektion. In jedem Head werden
+Scores skaliert, bei `causal = true` vor dem Softmax für Zukunftspositionen
+maskiert, anschließend normalisiert und bei `training == true` optional
+gedroppt. Zusätzlich fügt
 `withOptionalBias` bei aktivierten Bias-Parametern `bQuery`, `bKey`, `bValue`
 und `bOutput` ein.
 
@@ -372,9 +373,12 @@ include::{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[
 
 `forwardHead` ist privat, also keine zweite öffentliche Attention-API. Für jede
 Query-Zeile erzeugt `key.dotWithRows` alle Scores gegen die Key-Zeilen.
-`scale` skaliert sie, `softmax` macht daraus Gewichte und
-`weightedValueSum` kombiniert damit die Value-Zeilen. Die resultierenden Zeilen
-werden mit `TensorMultik.stackRows` zu einer Head-Ausgabe.
+`maskCausalScale` skaliert sie und setzt bei `causal = true` alle
+Zukunftspositionen vor dem Softmax auf `-∞`. `softmax` macht daraus Gewichte;
+bei `training == true` und `dropoutProb > 0.0` wird anschließend
+`weights.dropout(...)` angewendet. `weightedValueSum` kombiniert damit die
+Value-Zeilen. Die resultierenden Zeilen werden mit `TensorMultik.stackRows` zu
+einer Head-Ausgabe.
 
 [source,kotlin]
 ----

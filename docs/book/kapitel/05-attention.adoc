@@ -6,6 +6,7 @@
 :lang: de
 :toc: left
 :icons: font
+:stem: latexmath
 == Attention & Multi-Head Attention
 
 Der Attention-Mechanismus ist das Herzstück eines Transformers: Er erlaubt
@@ -314,12 +315,13 @@ Für jeden Forward-Aufruf gilt strikt `input.size == ctx * embeddingDim`. `ctx` 
 Es ist essenziell, `dK` und `headDim` begrifflich und dimensional nicht gleichzusetzen:
 
 * **`dK` (Head-Dimension):** Die innere Vektorbreite *eines einzelnen* Attention-Kopfes (z. B. $d_K = 64$).
-* **`headDim` (Gesamt-Head-Breite):** Die Summe der Breiten aller Köpfe: `headDim = numHeads * dK` (z. B. bei $8$ Köpfen à $64$: $\text{headDim} = 8 \times 64 = 512$).
+* **`headDim` (Gesamt-Head-Breite):** Die Summe der Breiten aller Köpfe: `headDim = numHeads * dK` (z. B. Bei 8 Köpfen à 64 ergibt sich folgende Berechnung:
+`headDim = 8 × 64 = 512`
 * **`embeddingDim` (Modell-Dimension):** Die äußere Vektordimension des Modells (z. B. $512$).
 
 In der kanonischen Implementierung `MultiHeadAttentionMultikTensor` ist `embeddingDim` **nicht** zwingend auf `numHeads * dK` beschränkt. Das Modell projiziert die Eingabe `[ctx, embeddingDim]` mit $W_Q, W_K, W_V$ der Form `[embeddingDim, headDim]` zunächst auf `headDim`. Nach der Head-Verarbeitung und Konkatenation (`[ctx, headDim]`) bringt die Output-Projektion $W_{\text{output}}$ der Form `[headDim, embeddingDim]` das Ergebnis wieder exakt auf die äußere Dimension `[ctx, embeddingDim]` zurück.
 
-Falls `embeddingDim != numHeads * dK` gewählt wird (z. B. `embeddingDim = 768` bei `numHeads = 8` und `dK = 64` $\rightarrow \text{headDim} = 512$), decken die Eingangs- und Ausgangsprojektionen diesen Unterschied vollständig und mathematisch korrekt ab.
+Falls `embeddingDim != numHeads * dK` gewählt wird (z. B. `embeddingDim = 768` bei `numHeads = 8` und `dK = 64` `-> headDim = 512`), decken die Eingangs- und Ausgangsprojektionen diesen Unterschied vollständig und mathematisch korrekt ab.
 
 === Vom Konzept zum Code
 

@@ -401,6 +401,32 @@ Folgender Test zeigt den vollständigen Forward- und Backward-Pass mit `MultiHea
 include::{sourceDirKapitel4Test}/library/autograd/MultiHeadAttentionMultikTensorTest.kt[tag=library-mha-example]
 ----
 
+==== Testabdeckung für den kanonischen Pfad
+
+Die vollständige Testsuite steht in
+link:{sourceDirKapitel4Test}/library/autograd/MultiHeadAttentionMultikTensorTest.kt[`MultiHeadAttentionMultikTensorTest.kt`].
+Sie macht die wichtigsten Verträge der Implementierung ausführbar:
+
+* **Outputform:** `forward liefert output gleicher laenge wie input` prüft, dass
+  `ctx * embeddingDim` Werte zurückgegeben werden.
+* **Reproduzierbare Initialisierung:** `gleiches seed erzeugt gleiche outputs auch
+  mit bias` vergleicht zwei Instanzen mit identischem `seed` im
+  Evaluationsmodus.
+* **Dropout:** `dropout im training beeinflusst output` zeigt, dass
+  Attention-Dropout bei `training = true` wirkt. Bei `training = false` bleibt
+  der Pfad deterministisch; ein separater Evaluationstest gehört zum späteren
+  Causal-/Edge-Case-Backlog.
+* **Parameterregistrierung:** `parameter liste enthaelt bias tensoren wenn
+  aktiviert` und `parameter liste enthaelt nur gewichte wenn bias deaktiviert`
+  prüfen, welche Gewichte und Bias-Tensoren `parameters()` liefert.
+* **Gradientfluss:** `backward setzt gradienten auf gewichten und bias parametern`
+  startet `out.backward()` und prüft Gradienten auf Gewichten und aktivierten
+  Bias-Tensoren.
+
+Damit verweisen die Code-Beispiele auf den einen trainierbaren
+`TensorMultik`-Pfad. Der Scratch-Test bleibt ausschließlich Lernreferenz und
+ersetzt diese Verträge nicht.
+
 === Design-Entscheidungen
 
 1. **Warum ist Causal Masking konfigurierbar?**

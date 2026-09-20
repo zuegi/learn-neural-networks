@@ -18,7 +18,7 @@ learn-neural-networks/
 │       │   ├── 03-attention.adoc
 │       │   └── ...
 │       └── images/
-└── build.gradle.kts               # asciidoctor-Plugin hier registrieren
+└── pom.xml                       # Maven-/AsciiDoctor-Konfiguration
 ```
 
 ## Kapitelstruktur
@@ -58,6 +58,8 @@ Jedes Kapitel verbindet das Konzept mit dem Code anstatt nur die reine Theorie z
    - nur noch einen Hauptpfad führen
    - bevorzugt die Variante, die in `kapitel5` tatsächlich verwendet wird
    - keine parallele doppelte Dokumentation von Scratch und Library
+   - kanonischer Pfad: `shared` plus `kapitel4/library/autograd`
+   - Scratch-Pfad: `kapitel4/scratch` nur als Lern- und Verständnisreferenz
 
 5. **Grundregel für das ganze Buch**
    - Scratch = Lern- und Verständnisweg

@@ -1,5 +1,6 @@
 [[Embeddings]]
 :sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
+:sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
 :sourceDirExkurse: ../exkurse
 :lang: de
 :toc: left
@@ -129,7 +130,7 @@ welche Zeilen im aktuellen Schritt überhaupt aktiv waren.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingForward]
+include::{sourceDirShared}/embedding/TrainableTokenEmbedding.kt[tag=tokenEmbeddingForward]
 ----
 
 Erklärung zu `mk.stack(...)` siehe xref:ExkursMk[Exkurs: Multik `mk`-Funktionen].
@@ -166,7 +167,7 @@ Genau diese Summe wird im nachfolgenden `step()`-Aufruf in ein größeres Update
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingBackward]
+include::{sourceDirShared}/embedding/TrainableTokenEmbedding.kt[tag=tokenEmbeddingBackward]
 ----
 
 Wichtig dabei:
@@ -212,7 +213,7 @@ Interpretation:
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbeddingStep]
+include::{sourceDirShared}/embedding/TrainableTokenEmbedding.kt[tag=tokenEmbeddingStep]
 ----
 
 === Die Methode `zeroGrad()`
@@ -239,14 +240,14 @@ Deshalb ist ein zusätzlicher externer `zeroGrad()`-Aufruf unmittelbar danach ni
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[tag=tokenEmbedingZeroGrad]
+include::{sourceDirShared}/embedding/TrainableTokenEmbedding.kt[tag=tokenEmbedingZeroGrad]
 ----
 
 === Die komplette Klasse
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableTokenEmbedding.kt[]
+include::{sourceDirShared}/embedding/TrainableTokenEmbedding.kt[]
 ----
 
 === Beweise / Beispiele
@@ -387,7 +388,7 @@ Die Reihenfolge der Positionen ergibt sich direkt aus der Sequenzlänge.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalForward]
+include::{sourceDirShared}/embedding/TrainablePositionalEmbedding.kt[tag=trainablePositionalForward]
 ----
 
 === Die Methode `backward()` für Positionen
@@ -405,7 +406,7 @@ Dadurch ist die Akkumulation bei Positionsvektoren oft einfacher zu lesen.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalBackward]
+include::{sourceDirShared}/embedding/TrainablePositionalEmbedding.kt[tag=trainablePositionalBackward]
 ----
 
 === Die Methode `step()` für Positionen
@@ -419,7 +420,7 @@ damit der nächste Trainingsschritt mit einem leeren Gradientenspeicher startet.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalStep]
+include::{sourceDirShared}/embedding/TrainablePositionalEmbedding.kt[tag=trainablePositionalStep]
 ----
 
 === Die Methode `zeroGrad()` für Positionen
@@ -430,14 +431,14 @@ und den nächsten Lernschritt verfälschen.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[tag=trainablePositionalZeroGrad]
+include::{sourceDirShared}/embedding/TrainablePositionalEmbedding.kt[tag=trainablePositionalZeroGrad]
 ----
 
 === Die komplette Klasse `TrainablePositionalEmbedding`
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainablePositionalEmbedding.kt[]
+include::{sourceDirShared}/embedding/TrainablePositionalEmbedding.kt[]
 ----
 
 ==== Mini-Beweis: Trainierbares Positional Embedding
@@ -511,7 +512,7 @@ für den nächsten Modellblock.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputForward]
+include::{sourceDirShared}/embedding/TrainableInputEmbedding.kt[tag=trainableInputForward]
 ----
 
 === Die Methode `backward()` für Input Embeddings
@@ -531,7 +532,7 @@ In der Klasse bedeutet das konkret:
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputBackward]
+include::{sourceDirShared}/embedding/TrainableInputEmbedding.kt[tag=trainableInputBackward]
 ----
 
 === Die Methode `step()` für Input Embeddings
@@ -541,7 +542,7 @@ Dadurch werden Token- und Positionsgewichte synchron pro Trainingsschritt aktual
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputStep]
+include::{sourceDirShared}/embedding/TrainableInputEmbedding.kt[tag=trainableInputStep]
 ----
 
 === Die Methode `zeroGrad()` für Input Embeddings
@@ -551,14 +552,14 @@ Das ist nützlich, wenn der Aufrufer den Reset explizit steuern möchte.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[tag=trainableInputZeroGrad]
+include::{sourceDirShared}/embedding/TrainableInputEmbedding.kt[tag=trainableInputZeroGrad]
 ----
 
 === Die komplette Klasse `TrainableInputEmbedding`
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/TrainableInputEmbedding.kt[]
+include::{sourceDirShared}/embedding/TrainableInputEmbedding.kt[]
 ----
 
 ==== Mini-Beweis: Trainierbares Input Embedding

@@ -3,10 +3,48 @@ package ch.zuegi.ml.llm.kapitel4.scratch.autograd
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.math.abs
 
 class MultiHeadAttentionTest {
+    @Test
+    fun `softmax summiert zeilenweise auf eins und maskiert negative unendlich`() {
+        val scores = Tensor(doubleArrayOf(1000.0, 999.0, 998.0))
+        val maskedScores = Tensor(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY))
+
+        val weights = scores.softmax()
+        val maskedWeights = maskedScores.softmax()
+
+        assertEquals(1.0, weights.data.sum(), 1e-12)
+        assertEquals(1.0, maskedWeights.data.sum(), 1e-12)
+        assertEquals(0.0, maskedWeights.data[1], 0.0)
+    }
+
+    @Test
+    fun `causal mask fuer ctx zwei sperrt nur zukunft`() {
+        val firstPosition = Tensor(doubleArrayOf(1.0, 2.0))
+        val secondPosition = Tensor(doubleArrayOf(1.0, 2.0))
+
+        val firstWeights = firstPosition.maskCausalScale(position = 0, scale = 1.0).softmax()
+        val secondWeights = secondPosition.maskCausalScale(position = 1, scale = 1.0).softmax()
+
+        assertEquals(1.0, firstWeights.data.sum(), 1e-12)
+        assertEquals(0.0, firstWeights.data[1], 0.0)
+        assertEquals(1.0, secondWeights.data.sum(), 1e-12)
+        assertTrue(secondWeights.data[0] > 0.0)
+        assertTrue(secondWeights.data[1] > 0.0)
+    }
+
+    @Test
+    fun `causal forward unterstuetzt ctx eins`() {
+        val model = MultiHeadAttention(embeddingDim = 8, numHeads = 2, dK = 4, causal = true, seed = 42)
+
+        val output = model.forward(identityInput(ctx = 1, dim = 8), ctx = 1, training = false)
+
+        assertEquals(8, output.size)
+    }
+
     @Test
     fun `forward liefert output mit shape ctx mal embeddingDim`() {
         val model = MultiHeadAttention(embeddingDim = 8, numHeads = 2, dK = 4, seed = 42)

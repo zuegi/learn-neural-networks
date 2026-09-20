@@ -502,6 +502,11 @@ Im Maven-Modul sind dafür `multik-core-jvm`, `multik-default-jvm` und `multik-o
 Das Design ist elegant: Von Value (Lern-Zweck) über Tensor (Verständnis)
 zu TensorMultik (Bibliothekspfad) – die konkrete Speicherung ändert sich, das Autograd-Grundprinzip bleibt gleich.
 
+Damit bleibt die Rollenverteilung des Buchs eindeutig: `Value` und `Tensor`
+gehören zum didaktischen Scratch-Pfad. `TensorMultik` ist der kanonische,
+trainierbare Ausführungspfad und die Grundlage für Attention und Training in
+den folgenden Kapiteln.
+
 === Was wir hier nicht vertiefen
 
 Um nicht zu verzetteln, konzentrieren wir uns auf die **drei Kern-Operationen**:

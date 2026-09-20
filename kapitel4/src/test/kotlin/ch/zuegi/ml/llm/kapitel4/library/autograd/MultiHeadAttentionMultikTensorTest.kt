@@ -12,6 +12,50 @@ import kotlin.math.abs
 
 class MultiHeadAttentionMultikTensorTest {
     @Test
+    fun `softmax summiert zeilenweise auf eins und maskiert negative unendlich`() {
+        val scores = TensorMultik(mk.ndarray(doubleArrayOf(1000.0, 999.0, 998.0)))
+        val maskedScores = TensorMultik(mk.ndarray(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY)))
+
+        val weights = scores.softmax()
+        val maskedWeights = maskedScores.softmax()
+
+        assertEquals(1.0, (0 until weights.size).sumOf { weights.data[it] }, 1e-12)
+        assertEquals(1.0, (0 until maskedWeights.size).sumOf { maskedWeights.data[it] }, 1e-12)
+        assertEquals(0.0, maskedWeights.data[1], 0.0)
+    }
+
+    @Test
+    fun `causal mask fuer ctx zwei sperrt nur zukunft`() {
+        val firstPosition = TensorMultik(mk.ndarray(doubleArrayOf(1.0, 2.0)))
+        val secondPosition = TensorMultik(mk.ndarray(doubleArrayOf(1.0, 2.0)))
+
+        val firstWeights = firstPosition.maskCausalScale(position = 0, scale = 1.0).softmax()
+        val secondWeights = secondPosition.maskCausalScale(position = 1, scale = 1.0).softmax()
+
+        assertEquals(1.0, (0 until firstWeights.size).sumOf { firstWeights.data[it] }, 1e-12)
+        assertEquals(0.0, firstWeights.data[1], 0.0)
+        assertEquals(1.0, (0 until secondWeights.size).sumOf { secondWeights.data[it] }, 1e-12)
+        assertTrue(secondWeights.data[0] > 0.0)
+        assertTrue(secondWeights.data[1] > 0.0)
+    }
+
+    @Test
+    fun `causal forward unterstuetzt ctx eins`() {
+        val attention =
+            MultiHeadAttentionMultikTensor(
+                embeddingDim = 8,
+                numHeads = 2,
+                dK = 4,
+                causal = true,
+                seed = 42,
+            )
+
+        val out = attention.forward(matrixInput(ctx = 1, dim = 8), ctx = 1, training = false)
+
+        assertEquals(8, out.size)
+    }
+
+    @Test
     fun `forward liefert output gleicher laenge wie input`() {
         val attention =
             MultiHeadAttentionMultikTensor(

@@ -170,6 +170,24 @@ class MultiHeadAttentionMultikTensorTest {
     // end::library-mha-example[]
 
     @Test
+    fun `embeddingDim kann sich von numHeads times dK unterscheiden`() {
+        val attention =
+            MultiHeadAttentionMultikTensor(
+                embeddingDim = 10,
+                numHeads = 2,
+                dK = 4,
+                useQkvBias = true,
+                useOutputBias = true,
+                seed = 13,
+            )
+        val input = matrixInput(ctx = 3, dim = 10)
+
+        val out = attention.forward(input, ctx = 3, training = false)
+
+        assertEquals(3 * 10, out.size)
+    }
+
+    @Test
     fun `parameter liste enthaelt bias tensoren wenn aktiviert`() {
         val attention =
             MultiHeadAttentionMultikTensor(

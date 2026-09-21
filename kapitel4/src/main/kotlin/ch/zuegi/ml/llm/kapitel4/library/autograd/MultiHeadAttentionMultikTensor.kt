@@ -37,6 +37,9 @@ class MultiHeadAttentionMultikTensor(
         require(dropoutProb in 0.0..1.0) { "dropoutProb muss in [0.0, 1.0] liegen" }
     }
 
+    // `headDim` is the concatenated width across all heads.
+    // It is not required to equal `embeddingDim`; the final output projection maps
+    // back from `[ctx, headDim]` to `[ctx, embeddingDim]`.
     private val headDim = numHeads * dK
     private val rnd = if (seed != null) Random(seed) else Random()
 

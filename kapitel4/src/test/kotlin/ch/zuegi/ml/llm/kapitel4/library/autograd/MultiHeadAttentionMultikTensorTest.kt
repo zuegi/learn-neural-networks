@@ -26,6 +26,20 @@ class MultiHeadAttentionMultikTensorTest {
     }
 
     @Test
+    fun `softmax bleibt bei grossen scores und kausaler maske endlich`() {
+        val scores = TensorMultik(mk.ndarray(doubleArrayOf(1000.0, 999.0, 998.0)))
+        val maskedScores = scores.maskCausalScale(position = 0, scale = 1.0)
+        val weights = maskedScores.softmax()
+
+        for (i in 0 until weights.size) {
+            assertTrue(weights.data[i].isFinite())
+        }
+        assertEquals(1.0, weights.data[0], 0.0)
+        assertEquals(0.0, weights.data[1], 0.0)
+        assertEquals(0.0, weights.data[2], 0.0)
+    }
+
+    @Test
     fun `causal mask fuer ctx zwei sperrt nur zukunft`() {
         val firstPosition = TensorMultik(mk.ndarray(doubleArrayOf(1.0, 2.0)))
         val secondPosition = TensorMultik(mk.ndarray(doubleArrayOf(1.0, 2.0)))

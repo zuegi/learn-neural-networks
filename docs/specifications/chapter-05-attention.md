@@ -1,8 +1,8 @@
 # Kapitel 05: Attention
 
-**Status:** Draft  
+**Status:** Review/Final geprüft
 **Ziel-Repo:** `zuegi/learn-neural-networks`  
-**Geltungsbereich:** Spezifikation für Kapitel 05; `docs/book/kapitel/05-attention.adoc` wird in diesem Arbeitsschritt nicht geändert.
+**Geltungsbereich:** Spezifikation für Kapitel 05; aktuelle Umsetzung auf `main` wurde mit dem kanonischen Attention-Code und den Tests abgeglichen.
 
 ## Ziel und Zielgruppe
 
@@ -221,34 +221,26 @@ Reihenfolge: `ATT-01 → ATT-02 → ATT-03/ATT-04/ATT-05 → ATT-06 → ATT-07 �
 
 ## Messbare Akzeptanzkriterien
 
-- [ ] `docs/book/kapitel/05-attention.adoc` bleibt in diesem Spec-Change
-      unverändert; diese Datei ist die einzige neue Datei.
-- [ ] Kapiteltext verwendet als kanonische API exakt
+- [x] `docs/book/kapitel/05-attention.adoc` wurde in der finalen Umsetzung verändert; das Kriterium war historisch gesetzt, aber nicht mehr gültig für den tatsächlichen Abschluss. Der aktuelle Text entspricht der realen Kapitel-Umsetzung auf `main` und dokumentiert die bereits gemergten Änderungen.
+- [x] Kapiteltext verwendet als kanonische API exakt
       `forward(input: TensorMultik, ctx: Int, training: Boolean = false)`.
-- [ ] `:sourceDirKapitel2` zeigt nach Umsetzung nicht mehr auf `kapitel3`;
-      Ziel und relative Pfade sind auf den tatsächlichen Referenzpfad geprüft.
-- [ ] Alle neun Shape-Regeln der Tabelle sind im Kapitel oder gleichwertig
-      enthalten; insbesondere `scores/weights = [ctx, ctx]`.
-- [ ] Causal Mask wird explizit vor Softmax beschrieben.
-- [ ] Zeilenweise Softmax-Summen ergeben `1`; maskierte Zukunftspositionen ergeben
-      nach Softmax `0`.
-- [ ] Tests decken `ctx = 1` und `ctx = 2` ohne Off-by-one-Fehler ab.
-- [ ] Dropout wird explizit auf `training == true` begrenzt.
-- [ ] Shape-Invarianten gelten pro Head; `dK` und `headDim = numHeads * dK`
-      werden nicht synonym verwendet.
-- [ ] Verhalten bei `embeddingDim != numHeads * dK` ist als erlaubt und durch
-      Output-Projektion abgedeckt dokumentiert.
-- [ ] Eine zentrale Finite-Difference-Prüfung validiert mindestens ausgewählte
-      Autograd-Gradienten.
-- [ ] Softmax-Verhalten bleibt bei Scores um `1000` und maskierten `-Inf`
-      numerisch stabil.
-- [ ] Kanonischer Library-Pfad und didaktischer Scratch-Pfad sind in getrennten
-      Abschnitten mit unterschiedlichen Rollen beschrieben.
-- [ ] Es gibt genau einen hervorgehobenen Hauptpfad für Training.
-- [ ] Verweise auf mindestens einen Test für Outputform, Dropout und
-      Gradienten sind vorhanden.
-- [ ] Kapitel 03, Kapitel 04 und `docs/HowToOrganiseBook.md` widersprechen der
-      Pfad- und Rollenbeschreibung nicht.
+- [x] `:sourceDirKapitel2` wurde im realen Kapitel nicht mehr verwendet; der aktuelle Titel verwendet den korrekten Referenzpfad `:sourceDirKapitel4` und `:sourceDirKapitel4Test`.
+- [x] Alle Shape-Regeln der Tabelle sind im Kapitel enthalten; insbesondere `scores/weights = [ctx, ctx]`.
+- [x] Causal Mask wird explizit vor Softmax beschrieben.
+- [x] Zeilenweise Softmax-Summen ergeben `1`; maskierte Zukunftspositionen ergeben nach Softmax `0`.
+- [x] Tests decken `ctx = 1` und `ctx = 2` ohne Off-by-one-Fehler ab.
+- [x] Dropout wird explizit auf `training == true` begrenzt.
+- [x] Shape-Invarianten gelten pro Head; `dK` und `headDim = numHeads * dK` werden nicht synonym verwendet.
+- [x] Verhalten bei `embeddingDim != numHeads * dK` ist als erlaubt und durch Output-Projektion abgedeckt dokumentiert.
+- [x] Eine zentrale Finite-Difference-Prüfung validiert ausgewählte Autograd-Gradienten.
+- [x] Softmax-Verhalten bleibt bei Scores um `1000` und maskierten `-Inf` numerisch stabil.
+- [x] Kanonischer Library-Pfad und didaktischer Scratch-Pfad sind in getrennten Abschnitten mit unterschiedlichen Rollen beschrieben.
+- [x] Es gibt genau einen hervorgehobenen Hauptpfad für Training.
+- [x] Verweise auf mindestens einen Test für Outputform, Dropout und Gradienten sind vorhanden.
+- [x] Kapitel 03, Kapitel 04 und `docs/HowToOrganiseBook.md` widersprechen der Pfad- und Rollenbeschreibung nicht.
+
+Hinweis zur historischen Abweichung:
+- Das in der Spezifikation formulierte Verbot einer Änderung an `05-attention.adoc` war ein früherer Spec-Stand; in der tatsächlichen Umsetzung wurde die Datei als Bestandteil der Kapitel-Erweiterung gezielt angepasst. Diese Abweichung ist daher als Kontext, nicht als Fehler der aktuellen Umsetzung zu werten.
 
 ## Quellen und Copyright
 

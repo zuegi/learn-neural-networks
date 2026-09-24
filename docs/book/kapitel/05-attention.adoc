@@ -427,6 +427,33 @@ Damit verweisen die Code-Beispiele auf den einen trainierbaren
 `TensorMultik`-Pfad. Der Scratch-Test bleibt ausschließlich Lernreferenz und
 ersetzt diese Verträge nicht.
 
+=== Optionaler Anschluss: Perplexity
+
+Attention selbst berechnet keine Perplexity. Perplexity ist eine
+Trainingsmetrik für ein Sprachmodell und wird aus der mittleren
+Cross-Entropy (CE) über die vorhergesagten Zieltoken berechnet:
+
+[source,text]
+----
+perplexity = exp(mean CE)
+----
+
+Eine niedrigere Perplexity bedeutet, dass das Modell die Zielsequenz im Mittel
+mit höherer Wahrscheinlichkeit bewertet. Die Metrik gehört deshalb zum
+Trainingspfad in Kapitel 05, nicht zur einzelnen Attention-Operation:
+
+* `MultiHeadAttentionMultikTensor` liefert kontextualisierte Repräsentationen.
+* Das nachgelagerte Sprachmodell berechnet daraus Logits und die
+  Cross-Entropy.
+* Erst aus dem Mittelwert dieser Loss-Werte wird Perplexity berechnet.
+
+Dieser Anschluss setzt Training- und Validierungsmetriken voraus. Die
+Trainingsinfrastruktur in Kapitel 05 berechnet daraus
+`trainPerplexity = exp(trainLoss)` und
+`validationPerplexity = exp(validationLoss)`. Bei Padding oder variabler
+Sequenzlänge muss `mean CE` nur über gültige Zieltoken gebildet werden; sonst
+ist die Perplexity nicht zwischen Batches vergleichbar.
+
 === Design-Entscheidungen
 
 1. **Warum ist Causal Masking konfigurierbar?**

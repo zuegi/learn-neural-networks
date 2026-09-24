@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.math.abs
+import kotlin.math.max
 
 class MultiHeadAttentionMultikTensorTest {
     @Test
@@ -170,6 +171,39 @@ class MultiHeadAttentionMultikTensorTest {
     // end::library-mha-example[]
 
     @Test
+    fun `backward gradienten stimmen fuer ausgewaehlte parameter mit finite differences ueberein`() {
+        val attention =
+            MultiHeadAttentionMultikTensor(
+                embeddingDim = 4,
+                numHeads = 2,
+                dK = 2,
+                useQkvBias = true,
+                useOutputBias = true,
+                seed = 31,
+            )
+        val input = matrixInput(ctx = 2, dim = 4)
+        val parameters = listOf(
+            attention.wQuery to 0,
+            attention.wKey to 3,
+            attention.wValue to 5,
+            attention.wOutput to 2,
+            checkNotNull(attention.bQuery) to 1,
+            checkNotNull(attention.bOutput) to 2,
+        )
+
+        attention.parameters().forEach { it.zeroGrad() }
+        objective(attention, input).backward()
+
+        parameters.forEach { (parameter, index) ->
+            val analytical = parameter.grad[index]
+            val numerical = finiteDifference(attention, input, parameter, index)
+            val tolerance = 1e-6 * max(1.0, max(abs(analytical), abs(numerical)))
+
+            assertEquals(analytical, numerical, tolerance, "gradient mismatch at parameter index $index")
+        }
+    }
+
+    @Test
     fun `embeddingDim kann sich von numHeads times dK unterscheiden`() {
         val attention =
             MultiHeadAttentionMultikTensor(
@@ -286,4 +320,29 @@ class MultiHeadAttentionMultikTensorTest {
                 },
             ),
         )
+
+    private fun objective(
+        attention: MultiHeadAttentionMultikTensor,
+        input: TensorMultik,
+    ): TensorMultik = attention.forward(input, ctx = 2, training = false)
+
+    private fun finiteDifference(
+        attention: MultiHeadAttentionMultikTensor,
+        input: TensorMultik,
+        parameter: TensorMultik,
+        index: Int,
+    ): Double {
+        val epsilon = 1e-6
+        val original = parameter.data[index]
+
+        parameter.data[index] = original + epsilon
+        val plusOutput = objective(attention, input)
+        val plus = (0 until plusOutput.size).sumOf { plusOutput.data[it] }
+        parameter.data[index] = original - epsilon
+        val minusOutput = objective(attention, input)
+        val minus = (0 until minusOutput.size).sumOf { minusOutput.data[it] }
+        parameter.data[index] = original
+
+        return (plus - minus) / (2.0 * epsilon)
+    }
 }

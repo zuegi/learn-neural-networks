@@ -18,6 +18,7 @@ class AdamOptimizer(
     private val v = parameters.map { p -> mk.ndarray(DoubleArray(p.size)) }
     private var t = 0
 
+    // tag::adam-step[]
     fun step() {
         t += 1
         for (i in parameters.indices) {
@@ -39,6 +40,7 @@ class AdamOptimizer(
             }
         }
     }
+    // end::adam-step[]
 
     fun zeroGrad() {
         parameters.forEach { it.zeroGrad() }

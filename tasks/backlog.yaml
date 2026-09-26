@@ -141,3 +141,77 @@ tasks:
       - "The canonical library path and the didactic scratch path are separated by role and use-case, with a single highlighted main training path."
       - "All acceptance checks from the specification are mapped to explicit review items before closure."
       - "The backlog confirms that no contradictory path or role description remains across the surrounding chapter material."
+
+  - id: gpt-chapter-06
+    title: Document the decoder-only GPT forward path in chapter 06
+    status: done
+    order: 7
+    specification: docs/specifications/chapter-06-gpt.md
+    depends_on:
+      - attention-review-and-closure
+    scope:
+      chapter: docs/book/kapitel/06-gpt.adoc
+      implementation:
+        - kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/model/GPTModelMultikTensor.kt
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/TransformerBlockMultikTensor.kt
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/FeedForwardMultikTensor.kt
+        - kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/LayerNormMultikTensor.kt
+      canonical_dependencies:
+        - kapitel4/library/autograd
+      non_goals:
+        - "No new attention, autograd, or model class."
+        - "No training, optimizer, or generation content."
+    agent_role: chapter-author
+    acceptance_criteria:
+      - "Formulas and shapes from token + positional embeddings through Pre-LN blocks, final norm, and vocabulary logits match the code."
+      - "Parameter count formula, causality, and gradient reach for every parameter are covered by tests."
+      - "LayerNormMultikTensor delegates to TensorMultik.layerNorm so gradients flow; covered by a finite-difference test."
+
+  - id: training-chapter-07
+    title: Document next-token training and text generation in chapter 07
+    status: done
+    order: 8
+    specification: docs/specifications/chapter-07-training.md
+    depends_on:
+      - gpt-chapter-06
+    scope:
+      chapter: docs/book/kapitel/07-training.adoc
+      implementation:
+        - kapitel5/src/main/kotlin/GPTModelTraining.kt
+        - kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/training/GPTTrainer.kt
+        - kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/training/EarlyStoppingTrainer.kt
+        - kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/training/ModelCheckpoint.kt
+        - kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/library/autograd/AdamOptimizer.kt
+        - kapitel5/src/test/kotlin/ch/zuegi/ml/llm/kapitel5
+      canonical_dependencies:
+        - shared
+        - kapitel4/library/autograd
+      non_goals:
+        - "No new training features (shuffling, schedules, weight decay, optimizer state in checkpoints)."
+    agent_role: chapter-author
+    acceptance_criteria:
+      - "Loss, gradient, batching with gradient accumulation, clipping, Adam, validation, early stopping, checkpoint format, and perplexity match the code."
+      - "The chapter ends with text generation (sliding window, greedy, temperature, top-k)."
+      - "Targeted kapitel5 tests exist and pass in mvn verify."
+
+  - id: book-integration-06-07
+    title: Integrate chapters 06 and 07 into the book and align cross-references
+    status: done
+    order: 9
+    specification: docs/specifications/chapter-07-training.md
+    depends_on:
+      - training-chapter-07
+    scope:
+      chapter: docs/book/book.adoc
+      implementation:
+        - docs/book/kapitel/00-einleitung.adoc
+        - docs/book/kapitel/05-attention.adoc
+        - docs/HowToOrganiseBook.md
+      canonical_dependencies: []
+      non_goals:
+        - "No content changes to chapters 01-05 beyond cross-references."
+    agent_role: documentation-reviewer
+    acceptance_criteria:
+      - "book.adoc includes 06-gpt.adoc and 07-training.adoc consecutively after 05-attention.adoc."
+      - "Chapter 05 perplexity references point to <<Training>>."
+      - "The introduction overview lists chapters in book order."

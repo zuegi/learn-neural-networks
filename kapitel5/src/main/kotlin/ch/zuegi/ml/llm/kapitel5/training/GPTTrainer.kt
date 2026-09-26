@@ -12,6 +12,7 @@ class GPTTrainer(
     private val optimizer: AdamOptimizer,
     private val maxGradNorm: Double = 1.0,
 ) {
+    // tag::trainer-train-epoch[]
     fun trainEpoch(
         samples: List<TrainingSample>,
         batchSize: Int,
@@ -45,6 +46,7 @@ class GPTTrainer(
 
         return totalSampleLoss / sampleCount
     }
+    // end::trainer-train-epoch[]
 
     fun validate(
         samples: List<TrainingSample>,
@@ -75,6 +77,7 @@ class GPTTrainer(
         return totalSampleLoss / sampleCount
     }
 
+    // tag::trainer-clip-gradients[]
     private fun clipGradients(parameters: List<TensorMultik>) {
         var norm = 0.0
         for (param in parameters) {
@@ -93,4 +96,5 @@ class GPTTrainer(
             }
         }
     }
+    // end::trainer-clip-gradients[]
 }

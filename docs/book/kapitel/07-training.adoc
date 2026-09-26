@@ -1,0 +1,336 @@
+[[Training]]
+:sourceDirKapitel4: ../../../kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4
+:sourceDirKapitel5: ../../../kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5
+:sourceDirKapitel5Root: ../../../kapitel5/src/main/kotlin
+:sourceDirKapitel5Test: ../../../kapitel5/src/test/kotlin/ch/zuegi/ml/llm/kapitel5
+:sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
+:lang: de
+:toc: left
+:icons: font
+:stem: latexmath
+== Training und Textgenerierung
+
+<<GPT>> liefert für ein Fenster aus `T` Token die Logits `Z ∈ R^{T × V}`. Am
+Anfang sind die Gewichte zufällig und die Vorhersagen wertlos. Dieses Kapitel
+zeigt, wie der bestehende Trainingspfad im Modul `kapitel5` daraus ein Modell
+macht, das das nächste Token vorhersagt – und wie es anschließend Text
+erzeugt.
+
+=== Die Trainingspipeline
+
+[mermaid]
+....
+flowchart LR
+    data["TextDataLoader<br/>inputIds / targetIds"] --> fwd["forward<br/>Z [T, V]"]
+    fwd --> loss["Cross-Entropy<br/>mean über T"]
+    loss --> bwd["backward()"]
+    bwd --> clip["Gradient Clipping<br/>‖g‖ ≤ 1"]
+    clip --> adam["Adam step"]
+    adam --> fwd
+    adam -. Epoche fertig .-> val["validate<br/>ohne Dropout"]
+    val --> es{"besser als<br/>best − minDelta?"}
+    es -- ja --> ckpt["Checkpoint speichern"]
+    es -- nein --> pat["patience zählen"]
+....
+
+Beteiligte Dateien:
+
+* link:{sourceDirKapitel5Root}/GPTModelTraining.kt[`GPTModelTraining.kt`] – Einstiegspunkt mit Beispielkonfiguration
+* link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor`] – `loss` und `generate`
+* link:{sourceDirKapitel5}/training/GPTTrainer.kt[`GPTTrainer`] – Epoche, Batching, Clipping, Validierung
+* link:{sourceDirKapitel5}/library/autograd/AdamOptimizer.kt[`AdamOptimizer`]
+* link:{sourceDirKapitel5}/training/EarlyStoppingTrainer.kt[`EarlyStoppingTrainer`]
+* link:{sourceDirKapitel5}/training/ModelCheckpoint.kt[`ModelCheckpoint.kt`]
+
+=== Trainingsdaten: Next-Token-Prediction
+
+Die Daten kommen aus dem `TextDataLoader` (<<Dataloader>>). Jedes
+`TrainingSample` enthält `inputIds` und die um eine Position verschobenen
+`targetIds`:
+
+----
+tokens    : [10, 11, 12, 13, 14]
+inputIds  : [10, 11, 12, 13]
+targetIds : [11, 12, 13, 14]
+----
+
+Position `t` soll also `targetIds[t] = tokens[t + 1]` vorhersagen. Dank der
+Kausalität aus <<GPT>> (`causal = true`) liefert ein Forward-Pass `T`
+Vorhersagen auf einmal; jede hängt nur vom jeweiligen Präfix ab.
+
+`GPTModelTraining.kt` tokenisiert „The Verdict“ mit dem `GPT2Tokenizer`,
+erzeugt Fenster mit `contextLength = 32`, `stride = 1`, nimmt die ersten 500
+Samples und teilt sie in Training und Validierung: die *letzten* 20 %
+(`(n · 0.2).toInt()`, begrenzt auf `1 … n-1`) werden Validierungsdaten.
+
+=== Loss: Cross-Entropy über alle Positionen
+
+Für Logit-Zeile `z_t ∈ R^V` und Ziel `y_t`:
+
+[stem]
+++++
+p_t = \mathrm{softmax}(z_t), \qquad
+\mathcal{L} = \frac{1}{T}\sum_{t=0}^{T-1} -\log p_t[y_t]
+++++
+
+`softmaxCrossEntropy` zieht vor dem `exp` das Zeilenmaximum ab (numerisch
+stabil) und liefert als Rückwärtsschritt den bekannten, einfachen Gradienten
+
+[stem]
+++++
+\frac{\partial \mathcal{L}}{\partial z_t} = \frac{1}{T}\,\big(p_t - \mathrm{onehot}(y_t)\big)
+++++
+
+Der Faktor `1/T` entsteht durch `scale(T)`, das in `TensorMultik` *durch*
+`T` teilt.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[tag=gpt-loss]
+----
+
+*Plausibilitätscheck:* Ein frisch initialisiertes Modell hat nahezu
+gleichverteilte Logits, also `p_t[y] ≈ 1/V` und `L ≈ ln V`. Für `V = 50257`
+sind das `≈ 10.82`. Der Test `initialer loss liegt nahe ln vocabSize`
+prüft genau das.
+
+=== Batching und Gradientenakkumulation
+
+`GPTTrainer.trainEpoch` arbeitet mit Listen von Samples, nicht mit
+Batch-Tensoren:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/training/GPTTrainer.kt[tag=trainer-train-epoch]
+----
+
+Was dabei genau passiert:
+
+1. Batches sind zusammenhängende Stücke der Sample-Liste, *ohne Shuffling*;
+   der letzte Batch darf kleiner sein.
+2. `zeroGrad()` setzt alle Gradienten auf 0. Das ist nötig, weil jeder
+   `backwardStep` mit `+=` akkumuliert.
+3. Jedes Sample wird einzeln vorwärts und rückwärts gerechnet. Die
+   Gradienten addieren sich; für einen Batch `B` gilt
+   stem:[g = \sum_{b \in B} \nabla_\theta \mathcal{L}_b] – eine *Summe*,
+   nicht der Mittelwert.
+4. Danach folgt genau ein Clipping und ein Optimizer-Schritt pro Batch.
+5. Der zurückgegebene Epochen-Loss ist der Mittelwert der Sample-Losses,
+   gemessen *vor* dem jeweiligen Update und mit aktivem Dropout.
+
+=== Backpropagation durch das Modell
+
+`loss.backward()` sortiert den Graphen topologisch, setzt den Gradienten des
+skalaren Loss auf `1` und ruft die `backwardStep`-Funktionen in umgekehrter
+Reihenfolge auf (<<Autograd>>). Der Gradient fließt von `p_t − onehot(y_t)`
+über `W_out`, `LN_f`, alle Blöcke (Residual-Strom, FFN, Attention, LayerNorm)
+bis in die benutzten Zeilen von `E_tok` und `E_pos`.
+
+Dass wirklich *jeder* Parameter erreicht wird, prüft
+`backward erreicht jeden Parameter inklusive Embeddings und LayerNorm` in
+link:{sourceDirKapitel5Test}/model/GPTModelMultikTensorTest.kt[`GPTModelMultikTensorTest`]
+(siehe Stolperstein 1 in <<GPT>>).
+
+=== Gradient Clipping
+
+Vor jedem Update wird der Gradient über *alle* Parameter gemeinsam begrenzt
+(globale L2-Norm, `maxGradNorm = c = 1.0`):
+
+[stem]
+++++
+\|g\|_2 = \sqrt{\sum_{\theta} g_\theta^2}, \qquad
+g \leftarrow g \cdot \frac{c}{\|g\|_2} \quad \text{falls } \|g\|_2 > c
+++++
+
+Die Richtung bleibt erhalten, nur die Länge wird gekappt. Das schützt vor
+einzelnen Ausreißer-Batches.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/training/GPTTrainer.kt[tag=trainer-clip-gradients]
+----
+
+=== Adam-Optimierer
+
+`AdamOptimizer` hält pro Parameter einen ersten (`m`) und zweiten (`v`)
+Moment-Schätzer. Mit Schrittzähler `t`:
+
+[stem]
+++++
+\begin{aligned}
+m &\leftarrow \beta_1 m + (1-\beta_1)\,g, &
+v &\leftarrow \beta_2 v + (1-\beta_2)\,g^2, \\
+\hat m &= \frac{m}{1-\beta_1^{\,t}}, &
+\hat v &= \frac{v}{1-\beta_2^{\,t}}, \\
+\theta &\leftarrow \theta - \eta\,\frac{\hat m}{\sqrt{\hat v}+\varepsilon}
+\end{aligned}
+++++
+
+Defaults: `η = learningRate = 1e-3`, `β1 = 0.9`, `β2 = 0.999`, `ε = 1e-8`,
+keine Weight Decay. Der Einstiegspunkt nutzt `η = 1e-3`.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/library/autograd/AdamOptimizer.kt[tag=adam-step]
+----
+
+Die Bias-Korrektur hat eine anschauliche Folge: Im ersten Schritt ist
+`m̂ = g` und `v̂ = g²`, also bewegt sich jeder Parameter um fast genau
+`η · sign(g)` – unabhängig davon, ob der Gradient `0.001` oder `250` ist.
+`AdamOptimizerTest` belegt das. Deshalb verändert auch die Summe statt des
+Mittelwerts beim Batching (siehe oben) die Schrittweite kaum; sie wirkt vor
+allem darauf, wann das Clipping greift.
+
+NOTE: `SGDTensorMultik` in `kapitel4` ist ein einfacher SGD-Optimierer aus
+dem Lernpfad; der Trainingspfad verwendet ausschließlich Adam.
+
+=== Validierung
+
+`validate` rechnet denselben Loss mit `training = false`: Attention-Dropout
+ist aus, es gibt kein `backward()` und kein Update. Der Test
+`validate veraendert keine Gewichte` sichert das ab. Weil die Validierung
+deterministisch ist, sind Werte verschiedener Epochen direkt vergleichbar.
+
+=== Early Stopping und Checkpoints
+
+`EarlyStoppingTrainer` ruft pro Epoche `trainEpoch` und `validate` auf und
+entscheidet dann:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/training/EarlyStoppingTrainer.kt[tag=early-stopping-check]
+----
+
+* Eine Epoche gilt als besser, wenn `val < best − minDelta`
+  (Einstieg: `minDelta = 0.0001`).
+* Dann werden die Gewichte sofort gespeichert.
+* Nach `patience` Epochen ohne Verbesserung (Einstieg: `3`) bricht das
+  Training ab, spätestens nach `maxEpochs` (Einstieg: `10`).
+* Am Ende lädt `train` den besten Checkpoint zurück ins Modell. Das Modell
+  entspricht danach der besten Validierungsepoche, nicht der letzten.
+
+Das Checkpoint-Format in `ModelCheckpoint.kt` ist bewusst minimal:
+
+----
+Int    version (= 1)
+Int    Anzahl Tensoren
+je Tensor:  Int size, danach size × Double
+----
+
+Die Reihenfolge ist die von `model.parameters()`. Konfiguration und
+Adam-Zustand werden *nicht* gespeichert: Zum Laden muss ein Modell mit
+identischer `GPTConfig` existieren, und ein fortgesetztes Training startet
+Adam neu. `loadModelWeights` prüft Version, Tensoranzahl und Tensorgrößen.
+
+=== Metriken: Loss und Perplexity
+
+Pro Epoche meldet `EpochMetrics` Trainings- und Validierungs-Loss sowie
+
+[stem]
+++++
+\mathrm{PPL} = \exp(\overline{\mathcal{L}})
+++++
+
+Perplexity ist die „effektive Anzahl gleich wahrscheinlicher Kandidaten“:
+Ein untrainiertes Modell liegt bei `PPL ≈ V`, ein perfektes bei `1`. Weil alle
+Samples genau `T` Zieltoken haben, ist der Mittelwert der Sample-Mittelwerte
+gleich dem Mittelwert über alle Zieltoken.
+
+=== Ausführen
+
+Der Einstiegspunkt ist die Funktion `main` in `GPTModelTraining.kt`
+(Klasse `GPTModelTrainingKt`). Er druckt pro Epoche eine Zeile mit
+`train`, `val`, `train_ppl`, `val_ppl` und Epochendauer, danach beste Epoche,
+Starttext und generierten Text.
+
+WARNING: `kapitel5/pom.xml` konfiguriert das `exec-maven-plugin` mit
+`mainClass = MainKt`. Diese Klasse existiert nicht; `mvn -pl kapitel5 exec:java`
+endet mit `ClassNotFoundException: MainKt`. Bis die Konfiguration korrigiert
+ist, `GPTModelTraining.kt` direkt aus der IDE starten (Arbeitsverzeichnis:
+Repo-Wurzel, wegen des Checkpoint-Pfads `kapitel5/target/checkpoints/`).
+
+=== Textgenerierung
+
+Nach dem Training erzeugt `generate` Token für Token neuen Text:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[tag=gpt-generate]
+----
+
+1. *Sliding Window:* `sequence.takeLast(T)` – das Modell sieht immer genau
+   `T` Token. `startIds.size >= contextLength` ist Pflicht.
+2. *Letzte Zeile:* Nur `Z[T-1]` wird gebraucht; sie sagt das Token nach dem
+   letzten Eingabe-Token vorher.
+3. *Auswahl:*
+   ** `greedy = true`: `argmax`, deterministisch.
+   ** sonst *Top-k:* Für `topK in 1 until V` bleiben alle Logits `≥` dem
+      k-größten Wert erhalten (bei Gleichstand evtl. mehr als `k`), der Rest
+      wird `-∞`. Für `topK = 0` oder `topK >= V` wird nicht gefiltert.
+   ** *Temperatur:* stem:[p_i = \mathrm{softmax}(z_i / \tau)]. `τ < 1`
+      schärft die Verteilung, `τ > 1` flacht sie ab; `τ > 0` ist Pflicht.
+   ** *Stichprobe:* inverse CDF mit einem `Random(generatorSeed)`; gleicher
+      Seed ⇒ gleicher Text.
+4. Das Token wird angehängt, und die Schleife läuft `maxNewTokens`-mal.
+
+Der Einstieg nutzt `maxNewTokens = 4`, `temperature = 0.9`, `topK = 20`,
+`generatorSeed = 123`. Der Test
+`generate haengt maxNewTokens an und ist mit generatorSeed reproduzierbar`
+prüft Länge, Präfix und Reproduzierbarkeit.
+
+=== Tests
+
+[cols="3,4", options="header"]
+|===
+| Test | Prüft
+
+| link:{sourceDirKapitel5Test}/model/GPTModelMultikTensorTest.kt[`GPTModelMultikTensorTest`]
+| Startloss `≈ ln V`, Gradient für jeden Parameter, Generierung
+| link:{sourceDirKapitel5Test}/library/autograd/AdamOptimizerTest.kt[`AdamOptimizerTest`]
+| erster Schritt `≈ η · sign(g)`, `zeroGrad`
+| link:{sourceDirKapitel5Test}/training/GPTTrainerTest.kt[`GPTTrainerTest`]
+| Loss sinkt deutlich auf wiederholtem Text; `validate` ändert nichts
+| link:{sourceDirKapitel5Test}/training/EarlyStoppingTrainerTest.kt[`EarlyStoppingTrainerTest`]
+| beste Epoche, Perplexity, Wiederherstellung der besten Gewichte
+| link:{sourceDirKapitel5Test}/training/ModelCheckpointTest.kt[`ModelCheckpointTest`]
+| Save/Load-Roundtrip, Ablehnung unbekannter Versionen
+|===
+
+Gradient Clipping ist `private` und nicht isoliert getestet.
+
+=== Design-Entscheidungen
+
+1. *Ein Sample pro Forward-Pass.* Batching ist eine Schleife mit
+   Gradientenakkumulation statt eines `[B, T, d]`-Tensors – langsam, aber
+   ohne zusätzliche Tensor-Achse.
+2. *Adam statt SGD.* Adam normiert die Schrittweite pro Parameter und
+   verträgt die sehr unterschiedlich skalierten Gradienten von Embeddings,
+   Attention und `W_out`.
+3. *Early Stopping mit Checkpoint.* Das kleine Korpus überfittet schnell; das
+   Modell mit der besten Validierung wird behalten.
+4. *Minimales Checkpoint-Format.* Nur Gewichte, damit Format und Code
+   überschaubar bleiben.
+
+=== Stolpersteine & Learnings
+
+1. *„Loss sinkt“ heißt nicht „alles lernt“.* Solange der LayerNorm-Rückweg
+   fehlte (<<GPT>>), sank der Loss trotzdem – nur `W_out` wurde trainiert.
+   Erst ein Test auf *jeden* Parameter deckte das auf.
+2. *`zeroGrad` vergessen* ⇒ Gradienten wachsen über Batches hinweg.
+3. *Summe statt Mittelwert:* Größere Batches erzeugen größere
+   Gradientennormen und lösen das Clipping früher aus.
+4. *Überlappende Fenster im Split:* Mit `stride = 1` teilen die ersten
+   Validierungsfenster Token mit den letzten Trainingsfenstern; die
+   Validierung ist dadurch leicht optimistisch.
+5. *Checkpoint ohne Konfiguration:* Ein anderes `GPTConfig` beim Laden führt
+   zu einem `IllegalArgumentException` wegen falscher Tensorgrößen.
+6. *Perplexity nur mit vergleichbaren Losses:* Bei Padding oder variabler
+   Länge müsste der Mittelwert über gültige Zieltoken gebildet werden.
+
+=== Zusammenfassung
+
+* Ziel: `L = mean_t −log p_t[y_t]` mit Gradient `(p_t − onehot(y_t))/T`.
+* Pro Batch: `zeroGrad → (forward, backward) pro Sample → clip → Adam`.
+* Validierung ohne Dropout; Early Stopping speichert und lädt das beste Modell.
+* Perplexity `= exp(mean CE)`.
+* Generierung: Sliding Window, letzte Logit-Zeile, greedy oder Top-k mit Temperatur.

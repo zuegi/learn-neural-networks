@@ -39,6 +39,7 @@ class TransformerBlockMultikTensor(
             seed = seed?.let { it + FEED_FORWARD_SEED_OFFSET },
         )
 
+    // tag::transformer-block-forward[]
     fun forward(
         input: TensorMultik,
         ctx: Int,
@@ -50,6 +51,7 @@ class TransformerBlockMultikTensor(
         val normedForFeedForward = perRow(attended, ctx) { feedForwardNorm.forward(it) }
         return attended + perRow(normedForFeedForward, ctx) { feedForward.forward(it) }
     }
+    // end::transformer-block-forward[]
 
     fun parameters(): List<TensorMultik> =
         attentionNorm.parameters() +

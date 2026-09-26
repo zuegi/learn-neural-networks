@@ -48,6 +48,7 @@ class GPTModelMultikTensor(
             mk.ndarray(DoubleArray(embeddingDim * vocabSize) { rnd.nextGaussian() * INIT_SCALE }),
         )
 
+    // tag::gpt-forward[]
     fun forward(
         tokenIds: List<Int>,
         training: Boolean = false,
@@ -76,7 +77,9 @@ class GPTModelMultikTensor(
 
         return normed.matMul(wOutput, p = contextLength, q = embeddingDim, r = vocabSize)
     }
+    // end::gpt-forward[]
 
+    // tag::gpt-loss[]
     fun loss(
         tokenIds: List<Int>,
         targetIds: List<Int>,
@@ -93,7 +96,9 @@ class GPTModelMultikTensor(
         }
         return total.scale(contextLength.toDouble())
     }
+    // end::gpt-loss[]
 
+    // tag::gpt-generate[]
     fun generate(
         startIds: List<Int>,
         generatedConfig: GenerationConfig,
@@ -128,6 +133,7 @@ class GPTModelMultikTensor(
 
         return sequence
     }
+    // end::gpt-generate[]
 
     private fun argmax(values: DoubleArray): Int {
         var maxIndex = 0

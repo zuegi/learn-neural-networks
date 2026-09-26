@@ -101,10 +101,10 @@ wird aus dem Code dokumentiert.
 - [x] Tests oben existieren und laufen in `mvn verify`.
 - [x] Kapitel 05 verweist für Perplexity auf <<Training>>.
 
-## Befunde (berichtet, nicht umgebaut)
+## Befunde
 
 - LayerNorm-Gradientenfluss war unterbrochen (Fix siehe Spec Kapitel 06); ohne Fix lernte nur `W_out`.
-- `kapitel5/pom.xml` konfiguriert `exec-maven-plugin` mit `mainClass = MainKt`; die Klasse existiert nicht (`ClassNotFoundException: MainKt`). Der Einstieg ist `GPTModelTrainingKt`.
+- Behoben: `kapitel5/pom.xml` konfigurierte `exec-maven-plugin` mit der nicht existierenden `mainClass = MainKt` (`ClassNotFoundException: MainKt`). Jetzt `GPTModelTrainingKt`; `mvn -pl kapitel5 exec:java` startet das Training.
 - Train/Validation-Split nimmt die letzten 20 % überlappender Fenster (`stride = 1`); die Grenzfenster teilen Token mit dem Training.
 
 ## Quellen und Copyright

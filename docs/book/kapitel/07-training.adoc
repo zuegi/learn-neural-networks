@@ -243,11 +243,15 @@ Der Einstiegspunkt ist die Funktion `main` in `GPTModelTraining.kt`
 `train`, `val`, `train_ppl`, `val_ppl` und Epochendauer, danach beste Epoche,
 Starttext und generierten Text.
 
-WARNING: `kapitel5/pom.xml` konfiguriert das `exec-maven-plugin` mit
-`mainClass = MainKt`. Diese Klasse existiert nicht; `mvn -pl kapitel5 exec:java`
-endet mit `ClassNotFoundException: MainKt`. Bis die Konfiguration korrigiert
-ist, `GPTModelTraining.kt` direkt aus der IDE starten (Arbeitsverzeichnis:
-Repo-Wurzel, wegen des Checkpoint-Pfads `kapitel5/target/checkpoints/`).
+Das `exec-maven-plugin` in `kapitel5/pom.xml` ist auf `GPTModelTrainingKt`
+konfiguriert. Gestartet wird aus der Repo-Wurzel, weil der Checkpoint-Pfad
+`kapitel5/target/checkpoints/` relativ dazu ist:
+
+[source,bash]
+----
+mvn -pl kapitel5 -am install -DskipTests
+mvn -pl kapitel5 exec:java
+----
 
 === Textgenerierung
 

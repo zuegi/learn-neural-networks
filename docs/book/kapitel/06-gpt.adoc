@@ -3,10 +3,13 @@
 :sourceDirKapitel4Test: ../../../kapitel4/src/test/kotlin/ch/zuegi/ml/llm/kapitel4
 :sourceDirKapitel5: ../../../kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5
 :sourceDirKapitel5Test: ../../../kapitel5/src/test/kotlin/ch/zuegi/ml/llm/kapitel5
+:sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
 :lang: de
 :toc: left
 :icons: font
 :stem: latexmath
+:mmdc: /usr/local/bin/mmdc
+
 == GPT-Modell: Vom Token zur Vokabular-Verteilung
 
 In den bisherigen Kapiteln sind alle Einzelteile entstanden: Token-IDs
@@ -15,6 +18,56 @@ Autograd (<<Autograd>>) und kausale Multi-Head Attention (<<Attention>>). Dieses
 Kapitel setzt sie zu einem *decoder-only* GPT-Modell zusammen und verfolgt den
 Forward-Pfad bis zu den Logits über das Vokabular. Wie das Modell lernt, zeigt
 <<Training>>.
+
+=== Was bedeutet GPT, und welches Modell verwenden wir?
+
+*GPT* steht für **G**enerative **P**re-trained **T**ransformer. Die drei
+Begriffe beschreiben, was das Modell tut und wie es aufgebaut ist:
+
+* *Generative* – das Modell erzeugt Text, indem es Token für Token die
+  Wahrscheinlichkeitsverteilung über das nächste Token vorhersagt (letzter
+  Schritt dieses Kapitels: die finale Logit-Projektion; die eigentliche
+  Textgenerierung zeigt <<Training>>).
+* *Pre-trained* – im Original (OpenAI, ab 2018) wird ein solches Modell zuerst
+  unüberwacht auf sehr großen Textmengen trainiert ("next-token
+  prediction"), bevor es für konkrete Aufgaben weiterverwendet wird. Unser
+  Modell folgt demselben Trainingsziel (<<Training>>), aber auf einem einzigen
+  kleinen Beispieltext (`the-verdict.txt`, siehe <<Dataloader>>) – es ist ein
+  Lernbeispiel, kein vortrainiertes Sprachmodell im eigentlichen Sinn.
+* *Transformer* – die Architektur, die Attention statt Rekurrenz nutzt
+  (<<Attention>>), hier ausschließlich im *decoder-only* Aufbau: jeder Block
+  sieht nur vergangene und aktuelle Token (kausale Maske), es gibt keinen
+  separaten Encoder.
+
+Architektonisch orientiert sich unser Modell an *GPT-2* (OpenAI, 2019): Pre-LN
+Transformer-Blöcke (LayerNorm *vor* Attention/FFN, nicht danach), GELU-Aktivierung
+in der FFN und ein BPE-Tokenizer. Tatsächlich verwendet der Code mit
+link:{sourceDirShared}/tokenize/GPT2Tokenizer.kt[`GPT2Tokenizer`]
+exakt das GPT-2-Vokabular (`vocabSize = 50257`). Es ist aber **kein** Nachbau
+des vollständigen GPT-2-Modells: Dieses hatte in der kleinsten Variante bereits
+124 Mio. Parameter, 12 Schichten und wurde auf Milliarden Token vortrainiert.
+Unser Modell – implementiert in
+link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor.kt`] –
+ist eine stark verkleinerte, selbst geschriebene Umsetzung derselben
+Architektur zu Lernzwecken. Zwei konkrete Konfigurationen sind im Code zu
+finden:
+
+[cols="2,1,1", options="header"]
+|===
+| Konfiguration | `GPTConfig`-Defaults (siehe unten) | tatsächlich in `GPTModelTraining.kt` trainiert
+
+| `contextLength` (`T`) | 256 | 32
+| `embeddingDim` (`d`) | 256 | 32
+| `numLayers` (`L`) | 6 | 1
+| `numHeads` (`h`) | 8 | 2
+| `vocabSize` (`V`) | 50257 (GPT-2-Vokabular) | 50257 (GPT-2-Vokabular)
+|===
+
+Die Defaults in `GPTConfig` zeigen, wie groß das Modell *werden könnte*; der
+tatsächliche Trainingslauf in <<Training>> verwendet die deutlich kleinere
+rechte Spalte, damit ein Durchlauf auf einem Laptop in Minuten statt Tagen
+fertig wird. Die Formeln und Shape-Tabellen in diesem Kapitel gelten für jede
+Kombination dieser Hyperparameter identisch.
 
 === Überblick
 

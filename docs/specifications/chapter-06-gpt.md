@@ -24,6 +24,9 @@ Kotlin-Code wiederfinden können.
 
 Nach dem Kapitel kann der Leser:
 
+0. erklären, wofür "GPT" steht (Generative Pre-trained Transformer) und welches
+   konkrete Modell (Architektur-Vorbild GPT-2, tatsächliche Konfiguration in
+   `GPTModelTraining.kt` vs. `GPTConfig`-Defaults) dieses Buch implementiert;
 1. die Konfiguration `GPTConfig` und die abgeleitete Größe `dK = embeddingDim / numHeads` erklären;
 2. die Eingabematrix `X0 = E_tok[ids] + E_pos[0..T-1]` bilden;
 3. einen Pre-LN-Transformer-Block als `A = X + MHA(LN1(X))`, `Y = A + FFN(LN2(A))` formulieren;

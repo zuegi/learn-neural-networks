@@ -48,9 +48,8 @@ Nach dem Kapitel kann der Leser:
 | LayerNorm | `kapitel4/.../library/autograd/LayerNormMultikTensor.kt` → `TensorMultik.layerNorm` |
 
 Kapitel 06 dokumentiert die Modellkopie in `kapitel5`, weil genau sie in
-Kapitel 07 trainiert wird. `kapitel4/.../GPTModelMultikTensor.kt` ist eine
-nahezu identische Vorgängerkopie (ohne `training`-Parameter in `loss`); sie wird
-als bestehende Duplikation benannt, aber nicht entfernt.
+Kapitel 07 trainiert wird. Die frühere Vorgängerkopie in `kapitel4` wurde
+entfernt; alle GPT-Modellklassen liegen in `kapitel5/model`.
 
 ## Verbindliche Formeln und Shapes
 
@@ -130,5 +129,5 @@ orientiert sich laut `README.md` an Raschkas Buch; darauf wird nur verwiesen.
 
 ## Risiken und offene Punkte
 
-- Modellduplikat `kapitel4/GPTModelMultikTensor.kt` ↔ `kapitel5/model/GPTModelMultikTensor.kt` bleibt bestehen.
+- Behoben: Modellduplikat `kapitel4/GPTModelMultikTensor.kt` entfernt; Scratch-`GPTModel`, `GPTConfig`, `GenerationConfig` und die GPT-Demos liegen jetzt ausschliesslich in `kapitel5` (`model`, `demo`).
 - `ReStrukturierung.md` fordert Training über `TrainableTokenEmbedding`; das Modell besitzt eigene Embedding-Tensoren. Abweichung wird dokumentiert, nicht umgebaut.

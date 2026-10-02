@@ -1,8 +1,8 @@
-package ch.zuegi.ml.llm.kapitel4.demo
+package ch.zuegi.ml.llm.kapitel5.demo
 
-import ch.zuegi.ml.llm.kapitel4.GPTConfig
-import ch.zuegi.ml.llm.kapitel4.GPTModelMultikTensor
-import ch.zuegi.ml.llm.kapitel4.GenerationConfig
+import ch.zuegi.ml.llm.kapitel5.model.GPTConfig
+import ch.zuegi.ml.llm.kapitel5.model.GPTModelMultikTensor
+import ch.zuegi.ml.llm.kapitel5.model.GenerationConfig
 import ch.zuegi.ml.llm.kapitel4.library.autograd.SGDTensorMultik
 import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.TextDataLoader

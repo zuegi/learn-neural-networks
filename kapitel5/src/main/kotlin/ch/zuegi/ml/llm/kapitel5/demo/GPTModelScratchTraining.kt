@@ -1,7 +1,7 @@
-package ch.zuegi.ml.llm.kapitel4.demo
+package ch.zuegi.ml.llm.kapitel5.demo
 
-import ch.zuegi.ml.llm.kapitel4.GPTConfig
-import ch.zuegi.ml.llm.kapitel4.GPTModel
+import ch.zuegi.ml.llm.kapitel5.model.GPTConfig
+import ch.zuegi.ml.llm.kapitel5.model.GPTModel
 import ch.zuegi.ml.llm.kapitel4.scratch.autograd.SGD
 import ch.zuegi.ml.llm.shared.tokenize.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.TextDataLoader

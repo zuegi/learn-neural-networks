@@ -1,4 +1,4 @@
-package ch.zuegi.ml.llm.kapitel4
+package ch.zuegi.ml.llm.kapitel5.model
 
 import ch.zuegi.ml.llm.kapitel4.scratch.autograd.LayerNorm
 import ch.zuegi.ml.llm.kapitel4.scratch.autograd.Tensor

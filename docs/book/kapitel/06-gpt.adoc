@@ -107,10 +107,9 @@ Die Bausteine kommen aus dem kanonischen Autograd-Pfad in `kapitel4`:
 * link:{sourceDirKapitel4}/library/autograd/FeedForwardMultikTensor.kt[`FeedForwardMultikTensor`]
 * link:{sourceDirKapitel4}/library/autograd/LayerNormMultikTensor.kt[`LayerNormMultikTensor`]
 
-NOTE: `kapitel4/.../GPTModelMultikTensor.kt` ist eine ältere, fast identische
-Kopie desselben Modells. Dieses Buch dokumentiert die Variante in `kapitel5`,
-weil nur sie in <<Training>> verwendet wird. Die Maven-Modulnummern
-entsprechen nicht den Buchkapiteln.
+NOTE: Alle GPT-Modellklassen liegen im Maven-Modul `kapitel5`; die
+Bausteine (Autograd, Attention, LayerNorm, FFN) kommen aus `kapitel4`. Die
+Maven-Modulnummern entsprechen nicht den Buchkapiteln.
 
 === Konfiguration: `GPTConfig`
 

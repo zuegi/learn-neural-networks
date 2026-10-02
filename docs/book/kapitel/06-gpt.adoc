@@ -39,12 +39,15 @@ Begriffe beschreiben, was das Modell tut und wie es aufgebaut ist:
   sieht nur vergangene und aktuelle Token (kausale Maske), es gibt keinen
   separaten Encoder.
 
-Architektonisch orientiert sich unser Modell an *GPT-2* (OpenAI, 2019): Pre-LN
-Transformer-Blöcke (LayerNorm *vor* Attention/FFN, nicht danach), GELU-Aktivierung
-in der FFN und ein BPE-Tokenizer. Tatsächlich verwendet der Code mit
+
+Architektonisch orientiert sich unser Modell an *GPT-2* (OpenAI, 2019):
+
+- Pre-LN Transformer-Blöcke (LayerNorm *vor* Attention/FFN, nicht danach),
+- GELU-Aktivierung in der FFN und ein BPE-Tokenizer. Tatsächlich verwendet der Code mit
 link:{sourceDirShared}/tokenize/GPT2Tokenizer.kt[`GPT2Tokenizer`]
-exakt das GPT-2-Vokabular (`vocabSize = 50257`). Es ist aber **kein** Nachbau
-des vollständigen GPT-2-Modells: Dieses hatte in der kleinsten Variante bereits
+exakt das GPT-2-Vokabular (`vocabSize = 50257`).
+
+Es ist aber **kein** Nachbau des vollständigen GPT-2-Modells: Dieses hatte in der kleinsten Variante bereits
 124 Mio. Parameter, 12 Schichten und wurde auf Milliarden Token vortrainiert.
 Unser Modell – implementiert in
 link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor.kt`] –

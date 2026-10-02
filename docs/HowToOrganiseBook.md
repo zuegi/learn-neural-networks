@@ -68,7 +68,7 @@ Jedes Kapitel verbindet das Konzept mit dem Code anstatt nur die reine Theorie z
 6. **Kapitel 7: Training & Textgenerierung** (`07-training.adoc`)
    - Next-Token-Training, Loss, Batching, Backprop, Clipping, Adam, Validierung, Early Stopping, Checkpoints, Perplexity, Generierung
    - Spezifikation: `docs/specifications/chapter-07-training.md`
-   - Hinweis: Maven-Modul `kapitel5` enthält den Code für Buchkapitel 7; Modul- und Kapitelnummern sind nicht identisch
+   - Hinweis: Maven-Modul `kapitel5` enthält den Code für Buchkapitel 6 und 7; Modul- und Kapitelnummern sind nicht identisch
 
 7. **Grundregel für das ganze Buch**
    - Scratch = Lern- und Verständnisweg

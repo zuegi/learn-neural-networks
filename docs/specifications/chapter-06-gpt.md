@@ -42,14 +42,15 @@ Nach dem Kapitel kann der Leser:
 |---|---|
 | Modell | `kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/model/GPTModelMultikTensor.kt` |
 | Konfiguration | `kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5/model/GPTConfig.kt` |
+| Embeddings | `kapitel4/.../library/autograd/EmbeddingMultikTensor.kt` |
 | Transformer-Block | `kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4/library/autograd/TransformerBlockMultikTensor.kt` |
 | Attention (Kapitel 05) | `kapitel4/.../library/autograd/MultiHeadAttentionMultikTensor.kt` |
 | Feed-Forward | `kapitel4/.../library/autograd/FeedForwardMultikTensor.kt` |
 | LayerNorm | `kapitel4/.../library/autograd/LayerNormMultikTensor.kt` → `TensorMultik.layerNorm` |
 
-Kapitel 06 dokumentiert die Modellkopie in `kapitel5`, weil genau sie in
-Kapitel 07 trainiert wird. Die frühere Vorgängerkopie in `kapitel4` wurde
-entfernt; alle GPT-Modellklassen liegen in `kapitel5/model`.
+Kapitel 06 dokumentiert das Modell in `kapitel5`, das in Kapitel 07
+trainiert wird. Die frühere Vorgängerkopie in `kapitel4` wurde entfernt;
+alle GPT-Modellklassen liegen in `kapitel5/model`.
 
 ## Verbindliche Formeln und Shapes
 
@@ -130,4 +131,4 @@ orientiert sich laut `README.md` an Raschkas Buch; darauf wird nur verwiesen.
 ## Risiken und offene Punkte
 
 - Behoben: Modellduplikat `kapitel4/GPTModelMultikTensor.kt` entfernt; Scratch-`GPTModel`, `GPTConfig`, `GenerationConfig` und die GPT-Demos liegen jetzt ausschliesslich in `kapitel5` (`model`, `demo`).
-- ~~`ReStrukturierung.md` fordert Training über `TrainableTokenEmbedding`; das Modell besitzt eigene Embedding-Tensoren.~~ **Entschieden (Variante A):** `Trainable*` bleibt didaktisch (Kapitel 03, manueller Backward + SGD); das GPT-Modell nutzt die Autograd-Klasse `kapitel4/library/autograd/EmbeddingMultikTensor` für Token- und Positions-Embedding. `ReStrukturierung.md` wird in Phase 4 angepasst.
+- ~~`ReStrukturierung.md` fordert Training über `TrainableTokenEmbedding`; das Modell besitzt eigene Embedding-Tensoren.~~ **Entschieden (Variante A):** `Trainable*` bleibt didaktisch (Kapitel 03, manueller Backward + SGD); das GPT-Modell nutzt die Autograd-Klasse `kapitel4/library/autograd/EmbeddingMultikTensor` für Token- und Positions-Embedding. `ReStrukturierung.md` ist entsprechend angepasst.

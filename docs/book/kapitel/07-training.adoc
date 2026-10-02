@@ -8,6 +8,8 @@
 :toc: left
 :icons: font
 :stem: latexmath
+:mmdc: /usr/local/bin/mmdc
+
 == Training und Textgenerierung
 
 <<GPT>> liefert für ein Fenster aus `T` Token die Logits `Z ∈ R^{T × V}`. Am

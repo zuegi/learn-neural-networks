@@ -10,6 +10,7 @@ Dein Name <du@example.com>
 :imagesdir: images
 :experimental:
 :xrefstyle: short
+:mmdc: /usr/local/bin/mmdc
 
 // ---------------------------------------------------------------
 // Dies ist das Hauptdokument. Es bindet nur die einzelnen Kapitel

@@ -8,7 +8,7 @@ import org.jetbrains.kotlinx.multik.ndarray.data.set
 import kotlin.math.pow
 
 class AdamOptimizer(
-    private val parameters: List<TensorMultik>,
+    val parameters: List<TensorMultik>,
     private val learningRate: Double = 0.001,
     private val beta1: Double = 0.9,
     private val beta2: Double = 0.999,

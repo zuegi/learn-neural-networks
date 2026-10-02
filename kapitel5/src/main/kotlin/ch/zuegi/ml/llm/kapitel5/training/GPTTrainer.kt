@@ -39,7 +39,7 @@ class GPTTrainer(
                 sampleCount += 1
             }
 
-            clipGradients(model.parameters())
+            clipGradients(optimizer.parameters)
             optimizer.step()
             index = end
         }

@@ -284,7 +284,7 @@ Ziel: denselben Trainingskern im realen Pipeline-Kontext prüfen.
 Im realistischeren Ablauf hängen wir den gesamten Pfad an:
 
 * `readVerdictText()`
-* `R50kBpeTokenizer`
+* `GPT2Tokenizer`
 * `TextDataLoader`
 * `TrainableTokenEmbedding`
 

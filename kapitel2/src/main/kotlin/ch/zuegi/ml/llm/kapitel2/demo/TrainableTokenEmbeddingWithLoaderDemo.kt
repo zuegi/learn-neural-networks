@@ -1,6 +1,6 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.library.R50kBpeTokenizer
+import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
 import ch.zuegi.ml.llm.shared.embedding.TrainableTokenEmbedding
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
@@ -23,7 +23,7 @@ fun main() {
 
     // End-to-End Setup: Text -> Tokenizer -> DataLoader -> trainierbares Embedding
     val rawText = readVerdictText()
-    val tokenizer = R50kBpeTokenizer()
+    val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     val contextLength = 4

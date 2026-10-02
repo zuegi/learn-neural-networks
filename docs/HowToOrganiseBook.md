@@ -37,11 +37,11 @@ Jedes Kapitel verbindet das Konzept mit dem Code anstatt nur die reine Theorie z
 ## Fahrplan
 1. **Kapitel 1: Tokenizer**
    - `SimpleTokenizerV1` als didaktischen Einstieg vollständig beibehalten
-   - `R50kBpeTokenizer` als produktionsnäheren Pfad einführen
+   - `GPT2Tokenizer` als produktionsnäheren Pfad einführen
    - klar markieren, dass ab den folgenden Kapiteln primär der BPE-Tokenizer verwendet wird
 
 2. **Kapitel 2: DataLoader**
-   - Beispiele standardmäßig mit `R50kBpeTokenizer` aufbauen
+   - Beispiele standardmäßig mit `GPT2Tokenizer` aufbauen
    - `SimpleTokenizerV1` nur noch als konzeptionelle Referenz erwähnen, falls nötig
    - Fokus auf Trainingsfenster, `TrainingSample`, `batchSize`, `stride`, `contextLength`
 

@@ -1,5 +1,6 @@
 package ch.zuegi.ml.llm.kapitel5.model
 
+import ch.zuegi.ml.llm.kapitel4.library.autograd.EmbeddingMultikTensor
 import ch.zuegi.ml.llm.kapitel4.library.autograd.LayerNormMultikTensor
 import ch.zuegi.ml.llm.kapitel4.library.autograd.TensorMultik
 import ch.zuegi.ml.llm.kapitel4.library.autograd.TransformerBlockMultikTensor
@@ -18,14 +19,8 @@ class GPTModelMultikTensor(
 
     private val rnd = if (config.seed != null) Random(config.seed) else Random()
 
-    val tokenEmbedding: TensorMultik =
-        TensorMultik(
-            mk.ndarray(DoubleArray(vocabSize * embeddingDim) { rnd.nextGaussian() * EMBED_SCALE }),
-        )
-    val positionalEmbedding: TensorMultik =
-        TensorMultik(
-            mk.ndarray(DoubleArray(contextLength * embeddingDim) { rnd.nextGaussian() * EMBED_SCALE }),
-        )
+    val tokenEmbedding = EmbeddingMultikTensor(vocabSize, embeddingDim, EMBED_SCALE, rnd)
+    val positionalEmbedding = EmbeddingMultikTensor(contextLength, embeddingDim, EMBED_SCALE, rnd)
 
     private val blocks: List<TransformerBlockMultikTensor> =
         (0 until config.numLayers).map { layerIndex ->
@@ -59,9 +54,7 @@ class GPTModelMultikTensor(
 
         val rows =
             (0 until contextLength).map { pos ->
-                val tok = tokenEmbedding.row(tokenIds[pos], embeddingDim)
-                val position = positionalEmbedding.row(pos, embeddingDim)
-                tok + position
+                tokenEmbedding.forward(tokenIds[pos]) + positionalEmbedding.forward(pos)
             }
         var x = TensorMultik.stackRows(rows, embeddingDim)
 
@@ -183,7 +176,8 @@ class GPTModelMultikTensor(
     }
 
     fun parameters(): List<TensorMultik> =
-        listOf(tokenEmbedding, positionalEmbedding) +
+        tokenEmbedding.parameters() +
+            positionalEmbedding.parameters() +
             blocks.flatMap { it.parameters() } +
             finalNorm.parameters() +
             listOf(wOutput)

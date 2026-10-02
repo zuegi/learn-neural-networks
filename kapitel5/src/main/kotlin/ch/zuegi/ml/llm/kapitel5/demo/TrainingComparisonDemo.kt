@@ -34,7 +34,7 @@ private val variants =
     listOf(
         Variant("nur W_out") { listOf(it.wOutput) },
         Variant("Embeddings statisch") { model ->
-            model.parameters().filterNot { it === model.tokenEmbedding || it === model.positionalEmbedding }
+            model.parameters().filterNot { it === model.tokenEmbedding.weight || it === model.positionalEmbedding.weight }
         },
         Variant("alle Parameter") { it.parameters() },
     )

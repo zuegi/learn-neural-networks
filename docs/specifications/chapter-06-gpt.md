@@ -60,8 +60,8 @@ row-major, eine Zeile pro Position.
 | Größe | Form | Definition |
 |---|---:|---|
 | `tokenIds` | `[T]` | exakt `contextLength` IDs |
-| `E_tok` | `[V, d]` | `tokenEmbedding`, Init `N(0, 0.01²)` |
-| `E_pos` | `[T, d]` | `positionalEmbedding`, Init `N(0, 0.01²)` |
+| `E_tok` | `[V, d]` | `tokenEmbedding` (`EmbeddingMultikTensor`), Init `N(0, 0.01²)` |
+| `E_pos` | `[T, d]` | `positionalEmbedding` (`EmbeddingMultikTensor`), Init `N(0, 0.01²)` |
 | `X0` | `[T, d]` | `X0[t] = E_tok[id_t] + E_pos[t]` |
 | `LN(x)` | `[d]` | `γ ⊙ (x − μ)/sqrt(σ² + ε) + β`, `ε = 1e-5`, Varianz mit `1/d` |
 | `MHA` | `[T, d] → [T, d]` | Kapitel 05, `headDim = h · dK = d` |
@@ -130,4 +130,4 @@ orientiert sich laut `README.md` an Raschkas Buch; darauf wird nur verwiesen.
 ## Risiken und offene Punkte
 
 - Behoben: Modellduplikat `kapitel4/GPTModelMultikTensor.kt` entfernt; Scratch-`GPTModel`, `GPTConfig`, `GenerationConfig` und die GPT-Demos liegen jetzt ausschliesslich in `kapitel5` (`model`, `demo`).
-- `ReStrukturierung.md` fordert Training über `TrainableTokenEmbedding`; das Modell besitzt eigene Embedding-Tensoren. Abweichung wird dokumentiert, nicht umgebaut.
+- ~~`ReStrukturierung.md` fordert Training über `TrainableTokenEmbedding`; das Modell besitzt eigene Embedding-Tensoren.~~ **Entschieden (Variante A):** `Trainable*` bleibt didaktisch (Kapitel 03, manueller Backward + SGD); das GPT-Modell nutzt die Autograd-Klasse `kapitel4/library/autograd/EmbeddingMultikTensor` für Token- und Positions-Embedding. `ReStrukturierung.md` wird in Phase 4 angepasst.

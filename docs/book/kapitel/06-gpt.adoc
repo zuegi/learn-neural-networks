@@ -136,12 +136,20 @@ hier nicht vor.
 
 === Schritt 1: Eingabe aus Token- und Positions-Embeddings
 
-Das Modell besitzt zwei trainierbare Tabellen:
+Das Modell besitzt zwei trainierbare Tabellen, beide vom Typ `EmbeddingMultikTensor`:
 
 * `tokenEmbedding` = `E_tok` mit Form `[V, d]`,
 * `positionalEmbedding` = `E_pos` mit Form `[T, d]`,
 
-beide initialisiert mit `N(0, 0.01²)`. Für Token-IDs `id_0 … id_(T-1)` gilt
+beide initialisiert mit `N(0, 0.01²)`.
+Token- und Positions-Embedding sind dieselbe Operation – Zeile `index` einer
+Tabelle lesen –, deshalb genügt eine Klasse:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/EmbeddingMultikTensor.kt[tag=embedding-forward]
+----
+ Für Token-IDs `id_0 … id_(T-1)` gilt
 zeilenweise
 
 [stem]
@@ -149,7 +157,7 @@ zeilenweise
 X_0[t] = E_{\text{tok}}[\mathrm{id}_t] + E_{\text{pos}}[t], \qquad X_0 \in \mathbb{R}^{T \times d}
 ++++
 
-Im Code liest `row(index, d)` eine Zeile aus der flachen Tabelle, `+` addiert
+Im Code liest `forward(index)` über `row(index, d)` eine Zeile aus der flachen Tabelle, `+` addiert
 elementweise, und `stackRows` baut daraus `[T, d]`. Alle drei Operationen haben
 einen `backwardStep`: Der Gradient einer Zeile von `X0` fließt genau in die
 benutzte Zeile von `E_tok` und `E_pos` zurück.
@@ -158,10 +166,12 @@ benutzte Zeile von `E_tok` und `E_pos` zurück.
 nicht aufgefüllt; die Generierung in <<Training>> schneidet deshalb immer die
 letzten `T` Token aus.
 
-NOTE: Das Modell hält eigene Embedding-Tensoren und nutzt nicht die Klassen
+NOTE: Das Modell nutzt nicht die Klassen
 `TrainableTokenEmbedding`/`TrainablePositionalEmbedding` aus <<Embeddings>>.
-Das Prinzip ist identisch; `ReStrukturierung.md` nennt die Zusammenführung als
-offenes Ziel.
+Diese rechnen den Backward-Pass von Hand und aktualisieren mit SGD; sie bleiben
+die didaktische Version aus Kapitel 03. `EmbeddingMultikTensor` hängt dagegen am
+Autograd-Graphen von `TensorMultik`, sodass Adam, Gradient-Clipping und
+Checkpoints aus <<Training>> die Embeddings wie alle anderen Parameter behandeln.
 
 === Schritt 2: Der Pre-LN-Transformer-Block
 

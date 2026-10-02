@@ -46,7 +46,7 @@ class GPTTrainerTest {
 
     private fun trainOnlyOutputProjection(frozenGradient: Double): DoubleArray {
         val model = tinyModel()
-        model.tokenEmbedding.grad[0] = frozenGradient
+        model.tokenEmbedding.weight.grad[0] = frozenGradient
         val trainer = GPTTrainer(model, AdamOptimizer(listOf(model.wOutput), learningRate = LEARNING_RATE))
         trainer.trainEpoch(repeatingSamples(), BATCH_SIZE)
         return DoubleArray(model.wOutput.size) { model.wOutput.data[it] }

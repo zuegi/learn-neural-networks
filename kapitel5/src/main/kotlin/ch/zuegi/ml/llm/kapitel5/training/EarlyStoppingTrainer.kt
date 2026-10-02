@@ -58,6 +58,7 @@ class EarlyStoppingTrainer(
                     validationLoss = trainer.validate(validationSamples, batchSize)
                 }
 
+            // tag::early-stopping-check[]
             val isBestEpoch = validationLoss < bestValidationLoss - config.minDelta
             if (isBestEpoch) {
                 bestValidationLoss = validationLoss
@@ -67,6 +68,7 @@ class EarlyStoppingTrainer(
             } else {
                 epochsWithoutImprovement += 1
             }
+            // end::early-stopping-check[]
 
             onEpochFinished(
                 EpochMetrics(

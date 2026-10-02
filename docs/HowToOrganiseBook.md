@@ -37,11 +37,11 @@ Jedes Kapitel verbindet das Konzept mit dem Code anstatt nur die reine Theorie z
 ## Fahrplan
 1. **Kapitel 1: Tokenizer**
    - `SimpleTokenizerV1` als didaktischen Einstieg vollständig beibehalten
-   - `R50kBpeTokenizer` als produktionsnäheren Pfad einführen
+   - `GPT2Tokenizer` als produktionsnäheren Pfad einführen
    - klar markieren, dass ab den folgenden Kapiteln primär der BPE-Tokenizer verwendet wird
 
 2. **Kapitel 2: DataLoader**
-   - Beispiele standardmäßig mit `R50kBpeTokenizer` aufbauen
+   - Beispiele standardmäßig mit `GPT2Tokenizer` aufbauen
    - `SimpleTokenizerV1` nur noch als konzeptionelle Referenz erwähnen, falls nötig
    - Fokus auf Trainingsfenster, `TrainingSample`, `batchSize`, `stride`, `contextLength`
 
@@ -54,14 +54,23 @@ Jedes Kapitel verbindet das Konzept mit dem Code anstatt nur die reine Theorie z
    - Hauptpfad im Text: Bibliotheks-/Ausführungspfad
    - Scratch nur dort erwähnen, wo es wirklich zum Verständnis beiträgt
 
-4. **Kapitel 4 und 5: Attention und Training**
+4. **Kapitel 4 und 5: Autograd und Attention**
    - nur noch einen Hauptpfad führen
    - bevorzugt die Variante, die in `kapitel5` tatsächlich verwendet wird
    - keine parallele doppelte Dokumentation von Scratch und Library
    - kanonischer Pfad: `shared` plus `kapitel4/library/autograd`
    - Scratch-Pfad: `kapitel4/scratch` nur als Lern- und Verständnisreferenz
 
-5. **Grundregel für das ganze Buch**
+5. **Kapitel 6: GPT-Modell** (`06-gpt.adoc`)
+   - Forward-Pfad des decoder-only GPT: Embeddings → Pre-LN-Blöcke → finale LayerNorm → Logits
+   - Spezifikation: `docs/specifications/chapter-06-gpt.md`
+
+6. **Kapitel 7: Training & Textgenerierung** (`07-training.adoc`)
+   - Next-Token-Training, Loss, Batching, Backprop, Clipping, Adam, Validierung, Early Stopping, Checkpoints, Perplexity, Generierung
+   - Spezifikation: `docs/specifications/chapter-07-training.md`
+   - Hinweis: Maven-Modul `kapitel5` enthält den Code für Buchkapitel 6 und 7; Modul- und Kapitelnummern sind nicht identisch
+
+7. **Grundregel für das ganze Buch**
    - Scratch = Lern- und Verständnisweg
    - Library = Ausführungs- und Trainingsweg
    - beide Rollen klar trennen und nicht als gleichwertige Hauptpfade parallel führen

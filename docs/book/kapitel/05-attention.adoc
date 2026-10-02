@@ -440,7 +440,7 @@ perplexity = exp(mean CE)
 
 Eine niedrigere Perplexity bedeutet, dass das Modell die Zielsequenz im Mittel
 mit höherer Wahrscheinlichkeit bewertet. Die Metrik gehört deshalb zum
-Trainingspfad in Kapitel 05, nicht zur einzelnen Attention-Operation:
+Trainingspfad in <<Training>>, nicht zur einzelnen Attention-Operation:
 
 * `MultiHeadAttentionMultikTensor` liefert kontextualisierte Repräsentationen.
 * Das nachgelagerte Sprachmodell berechnet daraus Logits und die
@@ -448,7 +448,7 @@ Trainingspfad in Kapitel 05, nicht zur einzelnen Attention-Operation:
 * Erst aus dem Mittelwert dieser Loss-Werte wird Perplexity berechnet.
 
 Dieser Anschluss setzt Training- und Validierungsmetriken voraus. Die
-Trainingsinfrastruktur in Kapitel 05 berechnet daraus
+Trainingsinfrastruktur im Modul `kapitel5` (<<Training>>) berechnet daraus
 `trainPerplexity = exp(trainLoss)` und
 `validationPerplexity = exp(validationLoss)`. Bei Padding oder variabler
 Sequenzlänge muss `mean CE` nur über gültige Zieltoken gebildet werden; sonst

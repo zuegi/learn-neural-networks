@@ -1,0 +1,383 @@
+[[GPT]]
+:sourceDirKapitel4: ../../../kapitel4/src/main/kotlin/ch/zuegi/ml/llm/kapitel4
+:sourceDirKapitel4Test: ../../../kapitel4/src/test/kotlin/ch/zuegi/ml/llm/kapitel4
+:sourceDirKapitel5: ../../../kapitel5/src/main/kotlin/ch/zuegi/ml/llm/kapitel5
+:sourceDirKapitel5Test: ../../../kapitel5/src/test/kotlin/ch/zuegi/ml/llm/kapitel5
+:sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
+:lang: de
+:toc: left
+:icons: font
+:stem: latexmath
+:mmdc: /usr/local/bin/mmdc
+
+== GPT-Modell: Vom Token zur Vokabular-Verteilung
+
+In den bisherigen Kapiteln sind alle Einzelteile entstanden: Token-IDs
+(<<Tokenize>>), Trainingsfenster (<<Dataloader>>), Embeddings (<<Embeddings>>),
+Autograd (<<Autograd>>) und kausale Multi-Head Attention (<<Attention>>). Dieses
+Kapitel setzt sie zu einem *decoder-only* GPT-Modell zusammen und verfolgt den
+Forward-Pfad bis zu den Logits über das Vokabular. Wie das Modell lernt, zeigt
+<<Training>>.
+
+=== Was bedeutet GPT, und welches Modell verwenden wir?
+
+*GPT* steht für **G**enerative **P**re-trained **T**ransformer. Die drei
+Begriffe beschreiben, was das Modell tut und wie es aufgebaut ist:
+
+* *Generative* – das Modell erzeugt Text, indem es Token für Token die
+  Wahrscheinlichkeitsverteilung über das nächste Token vorhersagt (letzter
+  Schritt dieses Kapitels: die finale Logit-Projektion; die eigentliche
+  Textgenerierung zeigt <<Training>>).
+* *Pre-trained* – im Original (OpenAI, ab 2018) wird ein solches Modell zuerst
+  unüberwacht auf sehr großen Textmengen trainiert ("next-token
+  prediction"), bevor es für konkrete Aufgaben weiterverwendet wird. Unser
+  Modell folgt demselben Trainingsziel (<<Training>>), aber auf einem einzigen
+  kleinen Beispieltext (`the-verdict.txt`, siehe <<Dataloader>>) – es ist ein
+  Lernbeispiel, kein vortrainiertes Sprachmodell im eigentlichen Sinn.
+* *Transformer* – die Architektur, die Attention statt Rekurrenz nutzt
+  (<<Attention>>), hier ausschließlich im *decoder-only* Aufbau: jeder Block
+  sieht nur vergangene und aktuelle Token (kausale Maske), es gibt keinen
+  separaten Encoder.
+
+Architektonisch orientiert sich unser Modell an *GPT-2* (OpenAI, 2019): Pre-LN
+Transformer-Blöcke (LayerNorm *vor* Attention/FFN, nicht danach), GELU-Aktivierung
+in der FFN und ein BPE-Tokenizer. Tatsächlich verwendet der Code mit
+link:{sourceDirShared}/tokenize/GPT2Tokenizer.kt[`GPT2Tokenizer`]
+exakt das GPT-2-Vokabular (`vocabSize = 50257`). Es ist aber **kein** Nachbau
+des vollständigen GPT-2-Modells: Dieses hatte in der kleinsten Variante bereits
+124 Mio. Parameter, 12 Schichten und wurde auf Milliarden Token vortrainiert.
+Unser Modell – implementiert in
+link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor.kt`] –
+ist eine stark verkleinerte, selbst geschriebene Umsetzung derselben
+Architektur zu Lernzwecken. Zwei konkrete Konfigurationen sind im Code zu
+finden:
+
+[cols="2,1,1", options="header"]
+|===
+| Konfiguration | `GPTConfig`-Defaults (siehe unten) | tatsächlich in `GPTModelTraining.kt` trainiert
+
+| `contextLength` (`T`) | 256 | 32
+| `embeddingDim` (`d`) | 256 | 32
+| `numLayers` (`L`) | 6 | 1
+| `numHeads` (`h`) | 8 | 2
+| `vocabSize` (`V`) | 50257 (GPT-2-Vokabular) | 50257 (GPT-2-Vokabular)
+|===
+
+Die Defaults in `GPTConfig` zeigen, wie groß das Modell *werden könnte*; der
+tatsächliche Trainingslauf in <<Training>> verwendet die deutlich kleinere
+rechte Spalte, damit ein Durchlauf auf einem Laptop in Minuten statt Tagen
+fertig wird. Die Formeln und Shape-Tabellen in diesem Kapitel gelten für jede
+Kombination dieser Hyperparameter identisch.
+
+=== Überblick
+
+Ein GPT-Modell bekommt `T = contextLength` Token-IDs und liefert für jede
+Position `t` einen Vektor mit `V = vocabSize` Logits. Zeile `t` ist die
+(unnormalisierte) Vorhersage für das Token an Position `t + 1`.
+
+[mermaid]
+....
+flowchart TD
+    ids["tokenIds [T]"] --> tok["Token-Embedding E_tok[id] → [T, d]"]
+    ids --> pos["Positions-Embedding E_pos[t] → [T, d]"]
+    tok --> add(("+"))
+    pos --> add
+    add --> x0["X0 [T, d]"]
+    x0 --> blocks["L × Pre-LN Transformer-Block [T, d]"]
+    blocks --> lnf["Finale LayerNorm [T, d]"]
+    lnf --> head["· W_out [d, V]"]
+    head --> logits["Logits Z [T, V]"]
+....
+
+Notation im ganzen Kapitel: `T = contextLength`, `d = embeddingDim`,
+`V = vocabSize`, `h = numHeads`, `dK = d / h`, `H = hiddenDim`,
+`L = numLayers`. Matrizen sind wie in Kapitel 05 flache, row-major
+`TensorMultik`-Daten mit einer Zeile pro Position.
+
+=== Codepfad
+
+Das trainierte Modell liegt im Modul `kapitel5`:
+link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor.kt`]
+mit
+link:{sourceDirKapitel5}/model/GPTConfig.kt[`GPTConfig.kt`].
+Die Bausteine kommen aus dem kanonischen Autograd-Pfad in `kapitel4`:
+
+* link:{sourceDirKapitel4}/library/autograd/TransformerBlockMultikTensor.kt[`TransformerBlockMultikTensor`]
+* link:{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[`MultiHeadAttentionMultikTensor`] (<<Attention>>)
+* link:{sourceDirKapitel4}/library/autograd/FeedForwardMultikTensor.kt[`FeedForwardMultikTensor`]
+* link:{sourceDirKapitel4}/library/autograd/LayerNormMultikTensor.kt[`LayerNormMultikTensor`]
+
+NOTE: Alle GPT-Modellklassen liegen im Maven-Modul `kapitel5`; die
+Bausteine (Autograd, Attention, LayerNorm, FFN) kommen aus `kapitel4`. Die
+Maven-Modulnummern entsprechen nicht den Buchkapiteln.
+
+=== Konfiguration: `GPTConfig`
+
+[cols="2,1,3", options="header"]
+|===
+| Feld | Default | Bedeutung
+
+| `vocabSize` | 50257 | `V`, Größe des GPT-2-Vokabulars
+| `contextLength` | 256 | `T`, feste Sequenzlänge
+| `embeddingDim` | 256 | `d`, Breite des Residual-Stroms
+| `numLayers` | 6 | `L`, Anzahl Blöcke
+| `numHeads` | 8 | `h`, Attention-Köpfe pro Block
+| `hiddenDim` | `4 · d` | `H`, Breite der FFN-Zwischenschicht
+| `causal` | `true` | kausale Maske in jeder Attention
+| `dropoutProb` | 0.1 | nur Attention-Dropout, nur bei `training = true`
+| `useQkvBias`, `useOutputBias` | `false` | Bias in Attention-Projektionen
+| `seed` | `null` | reproduzierbare Initialisierung
+|===
+
+Abgeleitet wird `dK = embeddingDim / numHeads`. Der `init`-Block verlangt
+deshalb `embeddingDim % numHeads == 0`. Damit gilt im GPT-Modell immer
+`headDim = h · dK = d`; der allgemeinere Fall `headDim != d` aus Kapitel 05 kommt
+hier nicht vor.
+
+=== Schritt 1: Eingabe aus Token- und Positions-Embeddings
+
+Das Modell besitzt zwei trainierbare Tabellen, beide vom Typ `EmbeddingMultikTensor`:
+
+* `tokenEmbedding` = `E_tok` mit Form `[V, d]`,
+* `positionalEmbedding` = `E_pos` mit Form `[T, d]`,
+
+beide initialisiert mit `N(0, 0.01²)`.
+Token- und Positions-Embedding sind dieselbe Operation – Zeile `index` einer
+Tabelle lesen –, deshalb genügt eine Klasse:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/EmbeddingMultikTensor.kt[tag=embedding-forward]
+----
+ Für Token-IDs `id_0 … id_(T-1)` gilt
+zeilenweise
+
+[stem]
+++++
+X_0[t] = E_{\text{tok}}[\mathrm{id}_t] + E_{\text{pos}}[t], \qquad X_0 \in \mathbb{R}^{T \times d}
+++++
+
+Im Code liest `forward(index)` über `row(index, d)` eine Zeile aus der flachen Tabelle, `+` addiert
+elementweise, und `stackRows` baut daraus `[T, d]`. Alle drei Operationen haben
+einen `backwardStep`: Der Gradient einer Zeile von `X0` fließt genau in die
+benutzte Zeile von `E_tok` und `E_pos` zurück.
+
+`forward` verlangt `tokenIds.size == contextLength`. Kürzere Sequenzen werden
+nicht aufgefüllt; die Generierung in <<Training>> schneidet deshalb immer die
+letzten `T` Token aus.
+
+NOTE: Das Modell nutzt nicht die Klassen
+`TrainableTokenEmbedding`/`TrainablePositionalEmbedding` aus <<Embeddings>>.
+Diese rechnen den Backward-Pass von Hand und aktualisieren mit SGD; sie bleiben
+die didaktische Version aus Kapitel 03. `EmbeddingMultikTensor` hängt dagegen am
+Autograd-Graphen von `TensorMultik`, sodass Adam, Gradient-Clipping und
+Checkpoints aus <<Training>> die Embeddings wie alle anderen Parameter behandeln.
+
+=== Schritt 2: Der Pre-LN-Transformer-Block
+
+Jeder der `L` Blöcke bildet `[T, d]` auf `[T, d]` ab:
+
+[stem]
+++++
+A = X + \mathrm{MHA}\big(\mathrm{LN}_1(X)\big), \qquad
+Y = A + \mathrm{FFN}\big(\mathrm{LN}_2(A)\big)
+++++
+
+LayerNorm und FFN wirken zeilenweise, also auf jede Position einzeln
+(`perRow`). Nur die Attention mischt Information zwischen Positionen.
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/TransformerBlockMultikTensor.kt[tag=transformer-block-forward]
+----
+
+==== LayerNorm
+
+Für eine Zeile `x ∈ R^d`:
+
+[stem]
+++++
+\mu = \frac{1}{d}\sum_i x_i, \quad
+\sigma^2 = \frac{1}{d}\sum_i (x_i-\mu)^2, \quad
+\mathrm{LN}(x) = \gamma \odot \frac{x-\mu}{\sqrt{\sigma^2+\varepsilon}} + \beta
+++++
+
+mit `ε = 1e-5`, `γ` initial `1`, `β` initial `0` (je `[d]`). Die Varianz nutzt
+`1/d`, nicht `1/(d-1)`. `LayerNormMultikTensor` delegiert an die kanonische
+Autograd-Operation `TensorMultik.layerNorm`, die auch den Rückwärtsschritt
+implementiert:
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/LayerNormMultikTensor.kt[tag=layer-norm-forward]
+----
+
+==== Multi-Head Attention
+
+`MHA` ist exakt die Klasse aus <<Attention>>; `causal` kommt aus `GPTConfig` (Default `true`, für ein Sprachmodell nötig):
+`Q, K, V = LN_1(X) · W_{Q,K,V}` mit `W ∈ R^{d × d}`, pro Kopf
+`softmax(mask(Q_h K_h^T / sqrt(dK))) V_h` mit `[T, T]`-Gewichten,
+Konkatenation zu `[T, d]` und Output-Projektion `W_O ∈ R^{d × d}`.
+
+==== Feed-Forward-Netz mit GELU
+
+Pro Zeile `x ∈ R^d`:
+
+[stem]
+++++
+u = \mathrm{GELU}(W_1 x + b_1) \in \mathbb{R}^{H}, \qquad
+\mathrm{FFN}(x) = W_2 u + b_2 \in \mathbb{R}^{d}
+++++
+
+mit `W1 ∈ R^{H × d}`, `W2 ∈ R^{d × H}` und der tanh-Näherung
+
+[stem]
+++++
+\mathrm{GELU}(z) = \tfrac{1}{2} z \Big(1 + \tanh\big(\sqrt{2/\pi}\,(z + 0.044715\,z^3)\big)\Big)
+++++
+
+[source,kotlin]
+----
+include::{sourceDirKapitel4}/library/autograd/FeedForwardMultikTensor.kt[tag=feed-forward-forward]
+----
+
+Achtung Konvention: Die FFN nutzt `matVecMul` mit Gewichten `[out, in]`
+(`W x`), die Attention dagegen `matMul` mit `[in, out]` (`X W`). Beide sind
+korrekt, nur die Speicherreihenfolge der Gewichte unterscheidet sich.
+
+==== Residualverbindungen
+
+Die Summen `X + …` und `A + …` bilden den *Residual-Strom*. Weil die Ableitung
+einer Addition für beide Summanden `1` ist, erreicht der Gradient die
+Embeddings auch dann direkt, wenn die Teilpfade durch Attention oder FFN
+schwache Gradienten liefern. Pre-LN normalisiert nur die Eingabe der
+Teilpfade, nicht den Strom selbst.
+
+=== Schritt 3: Finale LayerNorm und Vokabular-Logits
+
+Nach dem letzten Block folgt eine eigene LayerNorm `LN_f` und die
+Output-Projektion `W_out ∈ R^{d × V}` (Init `N(0, 0.02²)`):
+
+[stem]
+++++
+Z = \mathrm{LN}_f(X_L)\, W_{\text{out}} \in \mathbb{R}^{T \times V}
+++++
+
+`W_out` ist ein eigener Parameter und *nicht* an `E_tok` gekoppelt (kein
+Weight-Tying).
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[tag=gpt-forward]
+----
+
+=== Tensorformen im Überblick
+
+[cols="2,1,3", options="header"]
+|===
+| Größe | Form | Entstehung
+
+| `tokenIds` | `[T]` | Eingabe
+| `E_tok` / `E_pos` | `[V, d]` / `[T, d]` | Parameter
+| `X0` | `[T, d]` | Embedding-Summe
+| `LN1(X)`, `LN2(A)` | `[T, d]` | zeilenweise LayerNorm
+| `Q`, `K`, `V` | `[T, d]` | `headDim = h · dK = d`
+| `Q_h`, `K_h`, `V_h` | `[T, dK]` | pro Kopf
+| Scores / Gewichte pro Kopf | `[T, T]` | kausal maskiert
+| MHA-Ausgabe | `[T, d]` | nach `W_O`
+| FFN-Zwischenschicht `u` | `[T, H]` | GELU
+| Blockausgabe `Y` | `[T, d]` | Residual-Strom
+| `LN_f(X_L)` | `[T, d]` | finale Norm
+| `W_out` | `[d, V]` | Parameter
+| Logits `Z` | `[T, V]` | Rückgabe von `forward`
+|===
+
+=== Parameterzahl
+
+Mit den Defaults `useQkvBias = useOutputBias = false` enthält ein Block
+`2d` (LN1) `+ 4d²` (W_Q, W_K, W_V, W_O) `+ 2d` (LN2) `+ Hd + H + dH + d` (FFN):
+
+[stem]
+++++
+P = \underbrace{Vd}_{E_\text{tok}} + \underbrace{Td}_{E_\text{pos}}
+  + L\,(4d + 4d^2 + 2dH + H + d) + \underbrace{2d}_{\mathrm{LN}_f} + \underbrace{dV}_{W_\text{out}}
+++++
+
+Beispiel `GPTModelTraining.kt` (`V = 50257`, `T = 32`, `d = 32`, `L = 1`,
+`h = 2`, `H = 128`): `1 608 224 + 1 024 + 12 576 + 64 + 1 608 224 = 3 230 112`
+Parameter. Über 99 % davon stecken in `E_tok` und `W_out`; der
+Transformer-Block selbst ist winzig.
+
+Der Test prüft die Formel direkt gegen `parameters()`:
+
+* link:{sourceDirKapitel5Test}/model/GPTModelMultikTensorTest.kt[`GPTModelMultikTensorTest`] –
+  `Parameterzahl entspricht der Formel aus Kapitel 06`.
+
+=== Kausalität auf Modellebene
+
+Mit `causal = true` (Default) ist jede Attention kausal; alle anderen Operationen wirken
+zeilenweise. Deshalb hängt `Z[t]` nur von `id_0 … id_t` ab. Ändert man das letzte Token,
+bleiben alle Logit-Zeilen `0 … T-2` bitgenau gleich. Genau das prüft der Test
+`kausale Maske verhindert Einfluss zukuenftiger Token auf fruehere Logits`.
+Diese Eigenschaft erlaubt es in <<Training>>, aus *einem* Fenster `T`
+Vorhersagen gleichzeitig zu trainieren.
+
+=== Tests
+
+[cols="3,4", options="header"]
+|===
+| Test | Prüft
+
+| `GPTModelMultikTensorTest`
+| Logit-Form `[T, V]`, Parameterzahl, Startloss, Gradient für jeden Parameter, Kausalität, Generierung
+| `LayerNormMultikTensorTest`
+| Mittelwert 0 / Varianz 1, Finite-Differenzen-Gradienten für Eingabe, `γ`, `β`
+| `FeedForwardMultikTensorTest`
+| Ausgabelänge, Gradienten auf Parametern, Seed-Reproduzierbarkeit, `hiddenDim`-Default
+| `MultiHeadAttentionMultikTensorTest`
+| Attention-Vertrag aus <<Attention>>
+|===
+
+[source,kotlin]
+----
+include::{sourceDirKapitel5Test}/model/GPTModelMultikTensorTest.kt[tag=gpt-forward-shape]
+----
+
+=== Design-Entscheidungen
+
+1. **Pre-LN statt Post-LN.** Die Normalisierung vor Attention/FFN hält den
+   Residual-Strom ungestört und ist ohne Warmup stabiler; deshalb ist auch
+   eine finale `LN_f` nötig.
+2. **Zeilenweise Verarbeitung.** LayerNorm und FFN werden pro Position
+   aufgerufen und mit `stackRows` wieder zusammengesetzt. Das ist langsam,
+   aber jede Operation bleibt ein kleiner, testbarer Autograd-Knoten.
+3. **Kein Weight-Tying.** `W_out` ist unabhängig von `E_tok`; das verdoppelt
+   bei großem Vokabular fast die Parameterzahl, hält den Code aber einfach.
+4. **Dropout nur in der Attention.** Es gibt kein Embedding- oder
+   Residual-Dropout.
+5. **Feste Kontextlänge.** Kein Padding, keine Masken für variable Längen.
+
+=== Stolpersteine & Learnings
+
+1. **Ein fehlender `backwardStep` legt das ganze Modell lahm.**
+   `LayerNormMultikTensor` baute früher seinen Ausgabe-Tensor selbst, mit
+   Kindern, aber ohne Rückwärtsschritt. Weil *jeder* Pfad zu den Logits durch
+   `LN_f` läuft, erhielten Embeddings, Blöcke und alle `γ/β` den Gradienten 0 –
+   gelernt hat nur `W_out`. Der alte Test prüfte nur „irgendein Parameter hat
+   einen Gradienten“. Jetzt prüft `GPTModelMultikTensorTest` *jeden*
+   Parameter, und `LayerNorm` nutzt die kanonische Operation mit
+   Finite-Differenzen-Test.
+2. **`dK` vs. `headDim`.** Im GPT-Modell sind sie wegen `dK = d / h`
+   verknüpft; in der Attention-Klasse allein nicht (<<Attention>>).
+3. **Gewichtskonventionen mischen.** `[in, out]` bei `matMul`, `[out, in]` bei
+   `matVecMul` – falsch vertauscht passt die Größe bei quadratischen Matrizen
+   trotzdem, das Ergebnis aber nicht.
+4. **`tokenIds.size` muss exakt `contextLength` sein**, sonst wirft `forward`.
+
+=== Zusammenfassung
+
+* Eingabe: `X0 = E_tok[ids] + E_pos`, Form `[T, d]`.
+* `L` Pre-LN-Blöcke: `A = X + MHA(LN1(X))`, `Y = A + FFN(LN2(A))`.
+* Ausgabe: `Z = LN_f(X_L) · W_out`, Form `[T, V]`; Zeile `t` sagt Token `t + 1` vorher.
+* Kausalität (`causal = true`) macht alle `T` Vorhersagen eines Fensters gleichzeitig trainierbar.
+* Weiter mit <<Training>>: Aus `Z` wird ein Loss, aus dem Loss werden Gradienten und Updates.

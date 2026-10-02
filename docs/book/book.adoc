@@ -10,6 +10,7 @@ Dein Name <du@example.com>
 :imagesdir: images
 :experimental:
 :xrefstyle: short
+:mmdc: /usr/local/bin/mmdc
 
 // ---------------------------------------------------------------
 // Dies ist das Hauptdokument. Es bindet nur die einzelnen Kapitel
@@ -28,13 +29,11 @@ include::kapitel/04-autograd.adoc[leveloffset=+1]
 
 include::kapitel/05-attention.adoc[leveloffset=+1]
 
-//include::kapitel/06-transformer-block.adoc[leveloffset=+1]
+include::kapitel/06-gpt.adoc[leveloffset=+1]
 
-//include::kapitel/07-training-loop.adoc[leveloffset=+1]
+include::kapitel/07-training.adoc[leveloffset=+1]
 
-//include::kapitel/06-inferenz.adoc[leveloffset=+1]
-
-//include::kapitel/07-lessons-learned.adoc[leveloffset=+1]
+//include::kapitel/08-lessons-learned.adoc[leveloffset=+1]
 
 == Anhang
 include::exkurse/exkurs-multik-mk.adoc[leveloffset=+1]

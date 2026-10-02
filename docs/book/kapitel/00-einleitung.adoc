@@ -36,20 +36,23 @@ Eingabe bis zur Textgenerierung bei der Inferenz.
 | Tokenisierung
 | Wie Text in Token zerlegt wird
 
+| DataLoader
+| Wie aus Token Trainingsfenster werden
+
 | Embeddings
 | Wie Token zu Vektoren werden
+
+| Autograd
+| Wie Gradienten automatisch berechnet werden
 
 | Attention
 | Der Kern-Mechanismus, der Kontext herstellt
 
-| Transformer-Block
-| Wie die Bausteine zusammengesetzt werden
+| GPT-Modell
+| Wie Embeddings, Transformer-Blöcke und Output-Projektion zusammengesetzt werden
 
-| Trainingsschleife
-| Wie das Modell aus Daten lernt
-
-| Inferenz
-| Wie aus dem trainierten Modell Text generiert wird
+| Training & Textgenerierung
+| Wie das Modell aus Daten lernt und danach Text erzeugt
 
 | Lessons Learned
 | Was beim Nachbau überraschend oder schwierig war

@@ -1,13 +1,13 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.library.R50kBpeTokenizer
-import ch.zuegi.ml.llm.kapitel2.scratch.TokenEmbedding
+import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
+import ch.zuegi.ml.llm.shared.embedding.TokenEmbedding
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = R50kBpeTokenizer()
+    val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     // tokenIds: die vollständige Token-ID-Sequenz

@@ -37,6 +37,7 @@ class FeedForwardMultikTensor(
         )
     val b2: TensorMultik = TensorMultik(mk.ndarray(DoubleArray(embeddingDim)))
 
+    // tag::feed-forward-forward[]
     /**
      * Forward-Pass fuer eine Token-Zeile.
      *
@@ -47,6 +48,7 @@ class FeedForwardMultikTensor(
         val hidden = (x.matVecMul(w1, m = hiddenDim, n = embeddingDim) + b1).gelu()
         return hidden.matVecMul(w2, m = embeddingDim, n = hiddenDim) + b2
     }
+    // end::feed-forward-forward[]
 
     fun parameters(): List<TensorMultik> = listOf(w1, b1, w2, b2)
 

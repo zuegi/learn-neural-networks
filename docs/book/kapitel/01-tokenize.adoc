@@ -1,5 +1,6 @@
 [[Tokenize]]
 :sourceDirKapitel2: ../../../kapitel2/src/main/kotlin/ch/zuegi/ml/llm/kapitel2
+:sourceDirShared: ../../../shared/src/main/kotlin/ch/zuegi/ml/llm/shared
 :lang: de
 :toc: left
 :icons: font
@@ -40,7 +41,7 @@ Für die Implementierung brauchen wir:
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=initVars]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=initVars]
 ----
 `_vocab` ist ein privates Backing-Field, `vocab` eine öffentliche Read-Only-Property mit explizitem Getter.
 
@@ -48,7 +49,7 @@ Danach werden die Variablen initialisiert:
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=initSimpleTokenizerV1]
 ----
 
 === Die Methode `tokenize()`
@@ -58,7 +59,7 @@ Sie übernimmt den Rohtext und zerlegt ihn anhand der definierten Regex in eine 
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=tokenize]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=tokenize]
 ----
 
 === Die Regex-Regelbasis
@@ -68,7 +69,7 @@ Sie legt fest, welche Zeichenfolgen als Wörter, Satzzeichen oder Special Tokens
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=tokenRegex]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=tokenRegex]
 ----
 
 === Das Vokabular
@@ -78,7 +79,7 @@ Anschließend werden `UNKNOWN` und `ENDOFTEXT` immer am Ende ergänzt:
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=buildTokenId]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=buildTokenId]
 ----
 
 Die Map `idToToken` wird direkt aus `vocab` abgeleitet:
@@ -100,7 +101,7 @@ Bekannte Tokens werden über `vocab` aufgelöst, unbekannte auf die ID von `UNKN
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=encode]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=encode]
 ----
 
 === Die Methode `decode()`
@@ -111,7 +112,7 @@ Danach setzt `joinTokens` die Tokens mit einfachen Spacing-Regeln zu Text zusamm
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=decode]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=decode]
 ----
 
 === Die Methode `joinTokens()`
@@ -128,7 +129,7 @@ Das Ergebnis wird schrittweise in einem `StringBuilder` aufgebaut.
 
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=joinTokens]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[tag=joinTokens]
 ----
 
 === Die komplette Klasse
@@ -136,7 +137,7 @@ include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[tag=joinTokens]
 Die ganze Klasse `SimpleTokenizerV1` sieht dann so aus:
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/scratch/SimpleTokenizerV1.kt[]
+include::{sourceDirShared}/tokenize/SimpleTokenizerV1.kt[]
 ----
 
 === Beispiel: Roundtrip mit bekannten Tokens
@@ -283,10 +284,10 @@ Wir verwenden JTokkit, weil es OpenAI-kompatible Encodings für die JVM bereitst
 * `encode`/`decode` bilden Text und Token-IDs konsistent ineinander ab; `encodeOrdinary` behandelt Special Tokens als normalen Text.
 * Damit sparen wir Implementierungsaufwand für Merge-Regeln, Vokabularverwaltung und Byte-Level-Logik.
 
-Eine dünne Wrapper-Klasse (`R50kBpeTokenizer`) kapselt Library-Details und stabilisiert unsere API (`encode`, `decode`, `encodeOrdinary`).
+Eine dünne Wrapper-Klasse (`GPT2Tokenizer`) kapselt Library-Details und stabilisiert unsere API (`encode`, `decode`, `encodeOrdinary`).
 [source,kotlin]
 ----
-include::{sourceDirKapitel2}/library/R50kBpeTokenizer.kt[]
+include::{sourceDirShared}/tokenize/GPT2Tokenizer.kt[]
 ----
 
 ==== Encoding-Wahl im Kapitel
@@ -322,7 +323,7 @@ Der Unterschied zum `SimpleTokenizerV1`: Das Vokabular wird nicht aus einem `raw
 
 [source,kotlin]
 ----
-val tokenizer = R50kBpeTokenizer()
+val tokenizer = GPT2Tokenizer()
 val text = "Hello, do you like tea?"
 val ids = tokenizer.encode(text)
 val decoded = tokenizer.decode(ids)
@@ -349,7 +350,7 @@ Mit dieser Methode können Special-Token-Sequenzen als normaler Text behandelt w
 
 [source,kotlin]
 ----
-val tokenizer = R50kBpeTokenizer()
+val tokenizer = GPT2Tokenizer()
 val text = "Hello, do you like tea? <|endoftext|>"
 val ids = tokenizer.encodeOrdinary(text)
 val decoded = tokenizer.decode(ids)
@@ -375,7 +376,7 @@ Der BPE-Tokenizer verwendet kein `UNKNOWN`-Token, sondern zerlegt unbekannte Wö
 
 [source,kotlin]
 ----
-val tokenizer = R50kBpeTokenizer()
+val tokenizer = GPT2Tokenizer()
 val text = "Akwirw ier someunknownPlace"
 val ids = tokenizer.encodeOrdinary(text)
 val decoded = tokenizer.decode(ids)
@@ -399,7 +400,7 @@ Interpretation:
 Damit ist der qualitative Unterschied zwischen beiden Tokenizer-Arten klar sichtbar:
 
 * `SimpleTokenizerV1` mappt unbekannte Wörter auf `UNKNOWN`.
-* `R50kBpeTokenizer` zerlegt unbekannte Wörter in bekannte Subwords.
+* `GPT2Tokenizer` zerlegt unbekannte Wörter in bekannte Subwords.
 
 
 [IMPORTANT]
@@ -407,9 +408,9 @@ Damit ist der qualitative Unterschied zwischen beiden Tokenizer-Arten klar sicht
 Für den weiteren Verlauf des Buchs nutzen wir zwei klar getrennte Rollen:
 
 * `SimpleTokenizerV1` dient als didaktischer Einstieg, um Tokenisierung, Vokabularaufbau und `UNKNOWN`-Mapping transparent zu verstehen.
-* `R50kBpeTokenizer` ist der kanonische Ausführungspfad für die folgenden Kapitel, weil er das reale BPE-Encoding (`r50k_base`) über JTokkit bereitstellt.
+* `GPT2Tokenizer` ist der kanonische Ausführungspfad für die folgenden Kapitel, weil er das reale BPE-Encoding (`r50k_base`) über JTokkit bereitstellt.
 
-Ab den nachfolgenden Kapiteln referenzieren wir deshalb primär den `R50kBpeTokenizer`.
+Ab den nachfolgenden Kapiteln referenzieren wir deshalb primär den `GPT2Tokenizer`.
 Die Scratch-Variante bleibt als konzeptionelle Referenz erhalten, wird aber nicht parallel als zweiter Hauptpfad fortgeführt.
 ====
 

@@ -1,7 +1,7 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.library.R50kBpeTokenizer
-import ch.zuegi.ml.llm.kapitel2.library.TokenEmbeddingMultik
+import ch.zuegi.ml.llm.shared.tokenize.GPT2Tokenizer
+import ch.zuegi.ml.llm.shared.embedding.TokenEmbeddingMultik
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText
 import org.jetbrains.kotlinx.multik.ndarray.data.get
@@ -9,7 +9,7 @@ import org.jetbrains.kotlinx.multik.ndarray.operations.toList
 
 fun main() {
     val rawText = readVerdictText()
-    val tokenizer = R50kBpeTokenizer()
+    val tokenizer = GPT2Tokenizer()
     val tokenIds = tokenizer.encode(rawText)
 
     val loader = TextDataLoader(tokenIds, contextLength = 4, stride = 4, batchSize = 8)

@@ -17,6 +17,10 @@ class GPT2Tokenizer {
 
     fun decode(tokenIds: List<Int>): String = encoding.decode(tokenIds.toIntArray())
 
+    /**
+     * Encodiert Text ohne Special-Token-Parsing.
+     * Spezialsequenzen wie `<|endoftext|>` werden als normaler Text behandelt.
+     */
     fun encodeOrdinary(text: String): List<Int> = encoding.encodeOrdinary(text).boxed().toMutableList()
 }
 

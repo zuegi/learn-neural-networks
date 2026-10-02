@@ -1,7 +1,7 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
 import ch.zuegi.ml.llm.shared.embedding.PositionalEmbedding
-import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
+import ch.zuegi.ml.llm.shared.tokenize.SimpleTokenizerV1
 import ch.zuegi.ml.llm.shared.embedding.TokenEmbedding
 import ch.zuegi.ml.llm.shared.TextDataLoader
 import ch.zuegi.ml.llm.shared.readVerdictText

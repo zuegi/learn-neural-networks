@@ -95,7 +95,7 @@ Das Grundprinzip:
 * `backward(gradOutput)`: akkumuliert Gradienten für die im Forward genutzten Token-Zeilen
 * `step(learningRate)`: aktualisiert die Gewichte (`weights -= lr * grad`)
 
-Der wichtige Unterschied zu einer nicht-trainierbaren Lookup-Tabelle (link:{sourceDirKapitel2}/scratch/TokenEmbedding.kt[`TokenEmbedding`]) ist hier der Rückkanal:
+Der wichtige Unterschied zu einer nicht-trainierbaren Lookup-Tabelle (link:{sourceDirShared}/embedding/TokenEmbedding.kt[`TokenEmbedding`]) ist hier der Rückkanal:
 Die Embedding-Zeilen werden nicht nur gelesen, sondern über Gradienten aktiv angepasst.
 Damit lernen häufig gemeinsam auftretende Token über viele Schritte hinweg eine nützliche Geometrie im Vektorraum.
 

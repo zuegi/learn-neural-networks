@@ -1,6 +1,6 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.scratch.SimpleTokenizerV1
+import ch.zuegi.ml.llm.shared.tokenize.SimpleTokenizerV1
 
 fun main() {
     proveRoundtripWithKnownTokens()

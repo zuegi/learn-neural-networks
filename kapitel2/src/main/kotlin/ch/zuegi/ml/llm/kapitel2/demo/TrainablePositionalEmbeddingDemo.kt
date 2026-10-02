@@ -1,6 +1,6 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.library.TrainablePositionalEmbedding
+import ch.zuegi.ml.llm.shared.embedding.TrainablePositionalEmbedding
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ones
 import org.jetbrains.kotlinx.multik.ndarray.data.get

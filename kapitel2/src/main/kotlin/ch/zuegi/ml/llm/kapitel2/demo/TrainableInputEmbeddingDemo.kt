@@ -1,8 +1,8 @@
 package ch.zuegi.ml.llm.kapitel2.demo
 
-import ch.zuegi.ml.llm.kapitel2.library.TrainableInputEmbedding
-import ch.zuegi.ml.llm.kapitel2.library.TrainablePositionalEmbedding
-import ch.zuegi.ml.llm.kapitel2.library.TrainableTokenEmbedding
+import ch.zuegi.ml.llm.shared.embedding.TrainableInputEmbedding
+import ch.zuegi.ml.llm.shared.embedding.TrainablePositionalEmbedding
+import ch.zuegi.ml.llm.shared.embedding.TrainableTokenEmbedding
 import org.jetbrains.kotlinx.multik.api.mk
 import org.jetbrains.kotlinx.multik.api.ones
 import org.jetbrains.kotlinx.multik.ndarray.data.get

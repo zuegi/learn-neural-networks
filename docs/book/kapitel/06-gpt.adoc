@@ -72,25 +72,99 @@ rechte Spalte, damit ein Durchlauf auf einem Laptop in Minuten statt Tagen
 fertig wird. Die Formeln und Shape-Tabellen in diesem Kapitel gelten für jede
 Kombination dieser Hyperparameter identisch.
 
+==== Wie groß ist das: Millionen oder Milliarden Parameter?
+
+Ein *Parameter* ist eine einzelne lernbare Zahl, etwa ein Gewicht in einer
+Embedding-Tabelle oder ein Bias. Das Training verändert diese Zahlen; sie
+sind weder Token noch die Hyperparameter wie `numLayers`, die den Aufbau
+festlegen. In Modellnamen steht *B* für englisch _billion_, also *Milliarde*
+(nicht deutsche Billion): *8B* bedeutet ungefähr 8 Milliarden Parameter,
+*70B* ungefähr 70 Milliarden. Solche Namen sind gerundete Größenklassen,
+keine exakten Zählwerte.
+
+Unser tatsächlich trainiertes Modell hat dagegen nur *3 230 112 Parameter*,
+also rund *3,23 Millionen* oder *0,00323B*. Als konkreter Vergleich eignet sich
+*Apertus*: Die offiziellen Swiss-AI-Modellkarten nennen zwei Größen,
+https://huggingface.co/swiss-ai/Apertus-8B-2509[Apertus-8B-2509] und
+https://huggingface.co/swiss-ai/Apertus-70B-2509[Apertus-70B-2509].
+
+[cols="3,2,2", options="header"]
+|===
+| Modell / Konfiguration | Parameter (exakt) | Faktor gegenüber unserem Trainingsmodell
+
+| Unser Modell: `GPTModelTraining.kt` | 3 230 112 | 1
+| Unser Modell: `GPTConfig`-Defaults | 30 530 048 | ca. 9,5
+| Apertus-8B-2509 | 8 053 338 176 | ca. 2 493
+| Apertus-70B-2509 | 70 599 864 480 | ca. 21 857
+|===
+
+Die beiden eigenen Zählwerte ergeben sich aus Code und
+<<gpt-parameterzahl,Parameterformel>> (getrennte Token-Embedding- und
+Output-Matrizen, keine Attention-Biases). Die exakten Apertus-Werte stammen
+aus `safetensors.total` der öffentlichen Gewichtsmetadaten:
+https://huggingface.co/api/models/swiss-ai/Apertus-8B-2509[8B] und
+https://huggingface.co/api/models/swiss-ai/Apertus-70B-2509[70B]
+(abgerufen am 2. Oktober 2026).
+
+Schon die kleinere Apertus-Variante enthält damit rund *2 500-mal* so viele
+lernbare Zahlen wie unser Trainingsmodell; die größere rund *22 000-mal*.
+Das ist ein Größenvergleich, kein Qualitätsmaß: Architektur, Trainingsdaten
+und Training beeinflussen die Fähigkeiten ebenfalls. Unser Modell soll
+Mechanismen sichtbar machen, nicht mit einem vortrainierten LLM konkurrieren.
+
 === Überblick
 
-Ein GPT-Modell bekommt `T = contextLength` Token-IDs und liefert für jede
-Position `t` einen Vektor mit `V = vocabSize` Logits. Zeile `t` ist die
-(unnormalisierte) Vorhersage für das Token an Position `t + 1`.
+*Forward* bedeutet hier Vorwärtsrechnung: Ausgehend von den Eingabetokens
+fließen die Daten über Embeddings und Transformer-Blöcke bis zu den Logits.
+Im Code führt die Methode `forward()` in
+link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor`]
+diesen Ablauf aus; deshalb nennen wir ihn *Forward-Pfad*.
+
+Der Forward-Pfad beantwortet die Frage: *Welches Token könnte als Nächstes
+kommen?* Als Eingabe erhält das Modell ein Fenster mit genau
+`T = contextLength` Token-IDs. Jede ID benennt einen Eintrag im Vokabular,
+enthält aber noch keine Information darüber, an welcher Stelle im Fenster
+das Token steht.
+
+Deshalb entstehen zunächst zwei Vektoren pro Position: Das Token-Embedding
+beschreibt das Token, das Positions-Embedding seine Stelle im Fenster.
+Ihre elementweise Summe bildet `X0`: eine Matrix mit `T` Zeilen und
+`d = embeddingDim` Zahlen pro Zeile. Anschließend verarbeiten `L = numLayers`
+Transformer-Blöcke diese Darstellung. Die kausale Attention lässt jede
+Position nur auf sich selbst und frühere Positionen zugreifen; die Form
+`[T, d]` bleibt dabei erhalten.
+
+Nach der finalen LayerNorm projiziert `W_out` jede Zeile vom
+`d`-dimensionalen Darstellungsraum auf `V = vocabSize` Logits: einen Score
+für jedes mögliche nächste Token. So entsteht die Ausgabe `Z` mit Form
+`[T, V]`. Zeile `t` bewertet das Folgetoken an Position `t + 1`, nicht das
+Eingabetoken an Position `t`. Logits sind noch keine Wahrscheinlichkeiten;
+deren Berechnung und die Auswahl eines Tokens gehören zu <<Training>>.
 
 [mermaid]
 ....
 flowchart TD
-    ids["tokenIds [T]"] --> tok["Token-Embedding E_tok[id] → [T, d]"]
-    ids --> pos["Positions-Embedding E_pos[t] → [T, d]"]
-    tok --> add(("+"))
+    ids["Eingabe: T Token-IDs<br/>tokenIds [T]"] --> tok["Token-Embedding: E_tok[id_t]<br/>ein Vektor pro Token: [T, d]"]
+    positions["Positionen im Fenster<br/>t = 0 bis T - 1"] --> pos["Positions-Embedding: E_pos[t]<br/>ein Vektor pro Position: [T, d]"]
+    tok --> add["Elementweise Addition<br/>X0 [T, d]"]
     pos --> add
-    add --> x0["X0 [T, d]"]
-    x0 --> blocks["L × Pre-LN Transformer-Block [T, d]"]
-    blocks --> lnf["Finale LayerNorm [T, d]"]
-    lnf --> head["· W_out [d, V]"]
-    head --> logits["Logits Z [T, V]"]
+    subgraph transformerStack["L × Pre-LN-Transformer-Block in Folge (L = numLayers)"]
+        direction TB
+        blockInput["Eingang: X0 [T, d]"] --> blocks["Gleicher Aufbau, eigene Gewichte je Block<br/>kausale Attention + FFN + Residualverbindungen<br/>Details nur einmal zusammengefasst"]
+        blocks --> blockOutput["Ausgang nach L Blöcken: X_L [T, d]"]
+    end
+    add --> blockInput
+    blockOutput --> lnf["Finale LayerNorm<br/>normalisierte Darstellung [T, d]"]
+    lnf --> head["Vokabular-Projektion<br/>Multiplikation mit W_out [d, V]"]
+    head --> logits["Ausgabe: Logits Z [T, V]<br/>Zeile t: V Scores für das Folgetoken"]
 ....
+
+Die beiden Eingabezweige treffen sich also *vor* den Transformer-Blöcken:
+Positions-Embeddings werden über die Positionsindizes gelesen, nicht über
+die Token-IDs. Im Diagramm stehen `[T, d]` und `[T, V]` für die Formen der
+verarbeiteten Daten; `[d, V]` bezeichnet dagegen die Gewichtsmatrix `W_out`.
+Die folgenden Abschnitte verorten diesen Ablauf im Code, erklären seine
+Konfiguration und verfolgen dann jeden Verarbeitungsschritt einzeln.
 
 Notation im ganzen Kapitel: `T = contextLength`, `d = embeddingDim`,
 `V = vocabSize`, `h = numHeads`, `dK = d / h`, `H = hiddenDim`,
@@ -139,35 +213,83 @@ hier nicht vor.
 
 === Schritt 1: Eingabe aus Token- und Positions-Embeddings
 
-Das Modell besitzt zwei trainierbare Tabellen, beide vom Typ `EmbeddingMultikTensor`:
+Dieser Schritt erläutert den Anfang des Mermaid-Diagramms im Überblick:
+*Eingabe → Token-/Positions-Embeddings → elementweise Addition (`X0`)*.
+Aus Token-IDs und Positionsindizes entsteht die Eingabematrix für die
+Transformer-Blöcke.
 
-* `tokenEmbedding` = `E_tok` mit Form `[V, d]`,
-* `positionalEmbedding` = `E_pos` mit Form `[T, d]`,
+Der Ausschnitt zeigt den Lookup und die Addition *für eine einzelne
+Position `t`*. Erst das Stapeln aller Summen erzeugt die Sequenzmatrix:
 
-beide initialisiert mit `N(0, 0.01²)`.
-Token- und Positions-Embedding sind dieselbe Operation – Zeile `index` einer
-Tabelle lesen –, deshalb genügt eine Klasse:
+[mermaid]
+....
+flowchart TD
+    tokenId["Token-ID id_t"] --> tokenVector["Lookup in E_tok [V, d]<br/>Tokenvektor [d]"]
+    positionId["Positionsindex t"] --> positionVector["Lookup in E_pos [T, d]<br/>Positionsvektor [d]"]
+    tokenVector --> sum["Elementweise Summe<br/>X0[t] [d]"]
+    positionVector --> sum
+    sum --> stack["Summen für t = 0 bis T - 1<br/>zeilenweise stapeln"]
+    stack --> inputMatrix["Eingabe für die Blöcke<br/>X0 [T, d]"]
+....
+
+==== Embedding-Matrizen und einzelne Vektoren
+
+Eine *Embedding-Matrix* ist eine Gewichtstabelle, deren Zeilen einzelne
+Vektoren mit jeweils `d` Zahlen sind. Matrix und ausgewählter Vektor sind
+also nicht dasselbe:
+
+* *Token-Embedding:* `tokenEmbedding` = `E_tok`, Matrix mit Form `[V, d]`.
+  Der Lookup mit Token-ID `id_t` liefert den Vektor `E_tok[id_t]` mit Form `[d]`.
+* *Positions-Embedding:* `positionalEmbedding` = `E_pos`, Matrix mit Form
+  `[T, d]`. Der Lookup mit Positionsindex `t` liefert den Vektor `E_pos[t]`
+  mit Form `[d]`.
+
+Beide Gewichtsmatrizen sind trainierbar, mit `N(0, 0.01²)` initialisiert und vom Typ
+link:{sourceDirKapitel4}/library/autograd/EmbeddingMultikTensor.kt[`EmbeddingMultikTensor`].
+Token- und Positions-Embedding verwenden dieselbe Operation:
+`forward(index)` liest über `row(index, d)` die gewählte Zeile.
 
 [source,kotlin]
 ----
 include::{sourceDirKapitel4}/library/autograd/EmbeddingMultikTensor.kt[tag=embedding-forward]
 ----
- Für Token-IDs `id_0 … id_(T-1)` gilt
-zeilenweise
+==== Addition zur Eingabematrix
+
+An jeder Sequenzposition `t` liegen zwei Vektoren mit je `d` Zahlen vor:
+einer für das Token `id_t`, einer für seine Position. *Elementweise Addition*
+bedeutet, dass die jeweils erste Zahl mit der ersten, die zweite mit der
+zweiten usw. addiert wird. Der Summenvektor hat weiterhin `d` Zahlen und
+verbindet Token- und Positionsinformation; die Vektoren werden nicht
+aneinandergehängt. Für die Token-IDs `id_0 … id_(T-1)` gilt:
 
 [stem]
 ++++
 X_0[t] = E_{\text{tok}}[\mathrm{id}_t] + E_{\text{pos}}[t], \qquad X_0 \in \mathbb{R}^{T \times d}
 ++++
 
-Im Code liest `forward(index)` über `row(index, d)` eine Zeile aus der flachen Tabelle, `+` addiert
-elementweise, und `stackRows` baut daraus `[T, d]`. Alle drei Operationen haben
-einen `backwardStep`: Der Gradient einer Zeile von `X0` fließt genau in die
-benutzte Zeile von `E_tok` und `E_pos` zurück.
+In
+link:{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[`GPTModelMultikTensor.forward()`]
+bildet `+` diesen Summenvektor für jede Position. `stackRows` stapelt
+anschließend alle `T` Summen in Sequenzreihenfolge: Jede Summe wird eine
+Zeile der Eingabematrix `X0`. Ihre Form ist deshalb `[T, d]` – `T` Positionen
+mit jeweils `d` Zahlen. Diese Matrix geht in den ersten Transformer-Block.
 
-`forward` verlangt `tokenIds.size == contextLength`. Kürzere Sequenzen werden
-nicht aufgefüllt; die Generierung in <<Training>> schneidet deshalb immer die
-letzten `T` Token aus.
+==== Eingabelänge und Autograd
+
+`T` zählt die Token der eingegebenen Sequenz. In *dieser Implementierung*
+muss diese Länge jedoch genau dem konfigurierten `contextLength`
+entsprechen: `GPTModelMultikTensor.forward()` prüft
+`tokenIds.size == contextLength`. `T` ist damit nicht für alle Modelle gleich,
+aber für eine konkrete Modellkonfiguration festgelegt, nicht pro Aufruf
+frei wählbar. Kürzere Eingaben werden nicht aufgefüllt; bei der Generierung
+in <<Training>> werden jeweils die letzten `T` Token als Eingabefenster verwendet.
+
+Beim Lernen läuft die Ableitung in umgekehrter Richtung: Autograd reicht
+den Gradienten von `X0` durch `stackRows` an die einzelnen Summenvektoren
+zurück. Die Addition gibt ihn an *beide* beteiligten Vektoren weiter.
+Der Lookup leitet ihn anschließend in die ausgewählten Zeilen der
+Token- und Positions-Embedding-Matrizen. Wird dieselbe Token-Zeile mehrfach
+benutzt, sammeln sich dort die Beiträge aller betreffenden Positionen.
 
 NOTE: Das Modell nutzt nicht die Klassen
 `TrainableTokenEmbedding`/`TrainablePositionalEmbedding` aus <<Embeddings>>.
@@ -178,7 +300,23 @@ Checkpoints aus <<Training>> die Embeddings wie alle anderen Parameter behandeln
 
 === Schritt 2: Der Pre-LN-Transformer-Block
 
-Jeder der `L` Blöcke bildet `[T, d]` auf `[T, d]` ab:
+Die Eingabematrix `X0` enthält bisher nur Token- und Positionsinformation.
+Jetzt durchläuft sie die `L` Transformer-Blöcke aus dem Diagramm. Jeder Block
+nimmt eine Matrix `X` mit Form `[T, d]` entgegen und liefert eine neue
+Darstellung `Y` mit derselben Form. Die Anzahl der Positionen und die Breite
+der Vektoren bleiben gleich; verändert werden ihre Werte.
+
+Ein Block besteht aus zwei Verarbeitungsschritten:
+
+1. *Attention:* Die normalisierte Eingabe wird durch Multi-Head Attention
+   verarbeitet. Deren Ergebnis wird zur unveränderten Eingabe `X` addiert;
+   die Summe heißt `A`.
+2. *Feed-Forward-Netz:* `A` wird erneut normalisiert und durch ein FFN
+   verarbeitet. Dessen Ergebnis wird zu `A` addiert; so entsteht `Y`.
+
+*Pre-LN* bedeutet _Layer Normalization vor dem Teilnetz_: Die Normalisierung
+steht jeweils vor Attention bzw. FFN, nicht hinter der anschließenden Summe.
+Die beiden Schritte lassen sich so zusammenfassen:
 
 [stem]
 ++++
@@ -186,8 +324,27 @@ A = X + \mathrm{MHA}\big(\mathrm{LN}_1(X)\big), \qquad
 Y = A + \mathrm{FFN}\big(\mathrm{LN}_2(A)\big)
 ++++
 
-LayerNorm und FFN wirken zeilenweise, also auf jede Position einzeln
-(`perRow`). Nur die Attention mischt Information zwischen Positionen.
+`LN_1` und `LN_2` sind zwei eigene LayerNorm-Instanzen mit getrennten
+lernbaren Parametern. LayerNorm und FFN arbeiten auf jeder Zeile einzeln;
+nur die Attention überträgt Information zwischen Sequenzpositionen.
+Die Methode `perRow` setzt die zeilenweise Verarbeitung im Code um:
+
+Dieser Ausschnitt öffnet *einen* der `L` Blöcke. Die seitlichen Pfeile
+zeigen die Residualverbindungen: `X` bzw. `A` erreichen die Addition auch
+ohne den Weg durch das jeweilige Teilnetz.
+
+[mermaid]
+....
+flowchart TD
+    input["Blockeingabe X [T, d]"] --> norm1["LayerNorm LN_1<br/>[T, d]"]
+    norm1 --> attention["Kausale Multi-Head Attention<br/>[T, d]"]
+    attention --> add1["Elementweise Addition<br/>A [T, d]"]
+    input -->|"Residual: X"| add1
+    add1 --> norm2["LayerNorm LN_2<br/>[T, d]"]
+    norm2 --> ffn["FFN je Position<br/>d → H → d<br/>[T, d]"]
+    ffn --> add2["Elementweise Addition<br/>Blockausgabe Y [T, d]"]
+    add1 -->|"Residual: A"| add2
+....
 
 [source,kotlin]
 ----
@@ -196,7 +353,11 @@ include::{sourceDirKapitel4}/library/autograd/TransformerBlockMultikTensor.kt[ta
 
 ==== LayerNorm
 
-Für eine Zeile `x ∈ R^d`:
+LayerNorm bringt die Zahlen *innerhalb eines Positionsvektors* auf eine
+gemeinsame Skala. Dazu berechnet sie Mittelwert `μ` und Varianz `σ²` über die
+`d` Komponenten einer Zeile `x ∈ R^d` – nicht über die Token der Sequenz.
+Nach dem Zentrieren und Skalieren folgen eine lernbare Skalierung `γ` und
+Verschiebung `β`, jeweils komponentenweise:
 
 [stem]
 ++++
@@ -205,10 +366,18 @@ Für eine Zeile `x ∈ R^d`:
 \mathrm{LN}(x) = \gamma \odot \frac{x-\mu}{\sqrt{\sigma^2+\varepsilon}} + \beta
 ++++
 
-mit `ε = 1e-5`, `γ` initial `1`, `β` initial `0` (je `[d]`). Die Varianz nutzt
-`1/d`, nicht `1/(d-1)`. `LayerNormMultikTensor` delegiert an die kanonische
-Autograd-Operation `TensorMultik.layerNorm`, die auch den Rückwärtsschritt
-implementiert:
+`ε = 1e-5` verhindert eine Division durch null bei konstanten Zeilen.
+`γ` startet mit `1`, `β` mit `0`; beide haben Form `[d]` und werden über alle
+Positionen geteilt. `⊙` bezeichnet elementweise Multiplikation.
+Die Varianz wird mit `1/d` berechnet, nicht mit `1/(d-1)`.
+Vor Skalierung und Verschiebung ist die Varianz `σ² / (σ² + ε)`: Sie liegt
+nahe `1`, wenn `σ²` deutlich größer als `ε` ist, und ist bei konstanten
+Zeilen `0`. Nach der lernbaren Skalierung und Verschiebung müssen Mittelwert
+und Varianz nicht mehr `0` bzw. `1` sein.
+
+link:{sourceDirKapitel4}/library/autograd/LayerNormMultikTensor.kt[`LayerNormMultikTensor`]
+delegiert an `TensorMultik.layerNorm`. Diese Autograd-Operation berechnet
+nicht nur die Ausgabe, sondern auch die Gradienten für Eingabe, `γ` und `β`:
 
 [source,kotlin]
 ----
@@ -217,14 +386,40 @@ include::{sourceDirKapitel4}/library/autograd/LayerNormMultikTensor.kt[tag=layer
 
 ==== Multi-Head Attention
 
-`MHA` ist exakt die Klasse aus <<Attention>>; `causal` kommt aus `GPTConfig` (Default `true`, für ein Sprachmodell nötig):
-`Q, K, V = LN_1(X) · W_{Q,K,V}` mit `W ∈ R^{d × d}`, pro Kopf
-`softmax(mask(Q_h K_h^T / sqrt(dK))) V_h` mit `[T, T]`-Gewichten,
-Konkatenation zu `[T, d]` und Output-Projektion `W_O ∈ R^{d × d}`.
+Die Abkürzung `MHA` steht für die Multi-Head Attention aus <<Attention>>,
+implementiert in
+link:{sourceDirKapitel4}/library/autograd/MultiHeadAttentionMultikTensor.kt[`MultiHeadAttentionMultikTensor`].
+Sie gewichtet für jede Position das aktuelle und die vorherigen Token für
+ihre neue Darstellung. Mehrere Köpfe berechnen dafür eigene
+Attention-Gewichte parallel.
+
+Mit den deaktivierten Attention-Biases aus `GPTConfig` ist der Ablauf:
+
+1. Die normalisierte Eingabe wird auf Queries, Keys und Values projiziert:
+   `Q, K, V = LN_1(X) · W_{Q,K,V}`, mit Gewichten der Form `[d, d]`.
+   Hier bezeichnet `V` die *Value-Matrix*, nicht die Vokabulargröße.
+2. Jeder Kopf verarbeitet `dK` Komponenten. Die Ähnlichkeiten
+   `Q_h K_h^T / sqrt(dK)` bilden eine Score-Matrix `[T, T]`: eine Zeile pro
+   abfragender Position, eine Spalte pro betrachteter Position.
+3. Die kausale Maske sperrt zukünftige Positionen. Softmax wandelt die
+   verbleibenden Scores in Gewichte um; deren gewichtete Summe der Values
+   lautet `softmax(mask(Q_h K_h^T / sqrt(dK))) V_h`.
+4. Die Kopf-Ausgaben werden spaltenweise zu `[T, d]` zusammengefügt
+   (Konkatenation) und mit `W_O` der Form `[d, d]` projiziert.
+
+`causal` kommt aus `GPTConfig` und ist standardmäßig `true`.
+So kann eine Vorhersage für das nächste Token nicht dessen Eingabe bereits
+sehen. Beim Training kann zusätzlich Dropout auf den Softmax-Gewichten
+liegen; bei der normalen Vorwärtsrechnung ohne Training bleibt es aus.
 
 ==== Feed-Forward-Netz mit GELU
 
-Pro Zeile `x ∈ R^d`:
+Nach der Attention verarbeitet das Feed-Forward-Netz jede Position für sich.
+Dabei gelten dieselben Gewichte für alle Positionen. Die erste lineare
+Schicht erweitert einen Vektor `x ∈ R^d` auf `H = hiddenDim` Komponenten;
+standardmäßig ist `H = 4d`. GELU verändert diese Werte nichtlinear.
+Die zweite lineare Schicht führt sie zurück auf `d` Komponenten, damit
+das Ergebnis wieder zur Eingabe addiert werden kann:
 
 [stem]
 ++++
@@ -232,7 +427,12 @@ u = \mathrm{GELU}(W_1 x + b_1) \in \mathbb{R}^{H}, \qquad
 \mathrm{FFN}(x) = W_2 u + b_2 \in \mathbb{R}^{d}
 ++++
 
-mit `W1 ∈ R^{H × d}`, `W2 ∈ R^{d × H}` und der tanh-Näherung
+`W1` hat Form `[H, d]`, `W2` Form `[d, H]`; die Bias-Vektoren `b1` und `b2`
+haben Form `[H]` bzw. `[d]`. *GELU* (_Gaussian Error Linear Unit_) ist die
+Aktivierungsfunktion zwischen den beiden linearen Schichten. Ohne diese
+Nichtlinearität ließen sich beide Schichten zu einer einzigen linearen
+Abbildung mit Bias zusammenfassen. Der Code verwendet folgende tanh-Näherung
+(auf jede Komponente `z` einzeln angewendet):
 
 [stem]
 ++++
@@ -244,30 +444,50 @@ mit `W1 ∈ R^{H × d}`, `W2 ∈ R^{d × H}` und der tanh-Näherung
 include::{sourceDirKapitel4}/library/autograd/FeedForwardMultikTensor.kt[tag=feed-forward-forward]
 ----
 
-Achtung Konvention: Die FFN nutzt `matVecMul` mit Gewichten `[out, in]`
-(`W x`), die Attention dagegen `matMul` mit `[in, out]` (`X W`). Beide sind
-korrekt, nur die Speicherreihenfolge der Gewichte unterscheidet sich.
+Die Formeln folgen der jeweiligen Multiplikationskonvention im Code:
+Die FFN nutzt `matVecMul` mit Gewichten `[out, in]` (`W x`), die Attention
+`matMul` mit `[in, out]` (`X W`). Beide Varianten sind korrekt; Ein- und
+Ausgabedimension liegen nur auf unterschiedlichen Matrixachsen.
 
 ==== Residualverbindungen
 
-Die Summen `X + …` und `A + …` bilden den *Residual-Strom*. Weil die Ableitung
-einer Addition für beide Summanden `1` ist, erreicht der Gradient die
-Embeddings auch dann direkt, wenn die Teilpfade durch Attention oder FFN
-schwache Gradienten liefern. Pre-LN normalisiert nur die Eingabe der
-Teilpfade, nicht den Strom selbst.
+Eine *Residualverbindung* führt die Eingabe an einem Teilnetz vorbei und
+addiert sie zu dessen Ausgabe. Attention und FFN müssen daher nicht die
+ganze Darstellung neu aufbauen: Sie liefern einen Beitrag zur bisherigen
+Darstellung. Die fortlaufenden Summen `X + …` und `A + …` heißen
+*Residual-Strom*.
+
+Auch beim Rückwärtsrechnen gibt es damit einen direkten Weg durch die
+Addition: Ihr Gradient wird an beide Summanden weitergegeben. Zusätzlich
+zum Weg durch das Teilnetz bleibt so ein Weg zur Eingabe erhalten; das
+garantiert jedoch nicht, dass jeder Gradient groß oder ungleich null ist.
+Pre-LN normalisiert die Eingabe des Teilnetzes, nicht die unveränderte
+Eingabe auf diesem direkten Weg.
 
 === Schritt 3: Finale LayerNorm und Vokabular-Logits
 
-Nach dem letzten Block folgt eine eigene LayerNorm `LN_f` und die
-Output-Projektion `W_out ∈ R^{d × V}` (Init `N(0, 0.02²)`):
+Nach `L` Blöcken heißt die Darstellung `X_L` und hat weiterhin Form `[T, d]`.
+Im Diagramm folgen jetzt die finale LayerNorm und die Vokabular-Projektion.
+Die eigene LayerNorm `LN_f` normalisiert jede Zeile noch einmal.
+Anschließend multipliziert das Modell die Darstellung mit der lernbaren
+Gewichtsmatrix `W_out` der Form `[d, V]` (Init `N(0, 0.02²)`):
 
 [stem]
 ++++
 Z = \mathrm{LN}_f(X_L)\, W_{\text{out}} \in \mathbb{R}^{T \times V}
 ++++
 
-`W_out` ist ein eigener Parameter und *nicht* an `E_tok` gekoppelt (kein
-Weight-Tying).
+So wird aus jedem Vektor mit `d` Komponenten eine Zeile mit `V` Scores,
+je einem pro Vokabulareintrag. Ein höherer Logit bewertet ein Token relativ
+zu den anderen Kandidaten höher; eine Wahrscheinlichkeit ist er noch nicht.
+`forward()` endet mit diesen Logits. Loss und Token-Auswahl folgen in
+<<Training>>.
+
+`W_out` ist unabhängig von `E_tok`: Die Eingabe-Embeddings und die
+Ausgabe-Projektion teilen keine Gewichte. Eine solche Kopplung würde
+*Weight-Tying* heißen; unser Modell verwendet sie nicht.
+Der folgende Code zeigt den gesamten Forward-Pfad einschließlich seiner
+letzten beiden Operationen:
 
 [source,kotlin]
 ----
@@ -275,6 +495,12 @@ include::{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[tag=gpt-forward]
 ----
 
 === Tensorformen im Überblick
+
+Die Tabelle dient als Größenkontrolle für den gesamten Ablauf.
+Bei Datenmatrizen zählt die erste Achse die Positionen (`T`), die zweite die
+Komponenten pro Position. Attention-Scores sind die Ausnahme: Ihre beiden
+Achsen stehen für abfragende und betrachtete Positionen. Gewichtsmatrizen
+wie `W_out` beschreiben dagegen eine Abbildung zwischen Komponentenräumen.
 
 [cols="2,1,3", options="header"]
 |===
@@ -295,10 +521,18 @@ include::{sourceDirKapitel5}/model/GPTModelMultikTensor.kt[tag=gpt-forward]
 | Logits `Z` | `[T, V]` | Rückgabe von `forward`
 |===
 
+[[gpt-parameterzahl]]
 === Parameterzahl
 
+Gezählt werden einzelne lernbare Zahlen, nicht die Zahl der Tensorobjekte.
+Ein Gewicht der Form `[a, b]` trägt `a · b` Parameter bei, ein Bias oder
+LayerNorm-Vektor der Form `[a]` dagegen `a`.
 Mit den Defaults `useQkvBias = useOutputBias = false` enthält ein Block
-`2d` (LN1) `+ 4d²` (W_Q, W_K, W_V, W_O) `+ 2d` (LN2) `+ Hd + H + dH + d` (FFN):
+`2d` (LN1) `+ 4d²` (W_Q, W_K, W_V, W_O) `+ 2d` (LN2) `+ Hd + H + dH + d` (FFN).
+
+Zum Block kommen die beiden Embedding-Matrizen, die finale LayerNorm und
+die getrennte Ausgabe-Projektion hinzu. Alle `L` Blöcke besitzen eigene
+Parameter; deshalb wird der Blockanteil mit `L` multipliziert:
 
 [stem]
 ++++
@@ -308,38 +542,61 @@ P = \underbrace{Vd}_{E_\text{tok}} + \underbrace{Td}_{E_\text{pos}}
 
 Beispiel `GPTModelTraining.kt` (`V = 50257`, `T = 32`, `d = 32`, `L = 1`,
 `h = 2`, `H = 128`): `1 608 224 + 1 024 + 12 576 + 64 + 1 608 224 = 3 230 112`
-Parameter. Über 99 % davon stecken in `E_tok` und `W_out`; der
-Transformer-Block selbst ist winzig.
+Parameter. Über 99 % davon stecken in `E_tok` und `W_out`: Beide verbinden
+das große Vokabular mit den `d` Komponenten. Der einzelne kleine
+Transformer-Block trägt hier nur 12 576 Parameter bei.
+Sind Attention-Biases aktiviert, kommen pro Block `3d` für die
+Query-/Key-/Value-Biases bzw. `d` für den Output-Bias hinzu.
 
-Der Test prüft die Formel direkt gegen `parameters()`:
+`parameters()` liefert die trainierbaren Tensoren. Der Test summiert deren
+Elementzahlen und vergleicht sie mit der Formel:
 
 * link:{sourceDirKapitel5Test}/model/GPTModelMultikTensorTest.kt[`GPTModelMultikTensorTest`] –
   `Parameterzahl entspricht der Formel aus Kapitel 06`.
 
 === Kausalität auf Modellebene
 
-Mit `causal = true` (Default) ist jede Attention kausal; alle anderen Operationen wirken
-zeilenweise. Deshalb hängt `Z[t]` nur von `id_0 … id_t` ab. Ändert man das letzte Token,
-bleiben alle Logit-Zeilen `0 … T-2` bitgenau gleich. Genau das prüft der Test
-`kausale Maske verhindert Einfluss zukuenftiger Token auf fruehere Logits`.
-Diese Eigenschaft erlaubt es in <<Training>>, aus *einem* Fenster `T`
-Vorhersagen gleichzeitig zu trainieren.
+Eine Vorhersage darf keine Information aus ihrer Zukunft nutzen.
+Mit `causal = true` (Default) verhindert die Maske dies in jedem
+Attention-Block. Die übrigen Operationen verarbeiten Positionen unabhängig
+voneinander. Auch nach mehreren Blöcken hängt `Z[t]` deshalb nur von
+`id_0 … id_t` ab, nicht von späteren Token.
+
+Ein konkreter Test verändert nur das letzte Eingabetoken. Die früheren
+Logit-Zeilen `0 … T-2` müssen unverändert bleiben.
+`kausale Maske verhindert Einfluss zukuenftiger Token auf fruehere Logits`
+prüft dies ohne Trainings-Dropout mit einer Toleranz von `1e-12`.
+Dadurch lassen sich in <<Training>> alle `T` Vorhersagen eines Fensters
+gemeinsam berechnen: Jede Zeile erhält als Ziel ihr Folgetoken, ohne dass
+die Attention dieses Ziel bereits aus der Zukunft ablesen kann.
 
 === Tests
+
+Die Tests sichern verschiedene Ebenen ab: Formen und Parameterzahlen prüfen
+den Aufbau, Gradiententests den Rückwärtsweg, der Kausalitätstest den
+Informationsfluss. Reproduzierbare Seeds machen zufällige Initialisierungen
+für Vergleiche wiederholbar.
 
 [cols="3,4", options="header"]
 |===
 | Test | Prüft
 
 | `GPTModelMultikTensorTest`
-| Logit-Form `[T, V]`, Parameterzahl, Startloss, Gradient für jeden Parameter, Kausalität, Generierung
+| Logit-Form `[T, V]`, Parameterzahl, Startloss, Gradient für jeden Parametertensor, Kausalität, Generierung
 | `LayerNormMultikTensorTest`
-| Mittelwert 0 / Varianz 1, Finite-Differenzen-Gradienten für Eingabe, `γ`, `β`
+| Bei initialem `γ`/`β`: Mittelwert 0, Varianz näherungsweise 1; Finite-Differenzen-Gradienten für Eingabe, `γ`, `β`
 | `FeedForwardMultikTensorTest`
 | Ausgabelänge, Gradienten auf Parametern, Seed-Reproduzierbarkeit, `hiddenDim`-Default
 | `MultiHeadAttentionMultikTensorTest`
 | Attention-Vertrag aus <<Attention>>
 |===
+
+*Finite Differenzen* schätzen eine Ableitung, indem ein Wert geringfügig
+erhöht und verringert wird. Der Vergleich mit dem Autograd-Gradienten prüft,
+ob der implementierte Rückwärtsschritt dazu passt.
+Der Modelltest für Gradienten prüft mindestens einen von null verschiedenen
+Gradienteneintrag *pro Parametertensor*, nicht für jede einzelne Zahl.
+Ein kleiner Formtest sieht beispielsweise so aus:
 
 [source,kotlin]
 ----
@@ -348,39 +605,64 @@ include::{sourceDirKapitel5Test}/model/GPTModelMultikTensorTest.kt[tag=gpt-forwa
 
 === Design-Entscheidungen
 
-1. **Pre-LN statt Post-LN.** Die Normalisierung vor Attention/FFN hält den
-   Residual-Strom ungestört und ist ohne Warmup stabiler; deshalb ist auch
-   eine finale `LN_f` nötig.
+Die Umsetzung bevorzugt nachvollziehbare Operationen gegenüber einer
+optimierten Ausführung. Daraus ergeben sich folgende Entscheidungen:
+
+1. **Pre-LN statt Post-LN.** Attention und FFN erhalten normalisierte
+   Eingaben; die direkte Residualverbindung bleibt davon unberührt.
+   Nach dem letzten Block normalisiert eine eigene `LN_f` die Darstellung
+   vor der Vokabular-Projektion.
 2. **Zeilenweise Verarbeitung.** LayerNorm und FFN werden pro Position
-   aufgerufen und mit `stackRows` wieder zusammengesetzt. Das ist langsam,
-   aber jede Operation bleibt ein kleiner, testbarer Autograd-Knoten.
-3. **Kein Weight-Tying.** `W_out` ist unabhängig von `E_tok`; das verdoppelt
-   bei großem Vokabular fast die Parameterzahl, hält den Code aber einfach.
+   aufgerufen und mit `stackRows` wieder zusammengesetzt.
+   Das erleichtert den Abgleich mit den Vektorformeln; dafür entstehen viele
+   kleine Autograd-Operationen statt einer gebündelten Matrixverarbeitung.
+3. **Kein Weight-Tying.** `W_out` ist unabhängig von `E_tok`; das
+   ergibt hier zwei große Matrizen mit je `V · d` Parametern. Die Rollen
+   von Eingabe-Embedding und Ausgabe-Projektion bleiben im Code getrennt.
 4. **Dropout nur in der Attention.** Es gibt kein Embedding- oder
-   Residual-Dropout.
-5. **Feste Kontextlänge.** Kein Padding, keine Masken für variable Längen.
+   Residual-Dropout. Attention-Dropout ist nur bei `training = true` aktiv.
+5. **Feste Kontextlänge.** Jeder Aufruf muss genau `contextLength` Token
+   liefern. Es gibt kein Padding und keine Padding-Maske für kürzere
+   Eingaben; die kausale Maske bleibt davon unabhängig.
 
 === Stolpersteine & Learnings
 
-1. **Ein fehlender `backwardStep` legt das ganze Modell lahm.**
+Diese Punkte helfen, Fehler zu finden, obwohl die Ausgabeform zunächst
+korrekt aussehen kann:
+
+1. **Ein fehlender `backwardStep` unterbricht den Lernpfad.**
    `LayerNormMultikTensor` baute früher seinen Ausgabe-Tensor selbst, mit
    Kindern, aber ohne Rückwärtsschritt. Weil *jeder* Pfad zu den Logits durch
    `LN_f` läuft, erhielten Embeddings, Blöcke und alle `γ/β` den Gradienten 0 –
    gelernt hat nur `W_out`. Der alte Test prüfte nur „irgendein Parameter hat
-   einen Gradienten“. Jetzt prüft `GPTModelMultikTensorTest` *jeden*
-   Parameter, und `LayerNorm` nutzt die kanonische Operation mit
-   Finite-Differenzen-Test.
-2. **`dK` vs. `headDim`.** Im GPT-Modell sind sie wegen `dK = d / h`
-   verknüpft; in der Attention-Klasse allein nicht (<<Attention>>).
+   einen Gradienten“. Jetzt prüft `GPTModelMultikTensorTest` jeden
+   Parametertensor auf mindestens einen nichtnulligen Gradienteneintrag.
+   `LayerNorm` nutzt die kanonische Operation mit Finite-Differenzen-Test.
+2. **`dK` vs. `headDim`.** `dK` ist die Breite eines einzelnen Kopfes,
+   `headDim = h · dK` die Breite aller zusammengefügten Köpfe. Im GPT-Modell
+   erzwingt `dK = d / h` damit `headDim = d`; die Attention-Klasse allein
+   erlaubt auch andere Gesamtbreiten (<<Attention>>).
 3. **Gewichtskonventionen mischen.** `[in, out]` bei `matMul`, `[out, in]` bei
    `matVecMul` – falsch vertauscht passt die Größe bei quadratischen Matrizen
-   trotzdem, das Ergebnis aber nicht.
-4. **`tokenIds.size` muss exakt `contextLength` sein**, sonst wirft `forward`.
+   trotzdem. Ein reiner Formtest entdeckt diesen Fehler nicht; die Werte
+   entsprechen dann nicht mehr der beabsichtigten Abbildung.
+4. **Die Eingabelänge wird nicht automatisch angepasst.**
+   Falls `tokenIds.size != contextLength`, bricht `forward()` mit einer
+   fehlgeschlagenen `require`-Prüfung ab. Ein kurzes Startfenster muss also
+   vor dem Aufruf passend vorbereitet werden.
 
 === Zusammenfassung
 
-* Eingabe: `X0 = E_tok[ids] + E_pos`, Form `[T, d]`.
-* `L` Pre-LN-Blöcke: `A = X + MHA(LN1(X))`, `Y = A + FFN(LN2(A))`.
-* Ausgabe: `Z = LN_f(X_L) · W_out`, Form `[T, V]`; Zeile `t` sagt Token `t + 1` vorher.
-* Kausalität (`causal = true`) macht alle `T` Vorhersagen eines Fensters gleichzeitig trainierbar.
-* Weiter mit <<Training>>: Aus `Z` wird ein Loss, aus dem Loss werden Gradienten und Updates.
+* *Eingabe:* Pro Position werden Token- und Positionsvektor addiert.
+  Die gestapelten Summen bilden `X0 = E_tok[ids] + E_pos` mit Form `[T, d]`.
+* *Verarbeitung:* `L` Pre-LN-Blöcke verbinden Informationen über kausale
+  Attention und verarbeiten sie mit einem zeilenweisen FFN:
+  `A = X + MHA(LN1(X))`, `Y = A + FFN(LN2(A))`. Die Form bleibt `[T, d]`.
+* *Ausgabe:* `Z = LN_f(X_L) · W_out` hat Form `[T, V]`.
+  Zeile `t` bewertet die Kandidaten für Token `t + 1`, noch ohne Token-Auswahl.
+* *Kausalität:* Mit `causal = true` sieht jede Position nur ihren bisherigen
+  Kontext. Alle `T` Folgetoken-Vorhersagen lassen sich gemeinsam trainieren.
+
+Damit ist der Forward-Pfad vollständig. <<Training>> zeigt den nächsten
+Schritt: Logits mit Zieltoken vergleichen, daraus den Loss berechnen und
+über Gradienten die Modellparameter aktualisieren.

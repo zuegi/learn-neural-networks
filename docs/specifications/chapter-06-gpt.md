@@ -27,6 +27,9 @@ Nach dem Kapitel kann der Leser:
 0. erklären, wofür "GPT" steht (Generative Pre-trained Transformer) und welches
    konkrete Modell (Architektur-Vorbild GPT-2, tatsächliche Konfiguration in
    `GPTModelTraining.kt` vs. `GPTConfig`-Defaults) dieses Buch implementiert;
+   Parameter von Token und Hyperparametern unterscheiden, "B" als Milliarden
+   erklären und die eigenen Parameterzahlen mit Apertus-8B-2509 und
+   Apertus-70B-2509 vergleichen (gerundete Modellnamen vs. exakte Zählwerte);
 1. die Konfiguration `GPTConfig` und die abgeleitete Größe `dK = embeddingDim / numHeads` erklären;
 2. die Eingabematrix `X0 = E_tok[ids] + E_pos[0..T-1]` bilden;
 3. einen Pre-LN-Transformer-Block als `A = X + MHA(LN1(X))`, `Y = A + FFN(LN2(A))` formulieren;
@@ -83,7 +86,11 @@ P = V·d + T·d + L·(4d + 4d² + 2dH + H + d) + 2d + d·V
 
 ## Kapitelstruktur
 
-1. Überblick decoder-only GPT mit Mermaid-Diagramm.
+1. Überblick decoder-only GPT mit Mermaid-Diagramm: getrennte Eingaben für
+   Token-IDs und Positionsindizes, Embedding-Summe, kausale Blöcke mit
+   unveränderter Form `[T, d]`, finale LayerNorm und Vokabular-Projektion auf
+   `[T, V]`. Logit-Zeile `t` bewertet das Folgetoken; Scores sind noch keine
+   Wahrscheinlichkeiten. Datenformen und Form von `W_out` klar unterscheiden.
 2. `GPTConfig` und Validierungsregeln.
 3. Eingabe: Token- plus Positions-Embeddings.
 4. Pre-LN-Transformer-Block: LayerNorm, Attention-Verweis, FFN/GELU, Residuals.
@@ -127,6 +134,10 @@ Primärquellen sind die Kotlin-Dateien und Tests im Repository. Standardnotation
 (Pre-LN-Transformer, GELU-Näherung) wird eigenständig formuliert; es werden
 keine fremden Texte, Abbildungen oder Codeblöcke übernommen. Die Architektur
 orientiert sich laut `README.md` an Raschkas Buch; darauf wird nur verwiesen.
+Der didaktische Größenvergleich in der Einleitung verweist direkt auf die
+offiziellen Swiss-AI-Modellkarten und die öffentlichen Gewichtsmetadaten
+(`safetensors.total`) beider Apertus-Varianten; eigene Zählwerte folgen der
+obigen Formel und den beiden Konfigurationen im Kotlin-Code.
 
 ## Risiken und offene Punkte
 
